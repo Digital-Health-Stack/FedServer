@@ -6,6 +6,7 @@ class User(BaseModel):
     data_path: str
     password: str
 
+
 class Parameter(BaseModel):
     client_parameter: dict
     client_id: int
@@ -13,7 +14,7 @@ class Parameter(BaseModel):
 
 class FederatedLearningInfo(BaseModel):
     organisation_name: str
-    model_name : str
+    model_name: str
     model_info: dict
     dataset_info: dict
 

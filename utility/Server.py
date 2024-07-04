@@ -1,4 +1,6 @@
 import numpy as np
+
+
 class Server:
     def __init__(self,globals_parameters, max_round):
         self.globals_parameters = globals_parameters
