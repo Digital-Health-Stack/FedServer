@@ -18,4 +18,13 @@ class FederatedLearningInfo(BaseModel):
     model_info: dict
     dataset_info: dict
 
+class CreateFederatedLearning(BaseModel):
+    fed_info: FederatedLearningInfo
+    client_token: str
+
+class ClientFederatedResponse(BaseModel):
+    client_id: str
+    session_id: str
+    decision: int
+
     
