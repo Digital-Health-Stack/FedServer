@@ -1,15 +1,14 @@
-from fastapi import FastAPI,BackgroundTasks,Request,HTTPException
+from fastapi import FastAPI,BackgroundTasks,Request,HTTPException,WebSocket, WebSocketDisconnect
 from .Schema import FederatedLearningInfo, User, Parameter, CreateFederatedLearning, ClientFederatedResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
+from .utility.FederatedLearning import FederatedLearning
+from .utility.ConnectManager import ConnectionManager 
 from .utility.Server import Server
 import asyncio
 import json
-import uuid
-import random
-from typing import Dict,List
 import asyncio
-import numpy as np
+import uuid
 
 '''
     Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names
@@ -30,14 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# User array contains tokens for all users
 clients_data = []
-round = 1  #
-global_parameters = {} #
-max_round = 5 #
-server = Server(global_parameters, max_round)
-client_dict =  {}   #
-FedLearningInfo = {}
 
 # Utility Function
 def generate_unique_token():
@@ -53,92 +45,10 @@ def generate_user_token():
     user_token = generate_unique_token()
     # Check if token is already assigned to other federated session
     return user_token
-    
-class FederatedLearning:
-    def __init__(self):
-        self.federated_sessions = {}
-    
-    # Every session has a session_id also in future we can add a token and id
-    def create_federated_session(self,session_id: str,federated_info: FederatedLearningInfo) :
-        """
-        Creates a new federated learning session.
-
-        Parameters:
-        - session_id (str): Unique identifier for the session.
-        - federated_info (FederatedLearningInfo): Information about the federated learning session.
-        - clients_data (list): List of client user IDs participating in the session.
-
-        Initializes session with default values:
-        - admin: None (can be assigned later)
-        - curr_round: 1 (current round number)
-        - max_round: 5 (maximum number of rounds)
-        - interested_clients: Empty dictionary to store IDs of interested clients
-        - global_parameters: Empty list to store global parameters
-        - clients_status: Dictionary to track status of all clients. 
-                          Status values: 1 (not responded), 2 (accepted), 3 (rejected)
-        - training_status: 1 (server waiting for all clients), 2 (training starts)
-        """
-        self.federated_sessions[session_id] = {
-            "federated_info": federated_info,
-            # "active_clients": [],
-            # "client_sockets": {},
-            "admin": None,
-            "curr_round": 1,
-            "max_round": 5,
-            "interested_clients": {}, # contains ids of interested_clients
-            "global_parameters": [],    # Contains user id of interested students
-            "clients_status": {user_id: {"status": 1} for user_id in clients_data},   
-            "training_status": 1,            # 1 for server waiting for all clients and 2 for training starts
-            "client_parameters": {}
-        }
-    
-    def get_session(self, session_id: str) -> FederatedLearningInfo:
-        """
-        Retrieves information about a federated learning session.
-
-        Parameters:
-        - session_id (str): Unique identifier for the session.
-
-        Returns:
-        - FederatedLearningInfo: Information about the federated learning session.
-        """
-        return self.federated_sessions[session_id]["federated_info"]
-    
-    def clear_client_parameters(self,session_id: str):
-        self.federated_sessions[session_id]['client_parameters'] = {}
-
-    def aggregate_weights_fedAvg_Neural(self,session_id:str):
-        # Initialize a dictionary to hold the aggregated sums of vectors
-        # print("Received Parameters : " , type(self.client_parameters[1][1][0]),
-        #                                 len(self.client_parameters[1][1]),self.client_parameters[1][2][0][:5])
-
-        # Count the number of clients
-        num_interested_clients = len(self.federated_sessions[session_id]['client_parameters'])
-
-        client_parameters = self.federated_sessions[session_id]['client_parameters']
-        for client in client_parameters:
-            client_parameters[client] = [np.array(arr) for arr in client_parameters[client]]
-
-        aggregated_sums = []
-        for layer in range(len(client_parameters[1])):
-            layer_dimension = client_parameters[1][layer].shape
-
-            aggregated_layer = np.zeros(layer_dimension)
-
-            for client in client_parameters:
-                aggregated_layer += client_parameters[client][layer]
-            aggregated_layer /= num_interested_clients
-            aggregated_sums.append(aggregated_layer.tolist())
-
-        print("Aggregate Weights after FedAvg: ",type(aggregated_sums[0][1][0]),len(aggregated_sums[0][1]),aggregated_sums[2][0][:4])
-
-        self.federated_sessions[session_id]['globals_parameters'] = aggregated_sums
-        self.clear_client_parameters(session_id)
-    
-    
 
 # Usage
 federated_manager = FederatedLearning()
+connection_manager = ConnectionManager()
 
 async def wait_for_client_confirmation(session_id: str):
     session_data = federated_manager.federated_sessions[session_id]
@@ -160,6 +70,35 @@ async def wait_for_clients_training(session_id: str):
     print("All clients have sent parameters. Starting Aggregation...")
 
 
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket,client_id: str):
+    await connection_manager.connect(websocket,client_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+        
+    except WebSocketDisconnect:
+        connection_manager.disconnect(client_id)
+        print(f"Client {client_id} disconnected")
+
+
+
+async def send_model_configuration(client_id: str,session_id: str):
+    model_data = federated_manager.federated_sessions[session_id]
+    model_config = model_data['federated_info']
+    message = json.dumps(model_config)
+    await connection_manager.send_message(message,client_id)
+
+async def wait_for_all_clients_to_confirm(session_id: str):
+    # Implement the logic to wait for all clients to confirm
+    pass
+async def send_model_configs_and_wait_for_confirmation(session_id: str):
+    interested_clients = federated_manager.federated_sessions[session_id]['interested_clients']
+    for client in interested_clients:
+        await send_model_configuration(client,session_id)
+    
+    # Wait for all clients to confirm they have started their background process
+    await wait_for_all_clients_to_confirm(session_id)
 
 async def start_federated_learning(session_id: str):
     """
@@ -176,12 +115,18 @@ async def start_federated_learning(session_id: str):
 
     """
     session_data = federated_manager.federated_sessions[session_id] # session_data points to same object variables in Python that point to mutable objects (like dictionaries) actually reference the same underlying object in memory.
+    
+    # Wait for client confirmation of interest
     await wait_for_client_confirmation(session_id)
 
+    # Send Model Configurations to interested clients and wait for their confirmation
+    await send_model_configs_and_wait_for_confirmation(session_id)
+
     # Send a signal to client using websocket so that client 
-    # can get parameters of the model and he can start a background response
+    # can get parameters of the model and client can start a background response
     # Do a handshake whether client has model to train and he started a background 
     # process using a websocket
+
     for i in range(0, session_data['max_round']):
         print("-" * 50)
         server.curr_round = i
@@ -219,7 +164,7 @@ def signIn(request: User):
 @app.post("/create-federated-session")
 def create_federated_session(federated_details: CreateFederatedLearning,request: Request,background_tasks: BackgroundTasks):
     session_token = generate_session_token()
-    federated_manager.create_federated_session(session_token,federated_details.fed_info)
+    federated_manager.create_federated_session(session_token,federated_details.fed_info,clients_data)
     
     add_interested_user_to_session(federated_details.client_token,session_token,request,admin=True)
     background_tasks.add_task(start_federated_learning)
@@ -262,9 +207,8 @@ def submit_client_federated_response(client_response: ClientFederatedResponse,re
         client_id = client_response.client_id
         decision = client_response.decision
         if decision==1:
-
             federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 2
-            add_interested_user_to_session(client_id,client_id,request,admin=False)
+            add_interested_user_to_session(client_id,session_id,request,admin=False)
         else:
                federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 3
         return {'message': 'Client Decision has been saved'}
