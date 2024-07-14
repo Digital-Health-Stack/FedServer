@@ -31,6 +31,10 @@ app.add_middleware(
 
 clients_data = []
 
+class MessageType:
+    MODEL_PARAMETERS = "model_parameters"
+    START_BACKGROUND_PROCESS = "start_background_process"
+
 # Utility Function
 def generate_unique_token():
     token = str(uuid.uuid4())
@@ -56,8 +60,10 @@ async def wait_for_client_confirmation(session_id: str):
 
     while not all_ready_for_training:
         await asyncio.sleep(5)
-        all_ready_for_training = all(client['status']!=1 for client in session_data['client_status'].values())
+        all_ready_for_training = all(client['status']!=1 for client in session_data['clients_status'].values())
         print("Waiting for client confirmations....Stage 1")
+    
+    print("All Clients have taken their decision.")
 
 async def wait_for_clients_training(session_id: str):
     session_data = federated_manager.federated_sessions[session_id]
@@ -69,29 +75,25 @@ async def wait_for_clients_training(session_id: str):
     
     print("All clients have sent parameters. Starting Aggregation...")
 
-
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket,client_id: str):
-    await connection_manager.connect(websocket,client_id)
-    try:
-        while True:
-            data = await websocket.receive_text()
-        
-    except WebSocketDisconnect:
-        connection_manager.disconnect(client_id)
-        print(f"Client {client_id} disconnected")
-
-
+async def send_message_with_type(client_id: str,message_type: str, data: dict):
+    message = {
+        "type": message_type,
+        "data": data
+    }
+    json_message = json.dumps(message)
+    print(json_message)
+    await connection_manager.send_message(json_message,client_id)
 
 async def send_model_configuration(client_id: str,session_id: str):
     model_data = federated_manager.federated_sessions[session_id]
     model_config = model_data['federated_info']
-    message = json.dumps(model_config)
-    await connection_manager.send_message(message,client_id)
+    await send_message_with_type(client_id,MessageType.START_BACKGROUND_PROCESS,model_config) 
 
 async def wait_for_all_clients_to_confirm(session_id: str):
-    # Implement the logic to wait for all clients to confirm
+    # Implement the logic to wait for all clients to confirm that they have started message
+    # 
     pass
+
 async def send_model_configs_and_wait_for_confirmation(session_id: str):
     interested_clients = federated_manager.federated_sessions[session_id]['interested_clients']
     for client in interested_clients:
@@ -114,28 +116,32 @@ async def start_federated_learning(session_id: str):
     4. Aggregating weights using federated averaging with neural networks.
 
     """
-    session_data = federated_manager.federated_sessions[session_id] # session_data points to same object variables in Python that point to mutable objects (like dictionaries) actually reference the same underlying object in memory.
+    try:
+
+        session_data = federated_manager.federated_sessions[session_id] # session_data points to same object variables in Python that point to mutable objects (like dictionaries) actually reference the same underlying object in memory.
     
-    # Wait for client confirmation of interest
-    await wait_for_client_confirmation(session_id)
+        # Wait for client confirmation of interest
+        await wait_for_client_confirmation(session_id)
 
-    # Send Model Configurations to interested clients and wait for their confirmation
-    await send_model_configs_and_wait_for_confirmation(session_id)
+        # Send Model Configurations to interested clients and wait for their confirmation
+        await send_model_configs_and_wait_for_confirmation(session_id)
 
-    # Send a signal to client using websocket so that client 
-    # can get parameters of the model and client can start a background response
-    # Do a handshake whether client has model to train and he started a background 
-    # process using a websocket
+        # Send a signal to client using websocket so that client 
+        # can get parameters of the model and client can start a background response
+        # Do a handshake whether client has model to train and he started a background 
+        # process using a websocket
 
-    for i in range(0, session_data['max_round']):
-        print("-" * 50)
-        server.curr_round = i
-        print(f"Round {i+1}")
-        print("-" * 50)
+        # for i in range(0, session_data['max_round']):
+        #     print("-" * 50)
+        #     server.curr_round = i
+        #     print(f"Round {i+1}")
+        #     print("-" * 50)
         
-        await wait_for_clients_training(session_id)
-        # Aggregate
-        federated_manager.aggregate_weights_fedAvg_Neural(session_id)
+        #     await wait_for_clients_training(session_id)
+        #     # Aggregate
+        #     federated_manager.aggregate_weights_fedAvg_Neural(session_id)
+    except Exception as e:
+        print(f"Error in Starting Background Process: {e}")
 
 
 def add_interested_user_to_session(client_token,session_token: str, request: Request,admin):
@@ -154,6 +160,18 @@ def add_interested_user_to_session(client_token,session_token: str, request: Req
             federated_manager.federated_sessions[session_token]["admin"] = client_token
 
 
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket,client_id: str):
+    await connection_manager.connect(websocket,client_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+        
+    except WebSocketDisconnect:
+        connection_manager.disconnect(client_id)
+        print(f"Client {client_id} disconnected")
+
 @app.post('/sign-in')
 def signIn(request: User):
     user_token = generate_user_token()
@@ -167,7 +185,7 @@ def create_federated_session(federated_details: CreateFederatedLearning,request:
     federated_manager.create_federated_session(session_token,federated_details.fed_info,clients_data)
     
     add_interested_user_to_session(federated_details.client_token,session_token,request,admin=True)
-    background_tasks.add_task(start_federated_learning)
+    background_tasks.add_task(start_federated_learning,session_token)
     return {"message": "Federated Session has been created!"}
 
 @app.get('/get-all-federated-sessions')

@@ -3,8 +3,6 @@ from backend.Schema import FederatedLearningInfo, User
 from backend.utility.Server import Server
 import numpy as np
 
-
-
 class FederatedLearning:
     def __init__(self):
         self.federated_sessions = {}
