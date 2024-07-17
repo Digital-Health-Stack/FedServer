@@ -5,9 +5,9 @@ import uuid
 from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from .schema import User, CreateFederatedLearning, ClientFederatedResponse
-from .utility.ConnectManager import ConnectionManager
-from .utility.FederatedLearning import FederatedLearning
+from schema import User, CreateFederatedLearning, ClientFederatedResponse
+from utility.ConnectManager import ConnectionManager
+from utility.FederatedLearning import FederatedLearning
 
 '''
     Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names

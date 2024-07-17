@@ -2,12 +2,12 @@ import numpy as np
 
 
 class Server:
-    def __init__(self,globals_parameters, max_round):
+    def __init__(self, globals_parameters, max_round):
         self.globals_parameters = globals_parameters
         self.client_parameters = {}
         self.curr_round = 1
         self.max_round = 5
-    
+
     def clear_client_parameters(self):
         self.client_parameters = {}
 
@@ -34,7 +34,8 @@ class Server:
             aggregated_layer /= num_clients
             aggregated_sums.append(aggregated_layer.tolist())
 
-        print("Aggregate Weights after FedAvg: ",type(aggregated_sums[0][1][0]),len(aggregated_sums[0][1]),aggregated_sums[2][0][:4])
+        print("Aggregate Weights after FedAvg: ", type(aggregated_sums[0][1][0]), len(aggregated_sums[0][1]),
+              aggregated_sums[2][0][:4])
 
         self.globals_parameters = aggregated_sums
         self.clear_client_parameters()

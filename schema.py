@@ -14,9 +14,9 @@ class Parameter(BaseModel):
 
 class FederatedLearningInfo(BaseModel):
     organisation_name: str
+    dataset_info: dict
     model_name: str
     model_info: dict
-    dataset_info: dict
 
 
 class CreateFederatedLearning(BaseModel):
