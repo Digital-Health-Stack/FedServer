@@ -22,9 +22,15 @@ class CreateFederatedLearning(BaseModel):
     fed_info: FederatedLearningInfo
     client_token: str
 
+
 class ClientFederatedResponse(BaseModel):
     client_id: str
     session_id: str
     decision: int
+
+class ClientReceiveParameters(BaseModel):
+    session_id: str
+    client_id: str
+    client_parameter: dict
 
     

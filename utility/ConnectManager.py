@@ -7,6 +7,7 @@ class ConnectionManager:
     
     async def connect(self,websocket: WebSocket,client_id: str):
         await websocket.accept()
+        print('Client connected with id:',client_id)
         self.active_connections[client_id] = websocket
     
     def disconnect(self,client_id: str):

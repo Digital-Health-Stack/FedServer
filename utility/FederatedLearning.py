@@ -33,7 +33,7 @@ class FederatedLearning:
             "curr_round": 1,
             "max_round": 5,
             "interested_clients": {}, # contains ids of interested_clients
-            "global_parameters": [],    # Contains user id of interested students
+            "global_parameters": [],   # contains global parameters
             "clients_status": {user_id: {"status": 1} for user_id in clients_data},   
             "training_status": 1,            # 1 for server waiting for all clients and 2 for training starts
             "client_parameters": {}
