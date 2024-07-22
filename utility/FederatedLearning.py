@@ -54,30 +54,98 @@ class FederatedLearning:
     def clear_client_parameters(self,session_id: str):
         self.federated_sessions[session_id]['client_parameters'] = {}
 
-    def aggregate_weights_fedAvg_Neural(self,session_id:str):
-        # Initialize a dictionary to hold the aggregated sums of vectors
-        # print("Received Parameters : " , type(self.client_parameters[1][1][0]),
-        #                                 len(self.client_parameters[1][1]),self.client_parameters[1][2][0][:5])
+    import numpy as np
+
+    def aggregate_weights_fedAvg_Neural(self, session_id: str):
+        # Retrieve client parameters
+        client_parameters = self.federated_sessions[session_id]['client_parameters']
 
         # Count the number of clients
-        num_interested_clients = len(self.federated_sessions[session_id]['client_parameters'])
+        num_interested_clients = len(client_parameters)
 
-        client_parameters = self.federated_sessions[session_id]['client_parameters']
+        # Initialize a dictionary to hold the aggregated sums of parameters
+        aggregated_sums = {}
+
+        def initialize_aggregated_sums(param, aggregated):
+            if isinstance(param, list):
+                return [initialize_aggregated_sums(sub_param, aggregated) for sub_param in param]
+            else:
+                return np.zeros_like(param)
+
+        def sum_parameters(aggregated, param):
+            if isinstance(param, list):
+                for i in range(len(param)):
+                    aggregated[i] = sum_parameters(aggregated[i], param[i])
+                return aggregated
+            else:
+                return aggregated + np.array(param)
+
+        def average_parameters(aggregated, count):
+            if isinstance(aggregated, list):
+                return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
+            else:
+                return (aggregated / count).tolist()
+
+        # Iterate over each client's parameters
         for client in client_parameters:
-            client_parameters[client] = [np.array(arr) for arr in client_parameters[client]]
+            client_param = client_parameters[client]
 
-        aggregated_sums = []
-        for layer in range(len(client_parameters[1])):
-            layer_dimension = client_parameters[1][layer].shape
+            # Initialize aggregated_sums with the same structure as the first client's parameters
+            if not aggregated_sums:
+                for key in client_param:
+                    aggregated_sums[key] = initialize_aggregated_sums(client_param[key], aggregated_sums)
 
-            aggregated_layer = np.zeros(layer_dimension)
+            # Sum the parameters for each key
+            for key in client_param:
+                aggregated_sums[key] = sum_parameters(aggregated_sums[key], client_param[key])
 
-            for client in client_parameters:
-                aggregated_layer += client_parameters[client][layer]
-            aggregated_layer /= num_interested_clients
-            aggregated_sums.append(aggregated_layer.tolist())
+        # Average the aggregated sums
+        for key in aggregated_sums:
+            aggregated_sums[key] = average_parameters(aggregated_sums[key], num_interested_clients)
 
-        print("Aggregate Weights after FedAvg: ",type(aggregated_sums[0][1][0]),len(aggregated_sums[0][1]),aggregated_sums[2][0][:4])
+        print("Aggregated Parameters after FedAvg:",
+              {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
 
-        self.federated_sessions[session_id]['globals_parameters'] = aggregated_sums
+        # Save the aggregated parameters back to the session
+        self.federated_sessions[session_id]['global_parameters'] = aggregated_sums
         self.clear_client_parameters(session_id)
+
+
+        """ leave this fucntion as of now..may be of use later"""
+        def temp_aggregate_weights_fedAvg_Neural(self, session_id: str):
+            # Retrieve client parameters
+            client_parameters = self.federated_sessions[session_id]['client_parameters']
+
+            # Count the number of clients
+            num_interested_clients = len(client_parameters)
+
+            # Initialize a dictionary to hold the aggregated sums of parameters
+            aggregated_sums = {}
+
+            # Iterate over each client's parameters
+            for client in client_parameters:
+                client_param = client_parameters[client]
+
+                # Initialize aggregated_sums with the same structure as the first client's parameters
+                if not aggregated_sums:
+                    for key in client_param:
+                        for i in range(len(client_param[key])):
+                            aggregated_sums[key].append(np.zeros_like(np.array(client_param[key][i])))
+
+                # Sum the parameters for each key
+                for key in client_param:
+                    for i in range(len(client_param[key])):
+                        aggregated_sums[key][i] += np.array(client_param[key][i])
+
+            # Average the aggregated sums
+            for key in aggregated_sums:
+                for i in range(len(aggregated_sums[key])):
+                    aggregated_sums[key][i] /= num_interested_clients
+                    aggregated_sums[key][i] = aggregated_sums[key][i].tolist()  # Convert back to list
+
+            print("Aggregated Parameters after FedAvg:",
+                  {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
+
+            # Save the aggregated parameters back to the session
+            self.federated_sessions[session_id]['global_parameters'] = aggregated_sums
+            self.clear_client_parameters(session_id)
