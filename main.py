@@ -1,10 +1,10 @@
 from fastapi import FastAPI,BackgroundTasks,Request,HTTPException,WebSocket, WebSocketDisconnect
-from .Schema import FederatedLearningInfo, User, Parameter, CreateFederatedLearning, ClientFederatedResponse, ClientReceiveParameters
+from schema import FederatedLearningInfo, User, Parameter, CreateFederatedLearning, ClientFederatedResponse, ClientReceiveParameters
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
-from .utility.FederatedLearning import FederatedLearning
-from .utility.ConnectManager import ConnectionManager 
-from .utility.Server import Server
+from utility.FederatedLearning import FederatedLearning
+from utility.ConnectManager import ConnectionManager
+from utility.Server import Server
 import asyncio
 import json
 import asyncio

@@ -1,6 +1,6 @@
 from typing import Dict, List
-from backend.Schema import FederatedLearningInfo, User
-from backend.utility.Server import Server
+from schema import FederatedLearningInfo, User
+from utility.Server import Server
 import numpy as np
 
 class FederatedLearning:
