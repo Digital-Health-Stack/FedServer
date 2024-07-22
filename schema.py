@@ -14,10 +14,9 @@ class Parameter(BaseModel):
 
 class FederatedLearningInfo(BaseModel):
     organisation_name: str
-    dataset_info: dict
     model_name: str
     model_info: dict
-
+    dataset_info: dict
 
 class CreateFederatedLearning(BaseModel):
     fed_info: FederatedLearningInfo
@@ -28,3 +27,10 @@ class ClientFederatedResponse(BaseModel):
     client_id: str
     session_id: str
     decision: int
+
+class ClientReceiveParameters(BaseModel):
+    session_id: str
+    client_id: str
+    client_parameter: dict
+
+    

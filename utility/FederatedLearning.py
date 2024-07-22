@@ -1,13 +1,14 @@
+from typing import Dict, List
+from backend.Schema import FederatedLearningInfo, User
+from backend.utility.Server import Server
 import numpy as np
-from schema import FederatedLearningInfo
-
 
 class FederatedLearning:
     def __init__(self):
         self.federated_sessions = {}
-
+    
     # Every session has a session_id also in future we can add a token and id
-    def create_federated_session(self, session_id: str, federated_info: FederatedLearningInfo, clients_data):
+    def create_federated_session(self,session_id: str,federated_info: FederatedLearningInfo,clients_data) :
         """
         Creates a new federated learning session.
 
@@ -31,13 +32,13 @@ class FederatedLearning:
             "admin": None,
             "curr_round": 1,
             "max_round": 5,
-            "interested_clients": {},  # contains ids of interested_clients
-            "global_parameters": [],  # Contains user id of interested students
-            "clients_status": {user_id: {"status": 1} for user_id in clients_data},
-            "training_status": 1,  # 1 for server waiting for all clients and 2 for training starts
+            "interested_clients": {}, # contains ids of interested_clients
+            "global_parameters": [],   # contains global parameters
+            "clients_status": {user_id: {"status": 1} for user_id in clients_data},   
+            "training_status": 1,            # 1 for server waiting for all clients and 2 for training starts
             "client_parameters": {}
         }
-
+    
     def get_session(self, session_id: str) -> FederatedLearningInfo:
         """
         Retrieves information about a federated learning session.
@@ -49,11 +50,11 @@ class FederatedLearning:
         - FederatedLearningInfo: Information about the federated learning session.
         """
         return self.federated_sessions[session_id]["federated_info"]
-
-    def clear_client_parameters(self, session_id: str):
+    
+    def clear_client_parameters(self,session_id: str):
         self.federated_sessions[session_id]['client_parameters'] = {}
 
-    def aggregate_weights_fedAvg_Neural(self, session_id: str):
+    def aggregate_weights_fedAvg_Neural(self,session_id:str):
         # Initialize a dictionary to hold the aggregated sums of vectors
         # print("Received Parameters : " , type(self.client_parameters[1][1][0]),
         #                                 len(self.client_parameters[1][1]),self.client_parameters[1][2][0][:5])
@@ -76,7 +77,7 @@ class FederatedLearning:
             aggregated_layer /= num_interested_clients
             aggregated_sums.append(aggregated_layer.tolist())
 
-        print("Shape of Aggregate Weights after FedAvg: ", np.array(aggregated_sums).shape)
+        print("Aggregate Weights after FedAvg: ",type(aggregated_sums[0][1][0]),len(aggregated_sums[0][1]),aggregated_sums[2][0][:4])
 
         self.federated_sessions[session_id]['globals_parameters'] = aggregated_sums
         self.clear_client_parameters(session_id)
