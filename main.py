@@ -9,6 +9,7 @@ import asyncio
 import json
 import asyncio
 import uuid
+from utility.test import Test
 
 '''
     Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names
@@ -158,6 +159,11 @@ async def start_federated_learning(session_id: str):
         # Send Model Configurations to interested clients and wait for their confirmation
         await send_model_configs_and_wait_for_confirmation(session_id)
 
+        #############################################
+        # code used to get instance of testing unit
+        test = Test(session_id, session_data, metrics=["mse", "mae"])
+        #############################################
+
         # Start Training
         for i in range(1, session_data['max_round']+1):
             print("-" * 50)
@@ -169,24 +175,34 @@ async def start_federated_learning(session_id: str):
             # Aggregate
             print("Done upto just before aggregation...")
             federated_manager.aggregate_weights_fedAvg_Neural(session_id)
+
+            ################## Testing start
+            test.start_test(federated_manager.federated_sessions[session_id]['global_parameters'])
+            ################## Testing end
+
+        # Save test results for future reference
+        """ Yashvir: here you can delete the data of this session from the federated_sessions dictionary after saving the results 
+            , saved results contains session_data and test_results across all rounds
+        """
+        test.save_test_results()
     except Exception as e:
         print(f"Error in Starting Background Process: {e}")
 
 
 def add_interested_user_to_session(client_token,session_token: str, request: Request,admin):
-        """
-        Generates a token for user which will be used to validate the sender, and the token will be bound to a spefic session.
-        :param name: This will be authentication token for a user in future when establish authentication each user has a unique user_id
-        :param admin: This user is admin of this request or not
-        :param request: 
-        :return:
-        """ 
-        federated_manager.federated_sessions[session_token]['clients_status'][client_token]['status'] = 2
-        federated_manager.federated_sessions[session_token]["interested_clients"][client_token] = {
-            "ip": request.client.host,
-        }
-        if admin:
-            federated_manager.federated_sessions[session_token]["admin"] = client_token
+    """
+    Generates a token for user which will be used to validate the sender, and the token will be bound to a spefic session.
+    :param name: This will be authentication token for a user in future when establish authentication each user has a unique user_id
+    :param admin: This user is admin of this request or not
+    :param request:
+    :return:
+    """
+    federated_manager.federated_sessions[session_token]['clients_status'][client_token]['status'] = 2
+    federated_manager.federated_sessions[session_token]["interested_clients"][client_token] = {
+        "ip": request.client.host,
+    }
+    if admin:
+        federated_manager.federated_sessions[session_token]["admin"] = client_token
 
 
 
