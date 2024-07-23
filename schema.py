@@ -18,6 +18,10 @@ class FederatedLearningInfo(BaseModel):
     model_info: dict
     dataset_info: dict
 
+    # to resolve warning of protected namespace model_ for model_name and model_info
+    class Config:
+        protected_namespaces = ()
+
 class CreateFederatedLearning(BaseModel):
     fed_info: FederatedLearningInfo
     client_token: str
