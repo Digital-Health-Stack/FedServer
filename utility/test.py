@@ -1,67 +1,58 @@
 import numpy as np
 import os
-from .ModelBuilder import model_instance_from_config
 import json
+from .ModelBuilder import model_instance_from_config
+from .metrics import calculate_metrics
 
 
-class Test():
-    def __init__(self, session_id, session_data, metrics=None):
+class Test:
+    def __init__(self, session_id, session_data):
         self.model = None
         self.session_id = session_id
-        self.metrics = metrics
         self.session_data = session_data
-        self.model_config = session_data["federated_info"].dict()  #dict to build the model
+        self.model_config = session_data["federated_info"].dict()  # convert to dict to build the model
+        self.metrics = self.model_config["model_info"]["test_metrics"] # metrics to calculate in test
         self.round = 0
         self.test_results = {}
         self.build_model()
 
     def build_model(self):
-        """ Build the model for testing """
+        """Build the model for testing"""
         self.model = model_instance_from_config(self.model_config)
         print("Testing model built successfully")
 
     def start_test(self, updated_weights):
-        """ Test the model with the updated weights """
+        """Test the model with the updated weights"""
 
-        if self.model is None or self.metrics is None:
-            raise ValueError("Model not built yet or None metrics passed")
+        if self.model is None:
+            raise ValueError("Model not built yet...")
         print("Testing model...")
 
         self.model.update_parameters(updated_weights)
         # read data from file
         try:
-            X_test = np.load(os.path.join("global_test_data", "X_test.npy"))
-            Y_test = np.load(os.path.join("global_test_data", "Y_test.npy"))
+            data_dir = os.path.join("utility", "global_test_data")
+            X_test = np.load(os.path.join(data_dir, "X_test.npy"))
+            Y_test = np.load(os.path.join(data_dir, "Y_test.npy"))
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
 
         Y_pred = self.model.predict(X_test)
 
-        round_results = {}
-        for metric in self.metrics:
-            if metric == "accuracy":
-                accuracy = np.mean(Y_pred == Y_test)
-                round_results["accuracy"] = accuracy
-            elif metric == "mse":
-                mse = np.mean((Y_pred - Y_test) ** 2)
-                round_results["mse"] = mse
-            elif metric == "mae":
-                mae = np.mean(np.abs(Y_pred - Y_test))
-                round_results["mae"] = mae
-            else:
-                print(f"Unknown metric: {metric}")
-
+        # calculate metrics from calculate_metrics function in metrics.py
+        round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
         self.test_results[self.round] = round_results
         self.round += 1
 
     def save_test_results(self):
-        """ Save test results to a file """
+        """Save test results to a file"""
+        results_dir = "Global_test_results"
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
 
-        path = os.path.join("Global_test_results", f"{self.session_id}_test_results.json")
+        path = os.path.join(results_dir, f"{self.session_id}_test_results.json")
         with open(path, "w") as f:
-            #  save results and session data for future reference
+            # save results and session data for future reference
             json.dump({"session_data": self.model_config, "test_results": self.test_results}, f)
-        print("Results saved successfully")
-
-
+        print("Results saved successfully view them in formatted way on https://jsonformatter.org/json-viewer")
