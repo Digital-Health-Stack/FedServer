@@ -192,7 +192,8 @@ async def start_federated_learning(session_id: str):
             federated_manager.aggregate_weights_fedAvg_Neural(session_id)
 
             ################## Testing start
-            test.start_test(federated_manager.federated_sessions[session_id]['global_parameters'])
+            results = test.start_test(federated_manager.federated_sessions[session_id]['global_parameters'])
+            print("Global test results: ", results)
             ################## Testing end
 
         # Save test results for future reference

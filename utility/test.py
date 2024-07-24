@@ -44,6 +44,7 @@ class Test:
         round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
         self.test_results[self.round] = round_results
         self.round += 1
+        return round_results
 
     def save_test_results(self):
         """Save test results to a file"""
@@ -53,6 +54,11 @@ class Test:
 
         path = os.path.join(results_dir, f"{self.session_id}_test_results.json")
         with open(path, "w") as f:
-            # save results and session data for future reference
-            json.dump({"session_data": self.model_config, "test_results": self.test_results}, f)
-        print("Results saved successfully view them in formatted way on https://jsonformatter.org/json-viewer")
+            # Save results and session data with pretty printing
+            json.dump(
+                {"session_data": self.model_config, "test_results": self.test_results},
+                f,
+                indent=4,  # Add indentation for pretty printing
+                separators=(',', ': ')  # Add a space after colon for readability
+            )
+        print("Results saved successfully. View them in a formatted way on https://jsonformatter.org/json-viewer")
