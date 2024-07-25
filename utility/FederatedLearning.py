@@ -32,7 +32,7 @@ class FederatedLearning:
             "federated_info": federated_info,
             "admin": None,
             "curr_round": 1,
-            "max_round": 3,
+            "max_round": 10,
             "interested_clients": {}, # contains ids of interested_clients
             "global_parameters": [],   # contains global parameters
             "clients_status": {user_id: {"status": 1} for user_id in clients_data},   
