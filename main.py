@@ -2,6 +2,7 @@ from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, WebSocket,
 from schema import FederatedLearningInfo, User, Parameter, CreateFederatedLearning, ClientFederatedResponse, \
     ClientReceiveParameters
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from utility.FederatedLearning import FederatedLearning
 from utility.ConnectManager import ConnectionManager
@@ -22,10 +23,10 @@ from utility.test import Test
 event = asyncio.Event()
 
 app = FastAPI()
-
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -233,6 +234,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     except WebSocketDisconnect:
         connection_manager.disconnect(client_id)
         print(f"Client {client_id} disconnected")
+
+
 
 
 @app.post('/sign-in')
