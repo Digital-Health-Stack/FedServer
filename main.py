@@ -341,3 +341,10 @@ def receive_client_parameters(request: ClientReceiveParameters):
     client_id = request.client_id
     federated_manager.federated_sessions[session_id]['client_parameters'][client_id] = request.client_parameter
     return {"message": "Client Parameters Received"}
+
+
+################ end point to test working server ############
+
+@app.get('/test')
+def test_server():
+    return {"message": "Server is started..."}
