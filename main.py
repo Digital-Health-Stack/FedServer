@@ -110,7 +110,7 @@ async def wait_for_all_clients_to_stage_four(session_id: str):
             break
         else:
             await asyncio.sleep(5)
-            print("Waiting for all clients to reach stage four.", federated_manager.federated_sessions.keys())
+            print("Waiting for all clients to reach stage four.")
 
 
 async def send_model_configs_and_wait_for_confirmation(session_id: str):
@@ -128,7 +128,7 @@ async def send_training_signal_to_clients(session_id: str):
     data = {
         'session_id': session_id  #dummy data, not accesses at client side
     }
-    print("Before Sending Signal : ", federated_manager.federated_sessions[session_id])
+    print("Before Sending Signal : ")
     for client_id in interested_clients:
         print(client_id)
         await send_message_with_type(client_id, MessageType.START_TRAINING, data,
