@@ -1,0 +1,352 @@
+Index: main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import asyncio\r\nimport json\r\nimport uuid\r\n\r\nfrom fastapi import FastAPI, BackgroundTasks, Request, HTTPException, WebSocket, WebSocketDisconnect\r\nfrom fastapi.middleware.cors import CORSMiddleware\r\n\r\nfrom schema import User, CreateFederatedLearning, ClientFederatedResponse\r\nfrom utility.ConnectManager import ConnectionManager\r\nfrom utility.FederatedLearning import FederatedLearning\r\n\r\n'''\r\n    Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names\r\n    Classes - CapWords Convention\r\n    Methods - Function names should be lowercase, with words separated by underscores as necessary to improve readability.\r\n    Variables - Variable names follow the same convention as function names.\r\n'''\r\n\r\nevent = asyncio.Event()\r\n\r\napp = FastAPI()\r\n\r\n# noinspection PyTypeChecker\r\napp.add_middleware(\r\n    CORSMiddleware,\r\n    allow_origins=[\"*\"],\r\n    allow_credentials=True,\r\n    allow_methods=[\"*\"],\r\n    allow_headers=[\"*\"],\r\n)\r\n\r\nclients_data = []\r\n\r\n\r\nclass MessageType:\r\n    MODEL_PARAMETERS = \"model_parameters\"\r\n    START_BACKGROUND_PROCESS = \"start_background_process\"\r\n\r\n\r\n# Utility Function\r\ndef generate_unique_token():\r\n    token = str(uuid.uuid4())\r\n    return token\r\n\r\n\r\ndef generate_session_token():\r\n    session_token = generate_unique_token()\r\n    # Check if token is already assigned to other federated session\r\n    return session_token\r\n\r\n\r\ndef generate_user_token():\r\n    user_token = generate_unique_token()\r\n    # Check if token is already assigned to other federated session\r\n    return user_token\r\n\r\n\r\n# Usage\r\nfederated_manager = FederatedLearning()\r\nconnection_manager = ConnectionManager()\r\n\r\n\r\nasync def wait_for_client_confirmation(session_id: str):\r\n    session_data = federated_manager.federated_sessions[session_id]\r\n    all_ready_for_training = False\r\n\r\n    while not all_ready_for_training:\r\n        await asyncio.sleep(5)\r\n        all_ready_for_training = all(client['status'] != 1 for client in session_data['clients_status'].values())\r\n        print(\"Waiting for client confirmations....Stage 1\")\r\n\r\n    print(\"All Clients have taken their decision.\")\r\n\r\n\r\nasync def wait_for_clients_training(session_id: str):\r\n    session_data = federated_manager.federated_sessions[session_id]\r\n    num_interested_clients = len(session_data['interested_clients'])\r\n\r\n    while len(session_data['client_parameters']) < num_interested_clients:\r\n        await asyncio.sleep(5)\r\n        print(f\"Waiting for {num_interested_clients - len(session_data['client_parameters'])}\")\r\n\r\n    print(\"All clients have sent parameters. Starting Aggregation...\")\r\n\r\n\r\nasync def send_message_with_type(client_id: str, message_type: str, data: dict):\r\n    message = {\r\n        \"type\": message_type,\r\n        \"data\": data\r\n    }\r\n    json_message = json.dumps(message)\r\n    print(json_message)\r\n    await connection_manager.send_message(json_message, client_id)\r\n\r\n\r\nasync def send_model_configuration(client_id: str, session_id: str):\r\n    model_data = federated_manager.federated_sessions[session_id]\r\n    model_config = model_data['federated_info']\r\n    await send_message_with_type(client_id, MessageType.START_BACKGROUND_PROCESS, model_config)\r\n\r\n\r\nasync def wait_for_all_clients_to_confirm(session_id: str):\r\n    # Implement the logic to wait for all clients to confirm that they have started message\r\n    # \r\n    pass\r\n\r\n\r\nasync def send_model_configs_and_wait_for_confirmation(session_id: str):\r\n    interested_clients = federated_manager.federated_sessions[session_id]['interested_clients']\r\n    for client in interested_clients:\r\n        await send_model_configuration(client, session_id)\r\n\r\n    # Wait for all clients to confirm they have started their background process\r\n    await wait_for_all_clients_to_confirm(session_id)\r\n\r\n\r\nasync def start_federated_learning(session_id: str):\r\n    \"\"\"\r\n    Background task to manage federated learning rounds.\r\n\r\n    This function runs in the background, waiting for client responses before proceeding with each round\r\n    of federated learning.\r\n\r\n    Each round consists of:\r\n    1. Setting the current round number (`curr_round`) in the server.\r\n    2. Printing round information.\r\n    3. Receiving parameters from clients.\r\n    4. Aggregating weights using federated averaging with neural networks.\r\n\r\n    \"\"\"\r\n    try:\r\n\r\n        session_data = federated_manager.federated_sessions[\r\n            session_id]  # session_data points to same object variables in Python that point to mutable objects (like dictionaries) actually reference the same underlying object in memory.\r\n\r\n        # Wait for client confirmation of interest\r\n        await wait_for_client_confirmation(session_id)\r\n\r\n        # Send Model Configurations to interested clients and wait for their confirmation\r\n        await send_model_configs_and_wait_for_confirmation(session_id)\r\n\r\n        # Send a signal to client using websocket so that client \r\n        # can get parameters of the model and client can start a background response\r\n        # Do a handshake whether client has model to train, and he started a background\r\n        # process using a websocket\r\n\r\n        # for i in range(0, session_data['max_round']):\r\n        #     print(\"-\" * 50)\r\n        #     server.curr_round = i\r\n        #     print(f\"Round {i+1}\")\r\n        #     print(\"-\" * 50)\r\n\r\n        #     await wait_for_clients_training(session_id)\r\n        #     # Aggregate\r\n        #     federated_manager.aggregate_weights_fedAvg_Neural(session_id)\r\n    except Exception as e:\r\n        print(f\"Error in Starting Background Process: {e}\")\r\n\r\n\r\ndef add_interested_user_to_session(client_token, session_token: str, request: Request, admin):\r\n    \"\"\"\r\n        Generates a token for user which will be used to validate the sender, and the token will be bound to a specific session.\r\n        :param session_token:\r\n        :param client_token:\r\n        :param admin: This user is admin of this request or not\r\n        :param request: \r\n        :return:\r\n        \"\"\"\r\n    federated_manager.federated_sessions[session_token]['clients_status'][client_token]['status'] = 2\r\n    federated_manager.federated_sessions[session_token][\"interested_clients\"][client_token] = {\r\n        \"ip\": request.client.host,\r\n    }\r\n    if admin:\r\n        federated_manager.federated_sessions[session_token][\"admin\"] = client_token\r\n\r\n\r\n@app.websocket(\"/ws/{client_id}\")\r\nasync def websocket_endpoint(websocket: WebSocket, client_id: str):\r\n    await connection_manager.connect(websocket, client_id)\r\n    try:\r\n        while True:\r\n            data = await websocket.receive_text()\r\n\r\n    except WebSocketDisconnect:\r\n        connection_manager.disconnect(client_id)\r\n        print(f\"Client {client_id} disconnected\")\r\n\r\n\r\n@app.post('/sign-in')\r\ndef signIn(request: User):\r\n    user_token = generate_user_token()\r\n    clients_data.append(user_token)\r\n    print(f\"{request.name} is registered\")\r\n    return {\"message\": \"Client Registered Successfully\", \"client_token\": user_token}\r\n\r\n\r\n@app.post(\"/create-federated-session\")\r\ndef create_federated_session(federated_details: CreateFederatedLearning, request: Request,\r\n                             background_tasks: BackgroundTasks):\r\n    session_token = generate_session_token()\r\n    federated_manager.create_federated_session(session_token, federated_details.fed_info, clients_data)\r\n\r\n    add_interested_user_to_session(federated_details.client_token, session_token, request, admin=True)\r\n    background_tasks.add_task(start_federated_learning, session_token)\r\n    return {\"message\": \"Federated Session has been created!\"}\r\n\r\n\r\n@app.get('/get-all-federated-sessions')\r\ndef get_all_federated_session():\r\n    federated_session = []\r\n    for session_id, session_data in federated_manager.federated_sessions.items():\r\n        federated_session.append({\r\n            'session_id': session_id,\r\n            \"training_status\": session_data[\"training_status\"]\r\n        })\r\n    return {\"federated_session\": federated_session}\r\n\r\n\r\n@app.get('/get-federated-session/{session_id}')\r\ndef get_federated_session(session_id: str, client_id: str):\r\n    first_session_key = list(federated_manager.federated_sessions.keys())[0]\r\n    try:\r\n        federated_session_data = federated_manager.federated_sessions[session_id]\r\n        federated_response = {\r\n            'federated_info': federated_session_data['federated_info'],\r\n            'training_status': federated_session_data['training_status'],\r\n            'client_status': federated_session_data['clients_status'][client_id]['status']\r\n        }\r\n        return federated_response\r\n    except KeyError:\r\n        raise HTTPException(status_code=404, detail=\"Session not found\")\r\n    except Exception as e:\r\n        raise HTTPException(status_code=500, detail=f\"An error occurred: {str(e)}\")\r\n\r\n\r\n@app.post('/submit-client-federated-response')\r\ndef submit_client_federated_response(client_response: ClientFederatedResponse, request: Request):\r\n    \"\"\"\r\n        decision : 1 means client accepts and 0 means rejects\r\n    \"\"\"\r\n    try:\r\n        session_id = client_response.session_id\r\n        client_id = client_response.client_id\r\n        decision = client_response.decision\r\n        if decision == 1:\r\n            federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 2\r\n            add_interested_user_to_session(client_id, session_id, request, admin=False)\r\n        else:\r\n            federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 3\r\n        return {'message': 'Client Decision has been saved'}\r\n    except Exception as e:\r\n        raise HTTPException(status_code=500, detail=f\"An error occurred: {str(e)}\")\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/main.py b/main.py
+--- a/main.py	(revision fddb9f0f1f944e0158fe6dce4e999f7c84b63037)
++++ b/main.py	(date 1721585895229)
+@@ -1,13 +1,14 @@
+-import asyncio
+-import json
+-import uuid
+-
+ from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, WebSocket, WebSocketDisconnect
++from schema import FederatedLearningInfo, User, Parameter, CreateFederatedLearning, ClientFederatedResponse, \
++    ClientReceiveParameters
+ from fastapi.middleware.cors import CORSMiddleware
+-
+-from schema import User, CreateFederatedLearning, ClientFederatedResponse
++from utility.FederatedLearning import FederatedLearning
+ from utility.ConnectManager import ConnectionManager
+-from utility.FederatedLearning import FederatedLearning
++from utility.Server import Server
++import asyncio
++import json
++import asyncio
++import uuid
+ 
+ '''
+     Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names
+@@ -20,7 +21,6 @@
+ 
+ app = FastAPI()
+ 
+-# noinspection PyTypeChecker
+ app.add_middleware(
+     CORSMiddleware,
+     allow_origins=["*"],
+@@ -33,8 +33,8 @@
+ 
+ 
+ class MessageType:
+-    MODEL_PARAMETERS = "model_parameters"
+-    START_BACKGROUND_PROCESS = "start_background_process"
++    GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS = "get_model_parameters_start_background_process"
++    START_TRAINING = "start_training"
+ 
+ 
+ # Utility Function
+@@ -72,17 +72,6 @@
+     print("All Clients have taken their decision.")
+ 
+ 
+-async def wait_for_clients_training(session_id: str):
+-    session_data = federated_manager.federated_sessions[session_id]
+-    num_interested_clients = len(session_data['interested_clients'])
+-
+-    while len(session_data['client_parameters']) < num_interested_clients:
+-        await asyncio.sleep(5)
+-        print(f"Waiting for {num_interested_clients - len(session_data['client_parameters'])}")
+-
+-    print("All clients have sent parameters. Starting Aggregation...")
+-
+-
+ async def send_message_with_type(client_id: str, message_type: str, data: dict):
+     message = {
+         "type": message_type,
+@@ -96,13 +85,29 @@
+ async def send_model_configuration(client_id: str, session_id: str):
+     model_data = federated_manager.federated_sessions[session_id]
+     model_config = model_data['federated_info']
+-    await send_message_with_type(client_id, MessageType.START_BACKGROUND_PROCESS, model_config)
++    model_config_dict = model_config.dict()  # Convert to dictionary
++    await send_message_with_type(client_id, MessageType.GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS,
++                                 model_config_dict)
++
+ 
++async def wait_for_all_clients_to_stage_four(session_id: str):
++    # Implement the logic to wait for all clients to confirm that they have started background process
++    session_data = federated_manager.federated_sessions[session_id]
++    interested_clients = session_data['interested_clients']
+ 
+-async def wait_for_all_clients_to_confirm(session_id: str):
+-    # Implement the logic to wait for all clients to confirm that they have started message
+-    # 
+-    pass
++    while True:
++        all_clients_ready = True
++        for client_id in interested_clients:
++            if session_data['clients_status'][client_id]['status'] != 4:
++                all_clients_ready = False
++                break
++
++        if all_clients_ready:
++            print("All clients have reached stage four.")
++            break
++        else:
++            await asyncio.sleep(5)
++            print("Waiting for all clients to reach stage four.", federated_manager.federated_sessions.keys())
+ 
+ 
+ async def send_model_configs_and_wait_for_confirmation(session_id: str):
+@@ -111,7 +116,33 @@
+         await send_model_configuration(client, session_id)
+ 
+     # Wait for all clients to confirm they have started their background process
+-    await wait_for_all_clients_to_confirm(session_id)
++    await wait_for_all_clients_to_stage_four(session_id)
++
++
++async def send_training_signal_to_clients(session_id: str):
++    session_data = federated_manager.federated_sessions[session_id]
++    interested_clients = session_data['interested_clients']
++    data = {
++        'session_id': session_id
++    }
++    print("Before Sending Signal : ", federated_manager.federated_sessions[session_id])
++    for client_id in interested_clients:
++        print(client_id)
++        await send_message_with_type(client_id, MessageType.START_TRAINING, data)
++    print("Training Signal Sent to all clients")
++
++
++async def send_training_signal_and_wait_for_clients_training(session_id: str):
++    await send_training_signal_to_clients(session_id)
++
++    session_data = federated_manager.federated_sessions[session_id]
++    num_interested_clients = len(session_data['interested_clients'])
++    print("Error Check : ", len(session_data['client_parameters']), num_interested_clients)
++    while len(session_data['client_parameters']) < num_interested_clients:
++        await asyncio.sleep(10)
++        print(f"Waiting for {num_interested_clients - len(session_data['client_parameters'])}")
++
++    print("All clients have sent parameters. Starting Aggregation...", session_data['client_parameters'])
+ 
+ 
+ async def start_federated_learning(session_id: str):
+@@ -129,7 +160,6 @@
+ 
+     """
+     try:
+-
+         session_data = federated_manager.federated_sessions[
+             session_id]  # session_data points to same object variables in Python that point to mutable objects (like dictionaries) actually reference the same underlying object in memory.
+ 
+@@ -139,33 +169,28 @@
+         # Send Model Configurations to interested clients and wait for their confirmation
+         await send_model_configs_and_wait_for_confirmation(session_id)
+ 
+-        # Send a signal to client using websocket so that client 
+-        # can get parameters of the model and client can start a background response
+-        # Do a handshake whether client has model to train, and he started a background
+-        # process using a websocket
++        # Start Training
++        for i in range(1, session_data['max_round'] + 1):
++            print("-" * 50)
++            federated_manager.federated_sessions[session_id]['curr_round'] = i
++            print(f"Starting Round {i}")
++            print("-" * 50)
+ 
+-        # for i in range(0, session_data['max_round']):
+-        #     print("-" * 50)
+-        #     server.curr_round = i
+-        #     print(f"Round {i+1}")
+-        #     print("-" * 50)
+-
+-        #     await wait_for_clients_training(session_id)
+-        #     # Aggregate
+-        #     federated_manager.aggregate_weights_fedAvg_Neural(session_id)
++            await send_training_signal_and_wait_for_clients_training(session_id)
++            # Aggregate
++            federated_manager.aggregate_weights_fedAvg_Neural(session_id)
+     except Exception as e:
+         print(f"Error in Starting Background Process: {e}")
+ 
+ 
+ def add_interested_user_to_session(client_token, session_token: str, request: Request, admin):
+     """
+-        Generates a token for user which will be used to validate the sender, and the token will be bound to a specific session.
+-        :param session_token:
+-        :param client_token:
+-        :param admin: This user is admin of this request or not
+-        :param request: 
+-        :return:
+-        """
++    Generates a token for user which will be used to validate the sender, and the token will be bound to a spefic session.
++    :param name: This will be authentication token for a user in future when establish authentication each user has a unique user_id
++    :param admin: This user is admin of this request or not
++    :param request:
++    :return:
++    """
+     federated_manager.federated_sessions[session_token]['clients_status'][client_token]['status'] = 2
+     federated_manager.federated_sessions[session_token]["interested_clients"][client_token] = {
+         "ip": request.client.host,
+@@ -180,6 +205,7 @@
+     try:
+         while True:
+             data = await websocket.receive_text()
++            print(data)
+ 
+     except WebSocketDisconnect:
+         connection_manager.disconnect(client_id)
+@@ -237,6 +263,8 @@
+ def submit_client_federated_response(client_response: ClientFederatedResponse, request: Request):
+     """
+         decision : 1 means client accepts and 0 means rejects
++        client_status = 2 means client has accepted the request
++        client_status = 3 means client rejected the request
+     """
+     try:
+         session_id = client_response.session_id
+@@ -250,3 +278,43 @@
+         return {'message': 'Client Decision has been saved'}
+     except Exception as e:
+         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
++
++
++@app.post('/update-client-status-four')
++def update_client_status_four(request: ClientFederatedResponse):
++    """
++        Client have received the model parameters and waiting for server to start training
++    """
++    client_id = request.client_id
++    session_id = request.session_id
++    federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 4
++    return {'message': 'Client Status Updated to 4'}
++
++
++@app.get('/get-model-parameters/{session_id}')
++def get_model_parameters(session_id: str):
++    """
++        Client have received the model parameters and waiting for server to start training
++    """
++    global_parameters = federated_manager.federated_sessions[session_id]['global_parameters']
++    response_data = {
++        "global_parameters": global_parameters,
++        "is_first": 0
++    }
++    if len(global_parameters) == 0:
++        response_data['is_first'] = 1
++    return response_data
++
++
++@app.post('/receive-client-parameters')
++def receive_client_parameters(request: ClientReceiveParameters):
++    client_id = request.client_id
++    session_id = request.session_id
++    federated_manager.federated_sessions[session_id]['client_parameters'][client_id] = request.client_parameter
++    return {"message": "Client Parameters Received"}
++
++
++
++
++
++
+Index: utility/FederatedLearning.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import numpy as np\r\nfrom schema import FederatedLearningInfo\r\n\r\n\r\nclass FederatedLearning:\r\n    def __init__(self):\r\n        self.federated_sessions = {}\r\n\r\n    # Every session has a session_id also in future we can add a token and id\r\n    def create_federated_session(self, session_id: str, federated_info: FederatedLearningInfo, clients_data):\r\n        \"\"\"\r\n        Creates a new federated learning session.\r\n\r\n        Parameters:\r\n        - session_id (str): Unique identifier for the session.\r\n        - federated_info (FederatedLearningInfo): Information about the federated learning session.\r\n        - clients_data (list): List of client user IDs participating in the session.\r\n\r\n        Initializes session with default values:\r\n        - admin: None (can be assigned later)\r\n        - curr_round: 1 (current round number)\r\n        - max_round: 5 (maximum number of rounds)\r\n        - interested_clients: Empty dictionary to store IDs of interested clients\r\n        - global_parameters: Empty list to store global parameters\r\n        - clients_status: Dictionary to track status of all clients. \r\n                          Status values: 1 (not responded), 2 (accepted), 3 (rejected)\r\n        - training_status: 1 (server waiting for all clients), 2 (training starts)\r\n        \"\"\"\r\n        self.federated_sessions[session_id] = {\r\n            \"federated_info\": federated_info,\r\n            \"admin\": None,\r\n            \"curr_round\": 1,\r\n            \"max_round\": 5,\r\n            \"interested_clients\": {},  # contains ids of interested_clients\r\n            \"global_parameters\": [],  # Contains user id of interested students\r\n            \"clients_status\": {user_id: {\"status\": 1} for user_id in clients_data},\r\n            \"training_status\": 1,  # 1 for server waiting for all clients and 2 for training starts\r\n            \"client_parameters\": {}\r\n        }\r\n\r\n    def get_session(self, session_id: str) -> FederatedLearningInfo:\r\n        \"\"\"\r\n        Retrieves information about a federated learning session.\r\n\r\n        Parameters:\r\n        - session_id (str): Unique identifier for the session.\r\n\r\n        Returns:\r\n        - FederatedLearningInfo: Information about the federated learning session.\r\n        \"\"\"\r\n        return self.federated_sessions[session_id][\"federated_info\"]\r\n\r\n    def clear_client_parameters(self, session_id: str):\r\n        self.federated_sessions[session_id]['client_parameters'] = {}\r\n\r\n    def aggregate_weights_fedAvg_Neural(self, session_id: str):\r\n        # Initialize a dictionary to hold the aggregated sums of vectors\r\n        # print(\"Received Parameters : \" , type(self.client_parameters[1][1][0]),\r\n        #                                 len(self.client_parameters[1][1]),self.client_parameters[1][2][0][:5])\r\n\r\n        # Count the number of clients\r\n        num_interested_clients = len(self.federated_sessions[session_id]['client_parameters'])\r\n\r\n        client_parameters = self.federated_sessions[session_id]['client_parameters']\r\n        for client in client_parameters:\r\n            client_parameters[client] = [np.array(arr) for arr in client_parameters[client]]\r\n\r\n        aggregated_sums = []\r\n        for layer in range(len(client_parameters[1])):\r\n            layer_dimension = client_parameters[1][layer].shape\r\n\r\n            aggregated_layer = np.zeros(layer_dimension)\r\n\r\n            for client in client_parameters:\r\n                aggregated_layer += client_parameters[client][layer]\r\n            aggregated_layer /= num_interested_clients\r\n            aggregated_sums.append(aggregated_layer.tolist())\r\n\r\n        print(\"Shape of Aggregate Weights after FedAvg: \", np.array(aggregated_sums).shape)\r\n\r\n        self.federated_sessions[session_id]['globals_parameters'] = aggregated_sums\r\n        self.clear_client_parameters(session_id)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/utility/FederatedLearning.py b/utility/FederatedLearning.py
+--- a/utility/FederatedLearning.py	(revision fddb9f0f1f944e0158fe6dce4e999f7c84b63037)
++++ b/utility/FederatedLearning.py	(date 1721584680943)
+@@ -1,5 +1,7 @@
++from typing import Dict, List
++from schema import FederatedLearningInfo, User
++from utility.Server import Server
+ import numpy as np
+-from schema import FederatedLearningInfo
+ 
+ 
+ class FederatedLearning:
+@@ -32,7 +34,7 @@
+             "curr_round": 1,
+             "max_round": 5,
+             "interested_clients": {},  # contains ids of interested_clients
+-            "global_parameters": [],  # Contains user id of interested students
++            "global_parameters": [],  # contains global parameters
+             "clients_status": {user_id: {"status": 1} for user_id in clients_data},
+             "training_status": 1,  # 1 for server waiting for all clients and 2 for training starts
+             "client_parameters": {}
+@@ -76,7 +78,8 @@
+             aggregated_layer /= num_interested_clients
+             aggregated_sums.append(aggregated_layer.tolist())
+ 
+-        print("Shape of Aggregate Weights after FedAvg: ", np.array(aggregated_sums).shape)
++        print("Aggregate Weights after FedAvg: ", type(aggregated_sums[0][1][0]), len(aggregated_sums[0][1]),
++              aggregated_sums[2][0][:4])
+ 
+         self.federated_sessions[session_id]['globals_parameters'] = aggregated_sums
+         self.clear_client_parameters(session_id)
+Index: utility/ConnectManager.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from typing import Dict\r\nfrom fastapi import WebSocket\r\n\r\n\r\nclass ConnectionManager:\r\n    def __init__(self):\r\n        self.active_connections: Dict[str, WebSocket] = {}\r\n\r\n    async def connect(self, websocket: WebSocket, client_id: str):\r\n        await websocket.accept()\r\n        self.active_connections[client_id] = websocket\r\n\r\n    def disconnect(self, client_id: str):\r\n        if client_id in self.active_connections:\r\n            del self.active_connections[client_id]\r\n\r\n    async def send_message(self, message: str, client_id: str):\r\n        websocket = self.active_connections.get(client_id)\r\n        if websocket:\r\n            await websocket.send_text(message)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/utility/ConnectManager.py b/utility/ConnectManager.py
+--- a/utility/ConnectManager.py	(revision fddb9f0f1f944e0158fe6dce4e999f7c84b63037)
++++ b/utility/ConnectManager.py	(date 1721584502437)
+@@ -8,6 +8,7 @@
+ 
+     async def connect(self, websocket: WebSocket, client_id: str):
+         await websocket.accept()
++        print('Client connected with id:', client_id)
+         self.active_connections[client_id] = websocket
+ 
+     def disconnect(self, client_id: str):
+@@ -17,4 +18,4 @@
+     async def send_message(self, message: str, client_id: str):
+         websocket = self.active_connections.get(client_id)
+         if websocket:
+-            await websocket.send_text(message)
++            await websocket.send_text(message)
+\ No newline at end of file
+Index: schema.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from pydantic import BaseModel\r\n\r\n\r\nclass User(BaseModel):\r\n    name: str\r\n    data_path: str\r\n    password: str\r\n\r\n\r\nclass Parameter(BaseModel):\r\n    client_parameter: dict\r\n    client_id: int\r\n\r\n\r\nclass FederatedLearningInfo(BaseModel):\r\n    organisation_name: str\r\n    dataset_info: dict\r\n    model_name: str\r\n    model_info: dict\r\n\r\n\r\nclass CreateFederatedLearning(BaseModel):\r\n    fed_info: FederatedLearningInfo\r\n    client_token: str\r\n\r\n\r\nclass ClientFederatedResponse(BaseModel):\r\n    client_id: str\r\n    session_id: str\r\n    decision: int\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/schema.py b/schema.py
+--- a/schema.py	(revision fddb9f0f1f944e0158fe6dce4e999f7c84b63037)
++++ b/schema.py	(date 1721584425523)
+@@ -14,9 +14,9 @@
+ 
+ class FederatedLearningInfo(BaseModel):
+     organisation_name: str
+-    dataset_info: dict
+     model_name: str
+     model_info: dict
++    dataset_info: dict
+ 
+ 
+ class CreateFederatedLearning(BaseModel):
+@@ -28,3 +28,10 @@
+     client_id: str
+     session_id: str
+     decision: int
++
++
++class ClientReceiveParameters(BaseModel):
++    session_id: str
++    client_id: str
++    client_parameter: dict
++

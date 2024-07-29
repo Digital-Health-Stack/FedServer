@@ -42,7 +42,8 @@ class Test:
 
         # calculate metrics from calculate_metrics function in metrics.py
         round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
-        self.test_results[self.round] = round_results
+        # setting result with key "round 1", "round 2", etc
+        self.test_results[f"round {self.round}"] = round_results
         self.round += 1
         return round_results
 

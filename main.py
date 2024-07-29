@@ -2,6 +2,7 @@ from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, WebSocket,
 from schema import FederatedLearningInfo, User, Parameter, CreateFederatedLearning, ClientFederatedResponse, \
     ClientReceiveParameters
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from utility.FederatedLearning import FederatedLearning
 from utility.ConnectManager import ConnectionManager
@@ -11,6 +12,7 @@ import json
 import asyncio
 import uuid
 from utility.test import Test
+import os
 
 '''
     Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names
@@ -22,10 +24,10 @@ from utility.test import Test
 event = asyncio.Event()
 
 app = FastAPI()
-
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -235,6 +237,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         print(f"Client {client_id} disconnected")
 
 
+
+
 @app.post('/sign-in')
 def signIn(request: User):
     user_token = generate_user_token()
@@ -343,7 +347,39 @@ def receive_client_parameters(request: ClientReceiveParameters):
     return {"message": "Client Parameters Received"}
 
 
-################ end point to test working server ############
+@app.get('/get-all-completed-trainings')
+def get_training_results():
+    # iterate ove Global_test_results folder and return the completed sessions' results
+    try:
+        results_dir = "Global_test_results"
+        results = []
+        for file in os.listdir(results_dir):
+            if file.endswith(".json"):
+                with open(os.path.join(results_dir, file), "r") as f:
+                    result = json.load(f)
+                    # return only session_id and organisation_name
+                    # only save session_id from file name not all filename
+                    results.append({
+                        "session_id": file.split("_")[0],
+                        "org_name": result["session_data"]["organisation_name"]
+                    })
+        return {"results": results}
+
+    except Exception as e:
+        return {"message": f"No training results"}
+
+
+@app.get('/get-training-result/{session_id}')
+def get_training_results(session_id: str):
+    # iterate ove Global_test_results folder and return the session_id's results
+    try:
+        results_dir = "Global_test_results"
+        with open(os.path.join(results_dir, f"{session_id}_test_results.json"), "r") as f:
+            result = json.load(f)
+            return result
+    except Exception as e:
+        return {"message": f"No training results with this session_id"}
+
 
 @app.get('/test')
 def test_server():
