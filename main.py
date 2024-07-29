@@ -12,6 +12,7 @@ import json
 import asyncio
 import uuid
 from utility.test import Test
+import os
 
 '''
     Naming Conventions as per PEP- https://peps.python.org/pep-0008/#function-and-variable-names
@@ -346,7 +347,39 @@ def receive_client_parameters(request: ClientReceiveParameters):
     return {"message": "Client Parameters Received"}
 
 
-################ end point to test working server ############
+@app.get('/get-all-completed-trainings')
+def get_training_results():
+    # iterate ove Global_test_results folder and return the completed sessions' results
+    try:
+        results_dir = "Global_test_results"
+        results = []
+        for file in os.listdir(results_dir):
+            if file.endswith(".json"):
+                with open(os.path.join(results_dir, file), "r") as f:
+                    result = json.load(f)
+                    # return only session_id and organisation_name
+                    # only save session_id from file name not all filename
+                    results.append({
+                        "session_id": file.split("_")[0],
+                        "org_name": result["session_data"]["organisation_name"]
+                    })
+        return {"results": results}
+
+    except Exception as e:
+        return {"message": f"No training results"}
+
+
+@app.get('/get-training-result/{session_id}')
+def get_training_results(session_id: str):
+    # iterate ove Global_test_results folder and return the session_id's results
+    try:
+        results_dir = "Global_test_results"
+        with open(os.path.join(results_dir, f"{session_id}_test_results.json"), "r") as f:
+            result = json.load(f)
+            return result
+    except Exception as e:
+        return {"message": f"No training results with this session_id"}
+
 
 @app.get('/test')
 def test_server():

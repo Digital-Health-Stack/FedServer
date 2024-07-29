@@ -5,8 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0c27b505-d8f2-4502-a5db-4e6b8b070c4b" name="Changes" comment="max_rounds changed to 10 and a test  endpoint created">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/ConnectManager.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/ConnectManager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
