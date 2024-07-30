@@ -3,3 +3,4 @@ __pycache__
 /.fedserver/
 /utility/global_test_data/
 /temp.py
+Global_test_results/
