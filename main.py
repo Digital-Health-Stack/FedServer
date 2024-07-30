@@ -19,17 +19,19 @@ from utility.test import Test
     Variables - Variable names follow the same convention as function names.
 '''
 
-event = asyncio.Event()
 
 app = FastAPI()
 
+origins=["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+event = asyncio.Event()
 
 clients_data = []
 
@@ -233,6 +235,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     except WebSocketDisconnect:
         connection_manager.disconnect(client_id)
         print(f"Client {client_id} disconnected")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
 
 
 @app.post('/sign-in')
