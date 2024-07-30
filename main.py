@@ -23,12 +23,7 @@ import os
 
 
 app = FastAPI()
-<<<<<<< HEAD
-
-origins=["*"]
-=======
 origins = ["*"]
->>>>>>> c6e7323e620d9393d56d6ce10d4dc058b87ad988
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
