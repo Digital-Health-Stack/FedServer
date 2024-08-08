@@ -61,7 +61,7 @@ class FederatedLearning:
         # Expected Params config for each client to work Federated Averaging correctly
         # ========================================================================================================
         # Parameters expected for each client_parameter in the form of a dictionary:
-        # for eg. 1 client parameter is like:
+        # for eg. 1 client parameter is like below, one or more than one keys can be there (based on model needs)
         # {
         #     "weights": [list of numpy arrays],
         #     "biases": [list of numpy arrays],
