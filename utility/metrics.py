@@ -76,29 +76,29 @@ def calculate_metrics(y_true, y_pred, metrics):
         results = {}
         for metric in metrics:
             if metric == "mse":
-                results["mse"] = mean_squared_error(y_true, y_pred)
+                results["mse"] = round(mean_squared_error(y_true, y_pred), 3)
             elif metric == "mae":
-                results["mae"] = mean_absolute_error(y_true, y_pred)
+                results["mae"] = round(mean_absolute_error(y_true, y_pred), 3)
             elif metric == "rmse":
-                results["rmse"] = np.sqrt(mean_squared_error(y_true, y_pred))
+                results["rmse"] = round(np.sqrt(mean_squared_error(y_true, y_pred)), 3)
             elif metric == "msle":
-                results["msle"] = mean_squared_log_error(y_true, y_pred)
+                results["msle"] = round(mean_squared_log_error(y_true, y_pred), 3)
             elif metric == "mape":
-                results["mape"] = mean_absolute_percentage_error(y_true, y_pred)
+                results["mape"] = round(mean_absolute_percentage_error(y_true, y_pred), 3)
             elif metric == "accuracy":
-                results["accuracy"] = accuracy_score(y_true, y_pred)
+                results["accuracy"] = round(accuracy_score(y_true, y_pred), 3)
             elif metric == "precision":
-                results["precision"] = precision_score(y_true, y_pred)
+                results["precision"] = round(precision_score(y_true, y_pred), 3)
             elif metric == "recall":
-                results["recall"] = recall_score(y_true, y_pred)
+                results["recall"] = round(recall_score(y_true, y_pred), 3)
             elif metric == "f1_score":
-                results["f1_score"] = f1_score(y_true, y_pred)
+                results["f1_score"] = round(f1_score(y_true, y_pred), 3)
             elif metric == "auc":
-                results["auc"] = auc_score(y_true, y_pred)
+                results["auc"] = round(auc_score(y_true, y_pred), 3)
             elif metric == "log_loss":
-                results["log_loss"] = log_loss(y_true, y_pred)
+                results["log_loss"] = round(log_loss(y_true, y_pred), 3)
             elif metric == "r2_score":
-                results["r2_score"] = r2_score(y_true, y_pred)
+                results["r2_score"] = round(r2_score(y_true, y_pred), 3)
             else:
                 print(f"Unknown metric: {metric}")
         return results
