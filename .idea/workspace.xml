@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0c27b505-d8f2-4502-a5db-4e6b8b070c4b" name="Changes" comment="max_rounds changed to 10 and a test  endpoint created">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/test.py" afterDir="false" />
+    <list default="true" id="0c27b505-d8f2-4502-a5db-4e6b8b070c4b" name="Changes" comment="imp: aggregate_weights_fedAvg_Neural doc string added">
+      <change beforePath="$PROJECT_DIR$/utility/FederatedLearning.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/FederatedLearning.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -164,7 +162,23 @@
       <option name="project" value="LOCAL" />
       <updated>1721887754644</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="test_results endpoints added">
+      <option name="closed" value="true" />
+      <created>1722251566576</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1722251566576</updated>
+    </task>
+    <task id="LOCAL-00013" summary="imp: aggregate_weights_fedAvg_Neural doc string added">
+      <option name="closed" value="true" />
+      <created>1723139014840</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1723139014840</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -178,6 +192,8 @@
     <MESSAGE value="modelbuilder and new requirements.txt" />
     <MESSAGE value="added custom models code" />
     <MESSAGE value="max_rounds changed to 10 and a test  endpoint created" />
-    <option name="LAST_COMMIT_MESSAGE" value="max_rounds changed to 10 and a test  endpoint created" />
+    <MESSAGE value="test_results endpoints added" />
+    <MESSAGE value="imp: aggregate_weights_fedAvg_Neural doc string added" />
+    <option name="LAST_COMMIT_MESSAGE" value="imp: aggregate_weights_fedAvg_Neural doc string added" />
   </component>
 </project>
