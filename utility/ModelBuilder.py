@@ -13,15 +13,15 @@ import json
 
 
 # ==========================================================================================
-# The Key here should be exactly equal to the label of model in request.jsx file of the client (that is model_name)
+# The Key here should be exactly equal to the key (not label) of model in request.jsx file of the client (that is model_name)
 # ==========================================================================================
 model_classes = {
-        "LandMark SVM": LandMarkSVM,
-        "SVM": CustomSVM,
-        "Linear Regression": LinearRegression,
-        "Multi Layer Perceptron":MultiLayerPerceptron,
-        "CNN": CustomCNN
-        # Add other models here if necessary
+    "LinearRegression": LinearRegression,
+    "SVM": CustomSVM,
+    "LandMarkSVM": LandMarkSVM,
+    "multiLayerPerceptron":MultiLayerPerceptron,
+    "CNN": CustomCNN
+    #  Add other models here if necessary
     }
 
 
