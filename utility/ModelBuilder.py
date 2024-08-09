@@ -9,16 +9,19 @@ from .CustomModels.CustomSVM import CustomSVM
 from .CustomModels.LinearRegression import LinearRegression
 from .CustomModels.MultiLayerPerceptron import MultiLayerPerceptron
 from .CustomModels.CustomCNN import CustomCNN
-
 import json
 
+
+# ==========================================================================================
+# The Key here should be exactly equal to the key (not label) of model in request.jsx file of the client (that is model_name)
+# ==========================================================================================
 model_classes = {
-        "LandMarkSVM": LandMarkSVM,
-        "CustomSVM": CustomSVM,
-        "Linear_Regression": LinearRegression,
-        "multiLayerPerceptron":MultiLayerPerceptron,
-        "CNN": CustomCNN
-        # Add other models here if necessary
+    "LinearRegression": LinearRegression,
+    "SVM": CustomSVM,
+    "LandMarkSVM": LandMarkSVM,
+    "multiLayerPerceptron":MultiLayerPerceptron,
+    "CNN": CustomCNN
+    #  Add other models here if necessary
     }
 
 

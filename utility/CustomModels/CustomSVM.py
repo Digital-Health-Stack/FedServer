@@ -1,38 +1,45 @@
 import numpy as np
 import warnings
+import ast
 
 """
 (i) This implementation of the Support Vector Machine (SVM) algorithm implements Linear SVM (both binary and Multi-class)
- and Landmark-based Kernel SVM.
  the dual form kernel trick has not been implemented...because in the federated setting we can't share 
  the support vectors to the server, which are the key to the kernel trick...although the kernel trick can be implemented 
  in a secure multi-party computation setting but this problem has some other obvious challenges.
 
 (ii) If a new client wants to use this class to update the pretrained model (parameters on some server),
- it is always recommended to first fetch the parameters from the server hae a idea about dimension
+ it is always recommended to first fetch the parameters from the server has a idea about dimension
   of parameter then define your custom model with the same dimensions to not have any dimension mismatch.
 
 (iii) landmarks arg in the constructor is only used when is_landmark_based is set to True,
  if given it should be any iterable with the points having the same dimension as the input data.
  if not given random 'num_landmarks' number of points will be selected from the input data.
 
- (iv) if landmarks are given, num_landmarks will not be used (these are used to select random points from the input data)
+(iv) if landmarks are given, num_landmarks will not be used (these are used to select random points from the input data)
 
 (v) The dimension of weights on the server must be same as the weights of the model to be updated/send to the server.
 """
 
 
 class CustomSVM:
-    def __init__(self, C=1.0, is_binary=False, lr=0.01, n_iters=100, weights_shape=None):
-        self.C = C
-        self.weights = None
-        self.biases = None
-        self.lr = lr
-        self.n_iters = n_iters
-        self.is_binary = is_binary
-        if weights_shape is not None:
-            self.weights = np.zeros(weights_shape)
-            self.biases = np.zeros(weights_shape[0])
+    def __init__(self, config ):
+        try:
+            self.C = float(config.get('C', 1.0))
+            self.weights = None
+            self.biases = None
+            self.lr = float(config.get('lr', 0.01))
+            self.n_iters = int(config.get('n_iters', 100))
+            self.weights_shape = ast.literal_eval(config['weights_shape'])
+            #required as each client may have different number of classes (possibly 1)
+            self.is_binary = config['is_binary'].lower() == "true"
+            # weight shape is required initially for the same reason as above
+            if self.weights_shape is not None:
+                self.weights = np.zeros(self.weights_shape)
+                self.biases = np.zeros(self.weights_shape)
+        except Exception as e:
+            print(f"Error creating model instance: {e}")
+            return None
 
     def fit_binary(self, X, y):
         self.is_binary = True
@@ -65,14 +72,14 @@ class CustomSVM:
             self.weights = np.zeros((n_classes, n_features))
             self.biases = np.zeros(n_classes)
         # print("weights shape", self.weights.shape)
-        for i in classes:
+        for i in classes: #*** 'i' can be float due to numpy
             i = int(i)
             binary_y = np.where(y == i, 1, -1)
             weights = self.weights[i]
             bias = self.biases[i]
             lr = self.lr  # Learning rate
             n_iters = self.n_iters  # Number of n_iters
-            for epoch in range(n_iters):
+            for _ in range(n_iters):
                 for idx, x in enumerate(X):
                     decision = np.dot(x, weights) + bias
                     if binary_y[idx] * decision < 1:
@@ -101,42 +108,8 @@ class CustomSVM:
 
     def get_parameters(self):
         if self.weights is None and self.biases is None:
-            raise ValueError("Parameters are None")
+            raise ValueError("Local Parameters are None")
         local_parameter = {'weights': self.weights.tolist(), 'biases': self.biases.tolist()}
         return local_parameter
 
-    #  ==================================================================================================
-    # The following methods are not used in the federated setting
-    def save_model(self, file_path):
-        np.savez(file_path, weights=self.weights, biases=self.biases)
 
-    def load_model(self, file_path):
-        try:
-            data = np.load(file_path)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"File {file_path} not found.")
-
-        self.weights = data['weights']
-        self.biases = data['biases']
-        return self.weights, self.biases
-
-    def change_n_iters(self, client_iter):
-        self.n_iters = client_iter
-
-    def get_weights(self):
-        if self.weights is None:
-            raise ValueError("Model has not been trained yet.")
-        return self.weights
-
-    def get_biases(self):
-        if self.biases is None:
-            raise ValueError("Model has not been trained yet.")
-        return self.biases
-
-    def update_weights(self, new_weights):
-        """ new weights should be a numpy array """
-        self.weights = new_weights
-
-    def update_biases(self, new_biases):
-        """ new biases should be a numpy array """
-        self.biases = new_biases
