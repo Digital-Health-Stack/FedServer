@@ -3,8 +3,9 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, Reshape, MaxPooling2D, AveragePooling2D
 import logging
 import numpy as np
+import ast
 
-# Setup basic logging configuration
+# Settingup basic logging configuration
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s %(levelname)s:%(message)s')
 
 
@@ -20,7 +21,7 @@ class CustomCNN:
         self.model = Sequential()
 
         try:
-            input_shape = eval(config['input_shape'])
+            input_shape = ast.literal_eval(config['input_shape'])
             self.model.add(Input(shape=input_shape)) 
             # Adding layers to the model
             for i in range(len(config['layers'])):

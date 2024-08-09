@@ -1,9 +1,10 @@
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 class LinearRegression:
-    def __init__(self , lr=0.01, n_iters=1):
-        self.lr = lr
-        self.n_iters = n_iters
+    def __init__(self , config):
+        self.lr = float(config.get('lr', 0.01))
+        self.n_iters = int(config.get('n_iters', 100))
         self.m = []
         self.c = []
 
@@ -15,9 +16,6 @@ class LinearRegression:
 
         # Get the number of samples
         num_samples = float(len(X_train))
-
-        from sklearn.preprocessing import StandardScaler
-
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
         
