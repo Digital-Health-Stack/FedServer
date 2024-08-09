@@ -231,7 +231,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     try:
         while True:
             data = await websocket.receive_text()
-            print(data)
+            message = json.loads(data)
+            if message.get("type") == "pong":
+                print(f"Received pong from client {client_id}")
+                continue
+            print(f"Received message: {message}")
 
     except WebSocketDisconnect:
         connection_manager.disconnect(client_id)
