@@ -1,0 +1,75 @@
+{
+    "session_data": {
+        "organisation_name": "",
+        "model_name": "LinearRegression",
+        "model_info": {
+            "C": "0.5",
+            "lr": "0.01",
+            "n_iters": "100",
+            "weights_shape": "(5, 10)",
+            "is_binary": "false",
+            "test_metrics": [
+                "mse",
+                "mae",
+                "r2_score"
+            ]
+        },
+        "dataset_info": {
+            "about_dataset": "",
+            "feature_list": []
+        }
+    },
+    "num_clients": 1,
+    "test_results": {
+        "round 0": {
+            "mse": 23460823866.163,
+            "mae": 148358.732,
+            "r2_score": -8.343
+        },
+        "round 1": {
+            "mse": 32863844987.799,
+            "mae": 175496.877,
+            "r2_score": -12.299
+        },
+        "round 2": {
+            "mse": 34739918848.772,
+            "mae": 180438.55,
+            "r2_score": -13.054
+        },
+        "round 3": {
+            "mse": 35107613760.668,
+            "mae": 181399.454,
+            "r2_score": -13.183
+        },
+        "round 4": {
+            "mse": 35181951707.298,
+            "mae": 181595.25,
+            "r2_score": -13.204
+        },
+        "round 5": {
+            "mse": 35197408141.181,
+            "mae": 181636.435,
+            "r2_score": -13.207
+        },
+        "round 6": {
+            "mse": 35200689683.388,
+            "mae": 181645.291,
+            "r2_score": -13.207
+        },
+        "round 7": {
+            "mse": 35201397456.473,
+            "mae": 181647.227,
+            "r2_score": -13.207
+        },
+        "round 8": {
+            "mse": 35201552053.463,
+            "mae": 181647.656,
+            "r2_score": -13.207
+        },
+        "round 9": {
+            "mse": 35201586188.143,
+            "mae": 181647.752,
+            "r2_score": -13.207
+        }
+    }
+}

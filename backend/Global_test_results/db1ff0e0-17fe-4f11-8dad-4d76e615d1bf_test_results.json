@@ -1,0 +1,103 @@
+{
+    "session_data": {
+        "organisation_name": "safas",
+        "model_name": "CNN",
+        "model_info": {
+            "input_shape": "(128,128,1)",
+            "output_layer": {
+                "num_nodes": "1",
+                "activation_function": "linear"
+            },
+            "loss": "mse",
+            "optimizer": "adam",
+            "test_metrics": [
+                "mse",
+                "mae",
+                "r2_score"
+            ],
+            "layers": [
+                {
+                    "layer_type": "convolution",
+                    "filters": "64",
+                    "kernel_size": "(3,3)",
+                    "stride": "(1,1)",
+                    "activation_function": "relu"
+                },
+                {
+                    "layer_type": "pooling",
+                    "pooling_type": "max",
+                    "pool_size": "(2,2)",
+                    "stride": "(1,1)"
+                },
+                {
+                    "layer_type": "flatten"
+                },
+                {
+                    "layer_type": ""
+                }
+            ]
+        },
+        "dataset_info": {
+            "about_dataset": "sfsaf",
+            "feature_list": [
+                {
+                    "feature_name": "asfasf",
+                    "type_Of_feature": "asfaf"
+                }
+            ]
+        }
+    },
+    "num_clients": 1,
+    "test_results": {
+        "round 0": {
+            "mse": 14642.830560209675,
+            "mae": 113.81884616913543,
+            "r2_score": -0.019411047669485537
+        },
+        "round 1": {
+            "mse": 11393.420148481435,
+            "mae": 98.35399413627327,
+            "r2_score": -0.08866198379231105
+        },
+        "round 2": {
+            "mse": 8272.140314988119,
+            "mae": 81.30556195965445,
+            "r2_score": -0.22545748764799156
+        },
+        "round 3": {
+            "mse": 5632.213319276395,
+            "mae": 64.8224458016022,
+            "r2_score": -0.4515416089221793
+        },
+        "round 4": {
+            "mse": 3955.961408028237,
+            "mae": 52.77498021412592,
+            "r2_score": -0.7899332322594002
+        },
+        "round 5": {
+            "mse": 5639.395310742011,
+            "mae": 64.8777917775103,
+            "r2_score": -0.44756283188632184
+        },
+        "round 6": {
+            "mse": 3930.8883321958115,
+            "mae": 52.594865277419146,
+            "r2_score": -0.7848164975481617
+        },
+        "round 7": {
+            "mse": 5617.067769349447,
+            "mae": 64.74042804079002,
+            "r2_score": -0.445043096343239
+        },
+        "round 8": {
+            "mse": 3908.3831279004617,
+            "mae": 52.43510568499848,
+            "r2_score": -0.7781920432183864
+        },
+        "round 9": {
+            "mse": 5573.68159411046,
+            "mae": 64.47399704248976,
+            "r2_score": -0.4390652546448426
+        }
+    }
+}

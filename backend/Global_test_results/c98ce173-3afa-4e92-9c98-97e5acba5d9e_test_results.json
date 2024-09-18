@@ -1,0 +1,53 @@
+{
+    "session_data": {
+        "organisation_name": "",
+        "model_name": "LinearRegression",
+        "model_info": {
+            "C": "0.5",
+            "lr": "0.01",
+            "n_iters": "10",
+            "weights_shape": "(5, 10)",
+            "is_binary": "false",
+            "test_metrics": [
+                "r2_score"
+            ]
+        },
+        "dataset_info": {
+            "about_dataset": "",
+            "feature_list": []
+        }
+    },
+    "num_clients": 1,
+    "test_results": {
+        "round 0": {
+            "r2_score": 0.22
+        },
+        "round 1": {
+            "r2_score": 0.373
+        },
+        "round 2": {
+            "r2_score": 0.48
+        },
+        "round 3": {
+            "r2_score": 0.556
+        },
+        "round 4": {
+            "r2_score": 0.611
+        },
+        "round 5": {
+            "r2_score": 0.651
+        },
+        "round 6": {
+            "r2_score": 0.679
+        },
+        "round 7": {
+            "r2_score": 0.701
+        },
+        "round 8": {
+            "r2_score": 0.717
+        },
+        "round 9": {
+            "r2_score": 0.729
+        }
+    }
+}
