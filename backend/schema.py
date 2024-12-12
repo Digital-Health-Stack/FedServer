@@ -24,13 +24,16 @@ class FederatedLearningInfo(BaseModel):
 
 class CreateFederatedLearning(BaseModel):
     fed_info: FederatedLearningInfo
-    client_token: str
+    # client_token: str
 
 
 class ClientFederatedResponse(BaseModel):
-    client_id: str
-    session_id: str
+    session_id: int
     decision: int
+    
+class ClientModleIdResponse(BaseModel):
+    session_id: int
+    local_model_id: str
 
 class ClientReceiveParameters(BaseModel):
     session_id: str

@@ -1,7 +1,16 @@
+from datetime import datetime
+from operator import or_
 from typing import Dict, List
 from schema import FederatedLearningInfo, User
+from sqlalchemy import and_, desc, select
+from db import SessionLocal
+from models.FederatedSession import FederatedSession, FederatedSessionClient
+# from db import get_db
 from utility.Server import Server
 import numpy as np
+from models import User as UserModel
+from sqlalchemy.orm import Session, joinedload
+from db import engine
 
 
 class FederatedLearning:
@@ -9,7 +18,7 @@ class FederatedLearning:
         self.federated_sessions = {}
     
     # Every session has a session_id also in future we can add a token and id
-    def create_federated_session(self,session_id: str,federated_info: FederatedLearningInfo,clients_data) :
+    def create_federated_session(self, user: UserModel, federated_info: FederatedLearningInfo, ip) :
         """
         Creates a new federated learning session.
 
@@ -28,19 +37,43 @@ class FederatedLearning:
                           Status values: 1 (not responded), 2 (accepted), 3 (rejected)
         - training_status: 1 (server waiting for all clients), 2 (training starts)
         """
-        self.federated_sessions[session_id] = {
-            "federated_info": federated_info,
-            "admin": None,
-            "curr_round": 1,
-            "max_round": 10,
-            "interested_clients": {}, # contains ids of interested_clients
-            "global_parameters": [],   # contains global parameters
-            "clients_status": {user_id: {"status": 1} for user_id in clients_data},   
-            "training_status": 1,            # 1 for server waiting for all clients and 2 for training starts
-            "client_parameters": {}
-        }
+        with Session(engine) as db:
+            federated_session = FederatedSession(
+                federated_info=federated_info.__dict__,
+                admin_id = user.id,
+            )
+            
+            db.add(federated_session)
+            db.commit()
+            db.refresh(federated_session)
+            
+            federated_session_client = FederatedSessionClient(
+                client_id = user.id,
+                session_id = federated_session.id,
+                status = 2,
+                ip = ip
+            )
+            
+            db.add(federated_session_client)
+            db.commit()
+
+            federated_session.id
+
+            return federated_session
+
+        # self.federated_sessions[session_id] = {
+        #     "federated_info": federated_info,
+        #     "admin": None,
+        #     "curr_round": 1,
+        #     "max_round": 10,
+        #     # "interested_clients": {}, # contains ids of interested_clients
+        #     "global_parameters": [],   # contains global parameters
+        #     "clients_status": {user_id: {"status": 1} for user_id in clients_data}, 
+        #     "training_status": 1,            # 1 for server waiting for all clients and 2 for training starts
+        #     "client_parameters": {}
+        # }
     
-    def get_session(self, session_id: str) -> FederatedLearningInfo:
+    def get_session(self, federated_session_id: int) -> FederatedLearningInfo:
         """
         Retrieves information about a federated learning session.
 
@@ -50,7 +83,45 @@ class FederatedLearning:
         Returns:
         - FederatedLearningInfo: Information about the federated learning session.
         """
-        return self.federated_sessions[session_id]["federated_info"]
+        # return self.federated_sessions[session_id]["federated_info"]
+        
+        with Session(engine) as db:
+            stmt = select(FederatedSession, FederatedSession.clients).where(FederatedSession.id == federated_session_id).options(joinedload(FederatedSession.clients))
+            federated_session = db.execute(stmt).scalar()
+            
+            return federated_session
+        
+    # def get_session_clients(self, federated_session_id: int):
+    #     with Session(engine) as db:
+    #         stmt = select(FederatedSessionClient).where(FederatedSession.id == )
+            
+    def get_all(self):
+        with Session(engine) as db:
+            stmt = select(FederatedSession.id, FederatedSession.training_status).order_by(desc(FederatedSession.createdAt))
+            federated_sessions = db.execute(stmt).all()
+            
+            return federated_sessions
+    
+    def get_my_sessions(self, user: UserModel):
+        with Session(engine) as db:
+            stmt = select(
+                FederatedSession.id,
+                FederatedSession.training_status,
+                FederatedSession.federated_info
+            ).join(
+                FederatedSession.clients
+            ).order_by(
+                desc(FederatedSession.createdAt)
+            ).where(
+                or_(
+                    FederatedSession.wait_till > datetime.now(),
+                    FederatedSessionClient.client_id == user.id
+                )
+            )
+
+            federated_sessions = db.execute(stmt).all()
+            
+            return federated_sessions
     
     def clear_client_parameters(self,session_id: str):
         self.federated_sessions[session_id]['client_parameters'] = {}
