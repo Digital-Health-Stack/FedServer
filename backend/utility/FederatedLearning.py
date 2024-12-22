@@ -48,7 +48,7 @@ class FederatedLearning:
             db.refresh(federated_session)
             
             federated_session_client = FederatedSessionClient(
-                client_id = user.id,
+                user_id = user.id,
                 session_id = federated_session.id,
                 status = 2,
                 ip = ip
@@ -115,7 +115,7 @@ class FederatedLearning:
             ).where(
                 or_(
                     FederatedSession.wait_till > datetime.now(),
-                    FederatedSessionClient.client_id == user.id
+                    FederatedSessionClient.user_id == user.id
                 )
             )
 

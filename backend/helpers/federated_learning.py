@@ -12,8 +12,10 @@ import json
 from db import engine
 from sqlalchemy.orm import Session
 
+from utility.notification import add_notifications_for
 
-async def start_federated_learning(federated_manager: FederatedLearning, user: User, session_data: FederatedSession, user_queues: Dict[str, asyncio.Queue]):
+
+async def start_federated_learning(federated_manager: FederatedLearning, user: User, session_data: FederatedSession):
     """
     Background task to manage federated learning rounds.
 
@@ -38,7 +40,7 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     await wait_for_client_confirmation(federated_manager, session_data.id)
 
     # # Send Model Configurations to interested clients and wait for their confirmation
-    await send_model_configs_and_wait_for_confirmation(federated_manager, session_data.id, user_queues)
+    await send_model_configs_and_wait_for_confirmation(federated_manager, session_data.id)
 
         # #############################################
         # # code used to get instance of testing unit
@@ -85,30 +87,32 @@ async def wait_for_client_confirmation(federated_manager: FederatedLearning, ses
         print("Waiting for client confirmations....Stage 1")
 
     print("All Clients have taken their decision.")
-    
-
-async def send_model_configs_and_wait_for_confirmation(federated_manager: FederatedLearning, session_id: int, user_queues: Dict[str, asyncio.Queue]):
-    # interested_clients = federated_manager.federated_sessions[session_id]['interested_clients']
-    session_data = federated_manager.get_session(session_id)
-    interested_clients = [client for client in session_data.clients if client.status == 2]
-    for client in interested_clients:
-        await send_model_configuration(client, session_data, user_queues)
-
-    # Wait for all clients to confirm they have started their background process
-    await wait_for_all_clients_to_stage_four(session_data)
-    
 
 class MessageType:
     GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS = "get_model_parameters_start_background_process"
     START_TRAINING = "start_training"
 
-async def send_model_configuration(client: FederatedSessionClient, model_data: FederatedSession, user_queues: Dict[str, asyncio.Queue]):
-    model_config = model_data.federated_info
-    model_config_dict = model_config.dict()  # Convert to dictionary
-    await send_message_with_type(client, MessageType.GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS, model_config_dict, model_data, user_queues)
-    
+async def send_model_configs_and_wait_for_confirmation(federated_manager: FederatedLearning, session_id: int):
 
-async def send_message_with_type(client: FederatedSessionClient, message_type: str, data: dict, session_data: FederatedSession, user_queues: Dict[str, asyncio.Queue]):
+    session_data = federated_manager.get_session(session_id)
+    interested_clients = [client.user_id for client in session_data.clients if client.status == 2]
+    
+    model_config = session_data.federated_info
+    
+    message = {
+        "type": MessageType.GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS,
+        "data": model_config,
+        "session_id": session_data.id
+    }
+
+    with Session(engine) as db:
+        add_notifications_for(db, message, interested_clients)
+
+    # Wait for all clients to confirm they have started their background process
+    await wait_for_all_clients_to_stage_four(session_data)
+
+
+async def send_message_with_type(client: FederatedSessionClient, message_type: str, data: dict, session_data: FederatedSession):
     message = {
         "type": message_type,
         "data": data,
@@ -119,9 +123,6 @@ async def send_message_with_type(client: FederatedSessionClient, message_type: s
 
     print("json model sent before the training signal: ", json_message)
     print(f"client id {client.id}")
-    user_queues[client.id].put(json_message)
-    # await websocket.send_notification(client.id, json_message)
-    # await connection_manager.send_message(json_message, client_id)
     
 
 async def wait_for_all_clients_to_stage_four(session_data: FederatedSession):

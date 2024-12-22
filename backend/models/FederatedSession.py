@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, Null, String, event
 from sqlalchemy.orm import declared_attr, relationship, Session, with_loader_criteria
-from .User import Base
+from .Base import Base
 import os
 
 load_dotenv()
@@ -49,15 +49,30 @@ class FederatedSession(TimestampMixin, Base):
     admin = relationship("User", back_populates="federated_sessions")
     clients = relationship('FederatedSessionClient', back_populates='session')
     
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "federated_info": self.federated_info,
+            "admin_id": self.admin_id,
+            "curr_round": self.curr_round,
+            "max_round": self.max_round,
+            "global_parameters": self.global_parameters,
+            "training_status": self.training_status,
+            "client_parameters": self.client_parameters,
+            "wait_till": self.wait_till.isoformat() if self.wait_till else None,  # Convert DateTime to ISO format
+            "admin": self.admin.as_dict() if self.admin else None,               # Call as_dict on the related User
+            "clients": [client.as_dict() for client in self.clients]             # Call as_dict on related clients
+        }
+    
 class FederatedSessionClient(TimestampMixin, Base):
     __tablename__ = 'federated_session_clients'
 
     id = Column(Integer, primary_key=True, index=True)
-    client_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     session_id = Column(Integer, ForeignKey('federated_sessions.id'), nullable=False)
     status = Column(Integer, default=1, nullable=False) # Status values: 1 (not responded), 2 (accepted), 3 (rejected)
     ip = Column(String, nullable=False)
     local_model_id = Column(String, nullable=True)
     
-    client = relationship('User', back_populates="federated_session_clients")
+    user = relationship('User', back_populates="federated_session_clients")
     session = relationship('FederatedSession', back_populates='clients')

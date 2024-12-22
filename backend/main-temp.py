@@ -5,10 +5,12 @@ from typing import Dict
 from fastapi import BackgroundTasks, FastAPI, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from sqlalchemy import Null, null
+from sqlalchemy import Null, and_, null, update
 from sqlalchemy.orm import Session
 # from models import User, Base
 from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModleIdResponse
+from sse_starlette import EventSourceResponse
+from utility.notification import add_notifications_for_recently_active_users
 from models.FederatedSession import FederatedSession, FederatedSessionClient
 from helpers.federated_learning import start_federated_learning
 from helpers.websocket import ConnectionManager
@@ -19,6 +21,8 @@ from schemas.UserSchema import RefreshToken, UserCreate, UserLogin
 from helpers.auth import create_refresh_token, decode_refresh_token, get_password_hash, verify_password, create_access_token, get_current_user
 from dotenv import load_dotenv
 import jwt
+
+from utility.user import get_unnotified_notifications
 # from db import SessionLocal
 
 
@@ -140,55 +144,40 @@ def read_users_me(current_user: User = Depends(get_current_user)):
     return {"username": current_user.username}
 
 
-# @app.websocket("/ws/notifications")
-# async def websocket_endpoint(websocket: WebSocket, token = str):
-#     """
-#     WebSocket endpoint where each user connects with their unique ID.
-#     """
-#     # Verify the token and user_id here (for example, using JWT)
-#     # For simplicity, we assume the token matches the user_id in this example.
-    
-#     current_user = await get_current_user(token)
-    
-#     if current_user:
-#         await websocket_manager.connect(websocket, current_user.id)
-#         try:
-#             while True:
-#                 # The connection remains open, waiting for notifications
-#                 await websocket.receive_text()  # This can be used if clients send requests or status updates
-#         except WebSocketDisconnect:
-#             websocket_manager.disconnect(current_user.id)
-            
-#     raise HTTPException(status_code=401, detail="Unauthorized")
 
-user_queues: Dict[str, asyncio.Queue] = {}
-
-def get_or_create_user_queue(user_queues: Dict[str, asyncio.Queue], user_id: str):
-    if user_id not in user_queues:
-        user_queues[user_id] = asyncio.Queue()
-    return user_queues[user_id]
-
-async def event_stream(user_queues: Dict[str, asyncio.Queue], user: User):
-    queue = get_or_create_user_queue(user_queues, user.id)
-    try:
+@app.get("/notifications/stream")
+async def notifications_stream(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    async def event_generator():
         while True:
-            # Generate data for the SSE
-            event = await queue.get()
-            yield f"data: {event}\n\n"
-    except asyncio.CancelledError:
-        # Cleanup on disconnect
-        user_queues.pop(user.id, None)
+            # Check if client has disconnected
+            if await request.is_disconnected():
+                break
 
-# Server Sent Events
-@app.get("/notifications")
-async def sse_notifications(token: str):
-    current_user = await get_current_user(token)
-    print(f"user id {current_user.id}")
+            # Fetch notifications for the current user
+            user_notifications = get_unnotified_notifications(user = current_user, db = db)
+            
+            if(len(user_notifications) > 0):
+                data = [n.message for n in user_notifications]
 
-    if current_user:
-        return StreamingResponse(event_stream(user_queues, current_user), media_type="text/event-stream")
+                # Send the data as an SSE event
+                yield {
+                    "event": "new_notifications",   
+                    "data": json.dumps(data),
+                }
+                
 
-    raise HTTPException(status_code=401, detail="Unauthorized")
+                for notification in user_notifications:
+                    notification.notified_at = datetime.now()
+                db.commit()
+
+            # Wait for 5 seconds before sending the next update
+            await asyncio.sleep(5)
+
+    return EventSourceResponse(event_generator())
 
 
 federated_manager = FederatedLearning()
@@ -198,6 +187,7 @@ async def create_federated_session(
     federated_details: CreateFederatedLearning,
     request: Request,
     background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host)
@@ -213,11 +203,10 @@ async def create_federated_session(
         'session_id': session.id
     }
     
-    for client_id in user_queues:
-        await user_queues[client_id].put(json.dumps(message))
+    add_notifications_for_recently_active_users(db=db, message=message, valid_until=session.wait_till, excluded_users=[current_user])
     
     try:
-        background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, user_queues)
+        background_tasks.add_task(start_federated_learning, federated_manager, current_user, session)
         print("Background Task Added")
     except Exception as e:
         print(f"An error occurred while adding background process {Exception}")
@@ -227,14 +216,6 @@ async def create_federated_session(
         "message": "Federated Session has been created!",
         "session_id": session.id
     }
-
-    # add_interested_user_to_session(federated_details.client_token, session_token, request, admin=True)
-    # try:
-    #     background_tasks.add_task(start_federated_learning, session_token)
-    #     print("Background Task Added")
-    # except Exception as e:
-    #     print(f"An error occurred while adding background process {Exception}")
-    #     return {"message": "An error occurred while starting federated learning."}
 
 
 @app.get('/get-all-federated-sessions')
@@ -253,7 +234,7 @@ def get_all_federated_session(current_user: User = Depends(get_current_user)):
 def get_federated_session(session_id: int, current_user: User = Depends(get_current_user)):
     try:
         federated_session_data = federated_manager.get_session(session_id)
-        client = next((client for client in federated_session_data.clients if client.client_id == current_user.id), None)
+        client = next((client for client in federated_session_data.clients if client.user_id == current_user.id), None)
 
         federated_response = {
             'federated_info': federated_session_data.federated_info,
@@ -277,18 +258,14 @@ def submit_client_federated_response(client_response: ClientFederatedResponse, r
     client_status = 3
     if decision == 1:
         client_status = 2
-        # federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 2
-        # add_interested_user_to_session(client_id, session_id, request, admin=False)
-    # else:
-    #     federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 3
     
     session = federated_manager.get_session(session_id)
     
     if(session):
-        client = db.query(FederatedSessionClient).filter_by(session_id = session_id, client_id = current_user.id).first()
+        client = db.query(FederatedSessionClient).filter_by(session_id = session_id, user_id = current_user.id).first()
         if not client:
             federated_session_client = FederatedSessionClient(
-                client_id = current_user.id,
+                user_id = current_user.id,
                 session_id = session_id,
                 status = client_status,
                 ip = request.client.host
@@ -301,19 +278,28 @@ def submit_client_federated_response(client_response: ClientFederatedResponse, r
     
     return { 'success': True, 'message': 'Client Decision has been saved'}
 
-@app.post('/save-local-model-id')
+
+@app.post('/update-client-status-four')
 def update_client_status_four(request: ClientModleIdResponse, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     '''
         Client have received the model parameters and waiting for server to start training
     '''
-    local_model_id = request.local_model_id
-    session_id = request.session_id
-    
-    client = db.query(FederatedSessionClient).filter_by(session_id = session_id, client_id = current_user.id, local_model_id = Null).first()
-    
-    if(client):
-        client.local_model_id = local_model_id
-        db.commit()
 
-    # federated_manager.federated_sessions[session_id]['clients_status'][client_id]['status'] = 4
-    return {'message': 'Local model ID saved.'}
+    session_id = request.session_id
+    local_model_id = request.local_model_id
+    
+    db.execute(
+        update(FederatedSessionClient)
+        .where(and_(
+            FederatedSessionClient.user_id == current_user.id,
+            FederatedSessionClient.session_id == session_id
+        ))
+        .values(
+            status = 4,
+            local_model_id = local_model_id
+        )
+    )
+    
+    db.commit()
+
+    return {'message': 'Client Status Updated to 4'}
