@@ -3,14 +3,13 @@ from operator import or_
 from typing import Dict, List
 from schema import FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select
-from db import SessionLocal
 from models.FederatedSession import FederatedSession, FederatedSessionClient
-# from db import get_db
 from utility.Server import Server
 import numpy as np
 from models import User as UserModel
 from sqlalchemy.orm import Session, joinedload
 from db import engine
+import json
 
 
 class FederatedLearning:
@@ -141,56 +140,74 @@ class FederatedLearning:
         # ========================================================================================================
         """
         # Retrieve client parameters
-        client_parameters = self.federated_sessions[session_id]['client_parameters']
+        with Session(engine) as db:
+            federated_session = db.query(FederatedSession).filter_by(id=session_id).first()
+            
+            if not federated_session:
+                raise ValueError(f"FederatedSession with ID {session_id} not found.")
+            # Count the number of clients
+            num_interested_clients = len(federated_session.clients)
+            client_parameters = json.loads(federated_session.client_parameters or "{}")  # Ensure client_parameters is a dict
 
-        # Count the number of clients
-        num_interested_clients = len(client_parameters)
+            # Initialize a dictionary to hold the aggregated sums of parameters
+            aggregated_sums = {}
 
-        # Initialize a dictionary to hold the aggregated sums of parameters
-        aggregated_sums = {}
+            def initialize_aggregated_sums(param, aggregated):
+                if isinstance(param, list):
+                    return [initialize_aggregated_sums(sub_param, aggregated) for sub_param in param]
+                else:
+                    return np.zeros_like(param)
 
-        def initialize_aggregated_sums(param, aggregated):
-            if isinstance(param, list):
-                return [initialize_aggregated_sums(sub_param, aggregated) for sub_param in param]
-            else:
-                return np.zeros_like(param)
+            def sum_parameters(aggregated, param):
+                if isinstance(param, list):
+                    for i in range(len(param)):
+                        aggregated[i] = sum_parameters(aggregated[i], param[i])
+                    return aggregated
+                else:
+                    return aggregated + np.array(param)
 
-        def sum_parameters(aggregated, param):
-            if isinstance(param, list):
-                for i in range(len(param)):
-                    aggregated[i] = sum_parameters(aggregated[i], param[i])
-                return aggregated
-            else:
-                return aggregated + np.array(param)
+            def average_parameters(aggregated, count):
+                if isinstance(aggregated, list):
+                    return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
+                else:
+                    return (aggregated / count).tolist()
 
-        def average_parameters(aggregated, count):
-            if isinstance(aggregated, list):
-                return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
-            else:
-                return (aggregated / count).tolist()
+            # Iterate over each client's parameters
+            for client in client_parameters:
+                client_param = client_parameters[client]
 
-        # Iterate over each client's parameters
-        for client in client_parameters:
-            client_param = client_parameters[client]
+                # Initialize aggregated_sums with the same structure as the first client's parameters
+                if not aggregated_sums:
+                    for key in client_param:
+                        aggregated_sums[key] = initialize_aggregated_sums(client_param[key], aggregated_sums)
 
-            # Initialize aggregated_sums with the same structure as the first client's parameters
-            if not aggregated_sums:
+                # Sum the parameters for each key
                 for key in client_param:
-                    aggregated_sums[key] = initialize_aggregated_sums(client_param[key], aggregated_sums)
+                    aggregated_sums[key] = sum_parameters(aggregated_sums[key], client_param[key])
 
-            # Sum the parameters for each key
-            for key in client_param:
-                aggregated_sums[key] = sum_parameters(aggregated_sums[key], client_param[key])
+            # Average the aggregated sums
+            for key in aggregated_sums:
+                aggregated_sums[key] = average_parameters(aggregated_sums[key], num_interested_clients)
 
-        # Average the aggregated sums
-        for key in aggregated_sums:
-            aggregated_sums[key] = average_parameters(aggregated_sums[key], num_interested_clients)
+            print("Aggregated Parameters after FedAvg:",
+                  {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
 
-        print("Aggregated Parameters after FedAvg:",
-              {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
+            # Save the aggregated parameters back to the session
+            federated_session.global_parameters = json.dumps(aggregated_sums)
 
-        # Save the aggregated parameters back to the session
-        self.federated_sessions[session_id]['global_parameters'] = aggregated_sums
-        self.clear_client_parameters(session_id)
+            # Save aggregated_sums dictionary into a text file with appending
+            file_path = "aggregated_sums.txt"  # Specify the desired file path and name
+
+            # Convert the dictionary to a JSON string
+            aggregated_sums_str = json.dumps(aggregated_sums, indent=4)  # Format with indent for better readability
+
+            # Append aggregated_sums to the file with a separator       
+            with open(file_path, "a") as file:  # Use "a" mode to append
+                file.write("\n---\n")  # Add a separator before each new entry
+                file.write(aggregated_sums_str)  # Append the formatted JSON string
+                file.write("\n")  # Add a newline after the entry for readability
+
+            print(f"Aggregated sums have been appended to {file_path} with a separator.")
+            db.commit()
 
 

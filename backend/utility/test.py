@@ -3,17 +3,25 @@ import os
 import json
 from .ModelBuilder import model_instance_from_config
 from .metrics import calculate_metrics
-
+from db import engine
+from sqlalchemy.orm import Session
+from models.FederatedSession import FederatedSession
 
 class Test:
     def __init__(self, session_id, session_data):
         self.model = None
         self.session_id = session_id
-        self.session_data = session_data
-        self.model_config = session_data["federated_info"].dict()  # convert to dict to build the model
-        self.metrics = self.model_config["model_info"]["test_metrics"] # metrics to calculate in test
-        # length of interested_client
-        self.num_clients = len(session_data["interested_clients"]) 
+         # Fetch session data and clients within an active session
+        with Session(engine) as db:
+            session_data = db.query(FederatedSession).filter_by(id=session_id).first()
+            if not session_data:
+                raise ValueError(f"FederatedSession with ID {session_id} not found")
+            
+            # Access the clients relationship within the session
+            self.session_data = session_data
+            self.num_clients = len(session_data.clients)  # Length of interested clients
+        self.model_config = session_data.federated_info 
+        self.metrics = self.model_config['model_info']['test_metrics'] # metrics to calculate in test
         self.round = 0
         self.test_results = {}
         self.build_model()
@@ -31,6 +39,7 @@ class Test:
         print("Testing model...")
 
         self.model.update_parameters(updated_weights)
+            
         # read data from file
         try:
             data_dir = os.path.join("utility", "global_test_data")
@@ -39,9 +48,7 @@ class Test:
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
-
         Y_pred = self.model.predict(X_test)
-
         # calculate metrics from calculate_metrics function in metrics.py
         round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
         # setting result with key "round 1", "round 2", etc

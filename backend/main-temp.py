@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import Null, and_, null, update
 from sqlalchemy.orm import Session
 # from models import User, Base
-from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModleIdResponse
+from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModleIdResponse, ClientReceiveParameters
 from sse_starlette import EventSourceResponse
 from utility.notification import add_notifications_for_recently_active_users
 from models.FederatedSession import FederatedSession, FederatedSessionClient
@@ -156,7 +156,10 @@ async def notifications_stream(
             # Check if client has disconnected
             if await request.is_disconnected():
                 break
-
+            
+            # # Expire all cached objects to force fresh queries
+            # db.expire_all()
+        
             # Fetch notifications for the current user
             user_notifications = get_unnotified_notifications(user = current_user, db = db)
             
@@ -189,7 +192,7 @@ async def create_federated_session(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+):  
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host)
     
     # await websocket_manager.broadcast({
@@ -206,7 +209,7 @@ async def create_federated_session(
     add_notifications_for_recently_active_users(db=db, message=message, valid_until=session.wait_till, excluded_users=[current_user])
     
     try:
-        background_tasks.add_task(start_federated_learning, federated_manager, current_user, session)
+        background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, db)
         print("Background Task Added")
     except Exception as e:
         print(f"An error occurred while adding background process {Exception}")
@@ -245,6 +248,42 @@ def get_federated_session(session_id: int, current_user: User = Depends(get_curr
         return federated_response
     except KeyError:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+
+@app.post('/submit-client-price-response')
+def submit_client_price_response(client_response: ClientFederatedResponse, request: Request, db: Session = Depends(get_db)):
+    '''
+        decision : 1 means client accepts the price, -1 means client rejects the price
+        training_status = 2 means the training process should start
+    '''
+    try:
+        session_id = client_response.session_id
+        decision = client_response.decision
+        
+        session = federated_manager.get_session(session_id)
+        if(session):
+            # Fetch the FederatedSession by session_id
+            federated_session = db.query(FederatedSession).filter_by(id = session_id).first()
+            if not federated_session:
+                raise HTTPException(status_code=404, detail="Federated session not found")
+            # Update training_status based on the decision
+            if decision == 1:
+                federated_session.training_status = 2  # Update training_status to 2 (start training)
+            elif decision == -1:
+                federated_session.training_status = -1  # Keep or set to a default status for rejection
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid decision value. Must be 1 (accept) or -1 (reject)."
+                )
+            # Commit changes to the database
+            db.commit()
+            
+
+            return {'success': True, 'message': 'Training status updated successfully'}
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @app.post('/submit-client-federated-response')
 def submit_client_federated_response(client_response: ClientFederatedResponse, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -287,7 +326,6 @@ def update_client_status_four(request: ClientModleIdResponse, current_user: User
 
     session_id = request.session_id
     local_model_id = request.local_model_id
-    
     db.execute(
         update(FederatedSessionClient)
         .where(and_(
@@ -303,3 +341,86 @@ def update_client_status_four(request: ClientModleIdResponse, current_user: User
     db.commit()
 
     return {'message': 'Client Status Updated to 4'}
+
+@app.get('/get-model-parameters/{session_id}')
+def get_model_parameters(session_id: str):
+    '''
+        Client have received the model parameters and waiting for server to start training
+    '''
+    global_parameters = json.loads(federated_manager.get_session(session_id).global_parameters)
+    
+    response_data = {
+        "global_parameters": global_parameters,
+        "is_first": 0
+    }
+
+    # Save global_parameters string into a file
+    file_path = "global_parameters.txt"  # Specify the desired file path and name
+    with open(file_path, "a") as file:
+        file.write("\n---\n")  # Add a separator before each new entry
+        file.write(json.dumps(global_parameters))  # Append the JSON string
+        file.write("\n")  # Add a newline after the entry for readability
+    print(f"Global parameters have been saved to {file_path}.")
+    return response_data
+
+@app.post('/receive-client-parameters')
+def receive_client_parameters(request: ClientReceiveParameters,  current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    session_id = request.session_id
+    client_parameter = request.client_parameter
+    
+    session_data = db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
+    
+    if not session_data:
+        raise HTTPException(status_code=404, detail=f"Federated Session with ID {session_id} not found!")
+    
+    # Deserialize client_parameters from JSON to a Python dictionary
+    existing_parameters = json.loads(session_data.client_parameters) if session_data.client_parameters else {}
+    
+    existing_parameters[str(current_user.id)] = client_parameter
+    session_data.client_parameters = json.dumps(existing_parameters)
+    
+    db.commit()
+    
+    # federated_manager.federated_sessions[session_id]['client_parameters'][client_id] = request.client_parameter
+    return {"message": "Client Parameters Received"}
+
+@app.get('/get-all-completed-trainings')
+def get_training_results():
+    # iterate ove Global_test_results folder and return the completed sessions' results
+    try:
+        results_dir = "Global_test_results"
+        results = []
+        for file in os.listdir(results_dir):
+            if file.endswith(".json"):
+                with open(os.path.join(results_dir, file), "r") as f:
+                    result = json.load(f)
+                    # return only session_id and organisation_name
+                    # only save session_id from file name not all filename
+                    results.append({
+                        "session_id": file.split("_")[0],
+                        "org_name": result["session_data"]["organisation_name"]
+                    })
+        return {"results": results}
+
+    except Exception as e:
+        return {"message": f"No training results"}
+
+
+@app.get('/get-training-result/{session_id}')
+def get_training_results(session_id: str):
+    # iterate ove Global_test_results folder and return the session_id's results
+    try:
+        results_dir = "Global_test_results"
+        with open(os.path.join(results_dir, f"{session_id}_test_results.json"), "r") as f:
+            result = json.load(f)
+            return result
+    except Exception as e:
+        return {"message": f"No training results with this session_id"}
+# @app.get('/test-execute-round')
+# def text_execute_round():
+#     message = {
+#         "type": start_training,
+#     }
+#     print("Checkpoint 1:send_training_signal_and_wait_for_clients_training ",message, interested_clients)
+#     with Session(engine) as db:
+#         add_notifications_for(db, message, interested_clients)

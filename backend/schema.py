@@ -36,8 +36,7 @@ class ClientModleIdResponse(BaseModel):
     local_model_id: str
 
 class ClientReceiveParameters(BaseModel):
-    session_id: str
-    client_id: str
+    session_id: int
     client_parameter: dict
 
     

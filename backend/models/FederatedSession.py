@@ -39,9 +39,10 @@ class FederatedSession(TimestampMixin, Base):
     federated_info = Column(JSON, nullable=False)
     admin_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     curr_round = Column(Integer, default=1, nullable=False)
-    max_round = Column(Integer, default=10, nullable=False)
+    max_round = Column(Integer, default=3, nullable=False)
     global_parameters = Column(JSON, default='[]', nullable=False)
-    training_status = Column(Integer, default=1, nullable=False) # 1 for server waiting for all clients and 2 for training starts, 3 for completed
+    # 1 for server waiting for admin to price, 2 for server waiting for all clients and 3 for training starts, 4 for completed
+    training_status = Column(Integer, default=1, nullable=False) 
     client_parameters = Column(JSON, default='{}', nullable=False)
     # Wait Time
     wait_till = Column(DateTime, default=lambda: datetime.now() + timedelta(minutes=int(os.getenv('SESSION_WAIT_MINUTES'))))
