@@ -15,12 +15,12 @@ from models.FederatedSession import FederatedSession, FederatedSessionClient
 from helpers.federated_learning import start_federated_learning
 from helpers.websocket import ConnectionManager
 from utility.FederatedLearning import FederatedLearning
-from db import get_db
+from db import get_db,engine
 from models.User import User, Base
 from schemas.UserSchema import RefreshToken, UserCreate, UserLogin
 from helpers.auth import create_refresh_token, decode_refresh_token, get_password_hash, verify_password, create_access_token, get_current_user
 from dotenv import load_dotenv
-import jwt
+from api.dataset_api import dataset_router
 
 from utility.user import get_unnotified_notifications
 # from db import SessionLocal
@@ -416,11 +416,6 @@ def get_training_results(session_id: str):
             return result
     except Exception as e:
         return {"message": f"No training results with this session_id"}
-# @app.get('/test-execute-round')
-# def text_execute_round():
-#     message = {
-#         "type": start_training,
-#     }
-#     print("Checkpoint 1:send_training_signal_and_wait_for_clients_training ",message, interested_clients)
-#     with Session(engine) as db:
-#         add_notifications_for(db, message, interested_clients)
+
+
+app.include_router(dataset_router,prefix="/api",tags=["Dataset"])
