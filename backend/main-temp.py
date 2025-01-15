@@ -418,4 +418,4 @@ def get_training_results(session_id: str):
         return {"message": f"No training results with this session_id"}
 
 
-app.include_router(dataset_router,prefix="/api",tags=["Dataset"])
+app.include_router(dataset_router,tags=["Dataset"])
