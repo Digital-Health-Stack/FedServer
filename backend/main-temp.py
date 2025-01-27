@@ -21,6 +21,7 @@ from schemas.UserSchema import RefreshToken, UserCreate, UserLogin
 from helpers.auth import create_refresh_token, decode_refresh_token, get_password_hash, verify_password, create_access_token, get_current_user
 from dotenv import load_dotenv
 from api.dataset_api import dataset_router
+import os
 
 from utility.user import get_unnotified_notifications
 # from db import SessionLocal
