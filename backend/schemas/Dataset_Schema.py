@@ -8,6 +8,8 @@ class DatasetBase(BaseModel):
     code: str
     description: Optional[str] = None
     source: Optional[str] = None
+    columns: Optional[List[Dict[Any,Any]]] = None
+    files: Optional[List["DatasetFileBase"]] = None
     
 class DatasetCreate(DatasetBase):
     pass
@@ -15,8 +17,8 @@ class DatasetCreate(DatasetBase):
 
 
 class BenchmarkBase(BaseModel):
-    task: str
-    dataset_id: int
+    task: str 
+    dataset_id: int 
     model_name: str
     benchmark_metric: str
     metrics: Dict[str,Any]
@@ -31,3 +33,18 @@ class DatasetResponse(DatasetBase):
     benchmarks: List[BenchmarkResponse]
     class Config:
         orm_mode = True
+
+class DatasetUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+    source: Optional[str] = None
+    columns: Optional[List[Dict[Any,Any]]] = None
+    files: Optional[List["DatasetFileBase"]] = None  # Added files attribute
+    
+
+class DatasetFileBase(BaseModel):
+    name: str
+    hdfs_path: str
+    is_folder: bool = False
+    description: Optional[str] = None

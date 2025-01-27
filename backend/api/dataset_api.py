@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from models.Dataset import Dataset
+from models.Dataset import Dataset, DatasetFile
 from models.Benchmark import Benchmark
 from fastapi import APIRouter
 from sqlalchemy.orm import Session, joinedload
 from db import get_db
-from schemas.Dataset_Schema import DatasetCreate, BenchmarkCreate, BenchmarkResponse, DatasetResponse
+from schemas.Dataset_Schema import DatasetCreate, BenchmarkCreate, BenchmarkResponse, DatasetUpdateRequest
 from typing import List, Optional
 
 dataset_router = APIRouter()
@@ -34,10 +34,10 @@ def create_dataset(dataset: DatasetCreate, db: Session = Depends(get_db)):
 
 @dataset_router.get("/datasets/{code}")
 def get_dataset(code: str, db: Session=Depends(get_db)):
-    dataset = db.query(Dataset).options(joinedload(Dataset.benchmarks)).filter(Dataset.code == code).first()
+    dataset = db.query(Dataset).options(joinedload(Dataset.benchmarks),
+                                        joinedload(Dataset.files)).filter(Dataset.code == code).first()
     if not dataset:
         raise HTTPException(status_code=404, detail=f"Dataset with code {code} does not exists")
-    
     return dataset
 
 @dataset_router.get("/datasets/")
@@ -55,8 +55,38 @@ def get_all_dataset(db: Session=Depends(get_db)):
         }
         for dataset in datasets
     ]
-
     return response
+
+@dataset_router.put("/datasets/{code}")
+def update_dataset(code: str, update_request: DatasetUpdateRequest,db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.code == code).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail=f"Dataset with code {code} does not exists")
+    
+    # Update the dataset's fields based on the request body
+    if update_request.name is not None:
+        dataset.name = update_request.name
+    if update_request.description is not None:
+        dataset.description = update_request.description
+    if update_request.source is not None:
+        dataset.source = update_request.source
+    if update_request.columns is not None:
+        dataset.columns = update_request.columns
+    if update_request.files is not None:
+        dataset.files = [
+            DatasetFile(
+                name = file.name,
+                hdfs_path = file.hdfs_path,
+                is_folder = file.is_folder,
+                description = file.description
+            )
+            for file in update_request.files
+        ]
+        
+    db.commit()
+    db.refresh(dataset)
+    
+    return dataset
 
 
 @dataset_router.post('/benchmarks/add-benchmarks',response_model=dict)
