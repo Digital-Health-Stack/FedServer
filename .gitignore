@@ -1,4 +1,9 @@
-/backend/venv
-/backend/__pycache__
-/backend/utility/__pycache__
+.env
+__pycache__
+/backend/app/database.db
 /frontend/node_modules
+work.md
+global_test_data
+global_parameters.txt
+testing_parameters.txt
+alembic
