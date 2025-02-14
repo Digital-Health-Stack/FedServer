@@ -17,6 +17,9 @@ class FederatedLearningInfo(BaseModel):
     model_name: str
     model_info: dict
     dataset_info: dict
+    std_mean: float
+    std_deviation: float
+    
 
     # to resolve warning of protected namespace model_ for model_name and model_info
     class Config:

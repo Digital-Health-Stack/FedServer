@@ -32,11 +32,13 @@ load_dotenv()
 # Create FastAPI app
 app = FastAPI()
 
+client1_url = os.getenv("CLIENT1_URL", "http://default-url.com")
 origins = [ 
     "http://localhost:5173",
-    "http://localhost:5174"
+    "http://localhost:5174",
+    client1_url  
 ]
-
+print(origins)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -195,6 +197,7 @@ async def create_federated_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):  
+    print("Checkpoint 1: ",federated_details)
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host)
     
     # await websocket_manager.broadcast({
