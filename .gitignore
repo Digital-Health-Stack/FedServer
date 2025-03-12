@@ -7,3 +7,4 @@ global_test_data
 global_parameters.txt
 testing_parameters.txt
 aggregated_sums.txt
+venv
