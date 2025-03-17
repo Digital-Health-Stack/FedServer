@@ -55,9 +55,6 @@ class FederatedLearning:
             
             db.add(federated_session_client)
             db.commit()
-
-            federated_session.id
-
             return federated_session
 
         # self.federated_sessions[session_id] = {
