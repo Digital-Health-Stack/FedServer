@@ -1,13 +1,19 @@
-import "./App.css";
+import "./index.css";
 
-function App() {
+import Home from "./Pages/Home";
+import Error from "./Pages/Error";
+import NavBar from "./components/OnWholeApp/NavBar";
+
+import { Route, Routes } from "react-router-dom";
+
+export default function App() {
   return (
     <>
-      <p className="text-3xl font-bold underline text-center text-red-500">
-        Click on the Vite and React logos to learn more code
-      </p>
+      <NavBar />
+      <Routes>
+        <Route path="/" exact element={<Home />} />
+        <Route path="*" element={<Error />} />
+      </Routes>
     </>
   );
 }
-
-export default App;
