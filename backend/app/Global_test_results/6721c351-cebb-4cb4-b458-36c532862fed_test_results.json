@@ -1,0 +1,76 @@
+{
+    "session_data": {
+        "organisation_name": "safas",
+        "model_name": "CNN",
+        "model_info": {
+            "input_shape": "(128,128,1)",
+            "output_layer": {
+                "num_nodes": "1",
+                "activation_function": "linear"
+            },
+            "loss": "mse",
+            "optimizer": "adam",
+            "test_metrics": [
+                "mse"
+            ],
+            "layers": [
+                {
+                    "layer_type": "convolution",
+                    "filters": "64",
+                    "kernel_size": "(3,3)",
+                    "stride": "(1,1)",
+                    "activation_function": "relu"
+                },
+                {
+                    "layer_type": "pooling",
+                    "pooling_type": "max",
+                    "pool_size": "(2,2)",
+                    "stride": "(1,1)"
+                },
+                {
+                    "layer_type": "flatten"
+                },
+                {
+                    "layer_type": ""
+                }
+            ]
+        },
+        "dataset_info": {
+            "about_dataset": "asfas",
+            "feature_list": []
+        }
+    },
+    "num_clients": 1,
+    "test_results": {
+        "round 0": {
+            "mse": 14726.576819418775
+        },
+        "round 1": {
+            "mse": 11436.21660028237
+        },
+        "round 2": {
+            "mse": 8210.089072283026
+        },
+        "round 3": {
+            "mse": 5483.198341556061
+        },
+        "round 4": {
+            "mse": 5316.59869208839
+        },
+        "round 5": {
+            "mse": 3605.2224357741425
+        },
+        "round 6": {
+            "mse": 5399.729262281329
+        },
+        "round 7": {
+            "mse": 4122.2324189004285
+        },
+        "round 8": {
+            "mse": 6506.971565751135
+        },
+        "round 9": {
+            "mse": 4090.7856640362083
+        }
+    }
+}

@@ -1,0 +1,107 @@
+{
+    "session_data": {
+        "organisation_name": "Stark Organization",
+        "model_name": "CNN",
+        "model_info": {
+            "input_shape": "(128,128,1)",
+            "output_layer": {
+                "num_nodes": "1",
+                "activation_function": "linear"
+            },
+            "loss": "mse",
+            "optimizer": "adam",
+            "test_metrics": [
+                "mse",
+                "mae",
+                "r2_score"
+            ],
+            "layers": [
+                {
+                    "layer_type": "convolution",
+                    "filters": "64",
+                    "kernel_size": "(3,3)",
+                    "stride": "(2,2)",
+                    "activation_function": "relu"
+                },
+                {
+                    "layer_type": "pooling",
+                    "pooling_type": "max",
+                    "pool_size": "(2,2)",
+                    "stride": "(1,1)"
+                },
+                {
+                    "layer_type": "flatten"
+                },
+                {
+                    "layer_type": ""
+                }
+            ]
+        },
+        "dataset_info": {
+            "about_dataset": "Deeplasia Dataset",
+            "feature_list": [
+                {
+                    "feature_name": "Image",
+                    "type_Of_feature": "numpy"
+                },
+                {
+                    "feature_name": "age",
+                    "type_Of_feature": "int"
+                }
+            ]
+        }
+    },
+    "num_clients": 1,
+    "test_results": {
+        "round 0": {
+            "mse": 16877.958,
+            "mae": 123.343,
+            "r2_score": -0.001
+        },
+        "round 1": {
+            "mse": 15825.367,
+            "mae": 118.969,
+            "r2_score": -0.006
+        },
+        "round 2": {
+            "mse": 14628.216,
+            "mae": 113.776,
+            "r2_score": -0.016
+        },
+        "round 3": {
+            "mse": 13304.811,
+            "mae": 107.755,
+            "r2_score": -0.032
+        },
+        "round 4": {
+            "mse": 11878.428,
+            "mae": 100.903,
+            "r2_score": -0.056
+        },
+        "round 5": {
+            "mse": 10380.178,
+            "mae": 93.242,
+            "r2_score": -0.091
+        },
+        "round 6": {
+            "mse": 8869.287,
+            "mae": 84.985,
+            "r2_score": -0.14
+        },
+        "round 7": {
+            "mse": 7391.686,
+            "mae": 76.324,
+            "r2_score": -0.204
+        },
+        "round 8": {
+            "mse": 6016.561,
+            "mae": 67.649,
+            "r2_score": -0.287
+        },
+        "round 9": {
+            "mse": 4818.914,
+            "mae": 59.487,
+            "r2_score": -0.392
+        }
+    }
+}
