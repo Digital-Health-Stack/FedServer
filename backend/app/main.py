@@ -59,9 +59,6 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user already exists
     if db.query(User).filter(User.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already taken")
-    
-    # if db.query(User).filter(User.email == user.email).first():
-    #     raise HTTPException(status_code=400, detail="Email already registered")
 
     # Create new user
     new_user = User(
@@ -233,7 +230,6 @@ async def create_federated_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):  
-    print(federated_details.fed_info)
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host)
     
     # await websocket_manager.broadcast({
@@ -336,7 +332,6 @@ def submit_client_federated_response(client_response: ClientFederatedResponse, r
     '''
     session_id = client_response.session_id
     decision = client_response.decision
-    client_status = 3
     if decision == 1:
         client_status = 2
     
@@ -459,5 +454,10 @@ def get_training_results(session_id: str):
     except Exception as e:
         return {"message": f"No training results with this session_id"}
 
+
+@app.get('/check')
+def check():
+    db_url = os.getenv('CHECK_URL')
+    return db_url
 
 app.include_router(dataset_router,tags=["Dataset"])
