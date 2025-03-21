@@ -21,3 +21,4 @@ If any error occurs in db due to above command, go to _alembic/versions_ folder 
 ### To create migration for new tables
 
 - Run `alembic revision --autogenerate -m ""`
+

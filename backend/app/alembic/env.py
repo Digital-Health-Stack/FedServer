@@ -5,9 +5,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from models.User import Base
+from models.Base import Base
 
-print(Base.metadata.tables, 'a')
+print(Base.metadata.tables.keys(), '✅ Available Tables in Alembic')
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
