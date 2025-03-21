@@ -230,7 +230,12 @@ async def create_federated_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):  
-    session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host)
+    # Remove empty layers
+    federated_details.fed_info.model_info["layers"] = [
+        layer for layer in federated_details.fed_info.model_info["layers"] if layer.get("layer_type")
+    ]
+    print("Checkpoint 1: ",federated_details)
+    session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host,db)
     
     # await websocket_manager.broadcast({
     #     'type': "new-session",

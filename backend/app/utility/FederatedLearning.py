@@ -17,7 +17,7 @@ class FederatedLearning:
         self.federated_sessions = {}
     
     # Every session has a session_id also in future we can add a token and id
-    def create_federated_session(self, user: UserModel, federated_info: FederatedLearningInfo, ip) :
+    def create_federated_session(self, user: UserModel, federated_info: FederatedLearningInfo, ip, db:Session) :
         """
         Creates a new federated learning session.
 
@@ -36,26 +36,25 @@ class FederatedLearning:
                           Status values: 1 (not responded), 2 (accepted), 3 (rejected)
         - training_status: 1 (server waiting for all clients), 2 (training starts)
         """
-        with Session(engine) as db:
-            federated_session = FederatedSession(
-                federated_info=federated_info.__dict__,
-                admin_id = user.id,
-            )
+        federated_session = FederatedSession(
+            federated_info=federated_info.__dict__,
+            admin_id = user.id,
+        )
             
-            db.add(federated_session)
-            db.commit()
-            db.refresh(federated_session)
+        db.add(federated_session)
+        db.commit()
+        db.refresh(federated_session)
             
-            federated_session_client = FederatedSessionClient(
-                user_id = user.id,
-                session_id = federated_session.id,
-                status = 2,
-                ip = ip
-            )
+        federated_session_client = FederatedSessionClient(
+            user_id = user.id,
+            session_id = federated_session.id,
+            status = 2,
+            ip = ip
+        )
             
-            db.add(federated_session_client)
-            db.commit()
-            return federated_session
+        db.add(federated_session_client)
+        db.commit()
+        return federated_session
 
         # self.federated_sessions[session_id] = {
         #     "federated_info": federated_info,
