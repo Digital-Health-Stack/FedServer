@@ -5,8 +5,12 @@ import os
 
 load_dotenv()
 
-# SQLAlchemy setup
-DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Get the database path from the environment
+DB_PATH = os.getenv("DB_PATH")
+
+# SQLite Database URL
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL)
 

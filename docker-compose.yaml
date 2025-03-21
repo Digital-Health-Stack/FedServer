@@ -14,6 +14,12 @@ services:
       context: ./backend
     ports:
       - "8000:8000"
+    volumes:
+      - ${DB_VOLUME}:/db_volume
     env_file:
       - .env
+    environment:
+      - DB_PATH=/db_volume/database.db
+
+
       
