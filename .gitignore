@@ -1,5 +1,5 @@
 __pycache__
-/backend/app/database.db
+/backend/app/storage/database.db
 /frontend/node_modules
 work.md
 global_test_data
