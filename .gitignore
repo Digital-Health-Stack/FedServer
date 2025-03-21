@@ -1,6 +1,7 @@
 .env
 __pycache__
 /backend/app/storage/database.db
+/backend/app/.env
 /frontend/node_modules
 work.md
 global_test_data

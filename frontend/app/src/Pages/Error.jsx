@@ -5,7 +5,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center bg-blue-50 text-red-900">
+    <div className="flex flex-col items-center justify-center bg-blue-50 text-red-900 h-screen overflow-hidden">
       <h1 className="text-6xl font-bold text-red-500">404</h1>
       <h2 className="text-2xl font-semibold mt-2">Page Not Found</h2>
       <p className="mt-2 text-gray-400">
