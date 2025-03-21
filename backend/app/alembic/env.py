@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from models.User import Base
+from models.Base import Base
 
 print(Base.metadata.tables, 'a')
 

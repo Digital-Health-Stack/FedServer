@@ -16,18 +16,7 @@ class TimestampMixin:
     def approvedAt(cls):
         return Column(DateTime, nullable=True)  # NULL means not approved
 
-# Fixing soft deletion filtering by applying it on the correct table
-@event.listens_for(Session, "do_orm_execute")
-def filter_soft_deleted(execute_state):
-    if not execute_state.is_column_load and not execute_state.is_relationship_load:
-        if not execute_state.execution_options.get("include_approved", False):
-            execute_state.statement = execute_state.statement.options(
-                with_loader_criteria(
-                    TrainingDataTransfer, 
-                    lambda cls: cls.approvedAt.is_(None),
-                    include_aliases=True
-                )
-            )
+
 
 class TrainingDataTransfer(TimestampMixin, Base):
     __tablename__ = "training_data_transfers"
@@ -46,3 +35,16 @@ class TrainingDataTransfer(TimestampMixin, Base):
             "data_path": self.data_path,
             "approved_at": self.approvedAt.isoformat() if self.approvedAt else None,
         }
+
+# Fixing soft deletion filtering by applying it on the correct table
+@event.listens_for(Session, "do_orm_execute")
+def filter_soft_deleted(execute_state):
+    if not execute_state.is_column_load and not execute_state.is_relationship_load:
+        if not execute_state.execution_options.get("include_approved", False):
+            execute_state.statement = execute_state.statement.options(
+                with_loader_criteria(
+                    TrainingDataTransfer, 
+                    lambda cls: cls.approvedAt.is_(None),
+                    include_aliases=True
+                )
+            )
