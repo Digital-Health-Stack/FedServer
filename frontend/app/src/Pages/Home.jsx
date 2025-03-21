@@ -1,6 +1,4 @@
 import React from "react";
-import FedClientImage from "../assets/FedClient.jpeg";
-import StepsGif from "../assets/steps.gif"; // in backgrd
 import { useNavigate } from "react-router-dom";
 
 export default function Home() {
@@ -10,6 +8,7 @@ export default function Home() {
   };
 
   return (
+<<<<<<< HEAD
     <div className="container-fluid d-flex align-items-center">
       <div className="row w-100">
         <div className="col-md-5 d-none d-md-block">
@@ -42,6 +41,18 @@ export default function Home() {
           </div>
         </div>
       </div>
+=======
+    <div className="flex flex-col items-center">
+      <h1 className="text-3xl font-bold underline text-center text-red-500">
+        Click on the Vite and React logos to learn more code
+      </h1>
+      <button
+        onClick={gotoRegister}
+        className="mt-4 px-4 py-2 text-white bg-blue-500 rounded-md"
+      >
+        Register
+      </button>
+>>>>>>> next-version
     </div>
   );
 }
