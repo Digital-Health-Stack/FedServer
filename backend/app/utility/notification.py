@@ -3,7 +3,7 @@ from typing import List, Union
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_
 
-from helpers import date
+from utility import date
 from models.Notification import Notification
 from models.User import User
 

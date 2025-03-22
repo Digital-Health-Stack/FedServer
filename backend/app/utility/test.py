@@ -3,7 +3,7 @@ import os
 import json
 from .ModelBuilder import model_instance_from_config
 from .metrics import calculate_metrics
-from db import engine
+from utility.db import engine
 from sqlalchemy.orm import Session
 from models.FederatedSession import FederatedSession
 
