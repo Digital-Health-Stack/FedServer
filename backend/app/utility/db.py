@@ -5,12 +5,14 @@ import os
 
 load_dotenv()
 
-
 # Get the database path from the environment
-DB_PATH = os.getenv("DB_PATH")
+DATABASE_URL = os.getenv("DB_URL")
 
-# SQLite Database URL
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+if not DATABASE_URL:
+    raise ValueError("DB_URL is not set. Check .env file.")
+
+print(f"Database URL: {DATABASE_URL}")
+print("current working directory: ", os.getcwd())
 
 engine = create_engine(DATABASE_URL)
 

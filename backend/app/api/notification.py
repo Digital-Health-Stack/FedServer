@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends
 from sqlalchemy.orm import Session
-from utility.auth import get_current_user
+from utility.auth import role
 from utility.db import get_db
 from utility.user import get_unnotified_notifications
 import json
@@ -16,7 +16,7 @@ notifications_router = APIRouter()
 async def notifications_stream(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(role("client"))
 ):
     async def event_generator():
         while True:

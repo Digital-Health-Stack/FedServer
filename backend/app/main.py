@@ -7,7 +7,7 @@ from api.federated import federated_router
 from api.notification import notifications_router
 from api.user import user_router
 from api.temporary import temporary_router
-
+from api.confidential import confidential_router
 
 load_dotenv()
 
@@ -33,3 +33,4 @@ app.include_router(user_router,tags=["User"])
 app.include_router(federated_router,tags=["Federated"])
 app.include_router(notifications_router,tags=["Notification"])
 app.include_router(temporary_router,tags=["Temporary"])
+app.include_router(confidential_router,tags=["Confidential"])

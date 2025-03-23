@@ -2,26 +2,29 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from utility.db import get_db
 from datetime import datetime
-
 from schemas.UserSchema import RefreshToken, UserCreate, UserLogin
-
 from models.User import User
 from utility.auth import get_password_hash, verify_password, decode_refresh_token, create_tokens, get_current_user
+
 user_router = APIRouter()
 
-
+@user_router.get("/users")
+def get_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return users
 
 # Signup route
 @user_router.post("/signup", status_code=201)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user already exists
     if db.query(User).filter(User.username == user.username).first():
-        raise HTTPException(status_code=400, detail="Username already taken")
+        raise HTTPException(status_code=400, detail="Username Exists")
 
     # Create new user
     new_user = User(
         username=user.username,
         data_url=user.data_url,
+        role='client',
         hashed_password=get_password_hash(user.password)
     )
     db.add(new_user)

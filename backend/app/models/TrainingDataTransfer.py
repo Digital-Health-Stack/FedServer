@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from sqlalchemy import Column, DateTime, Integer, String, event
-from sqlalchemy.orm import declared_attr, Session, with_loader_criteria
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, event
+from sqlalchemy.orm import declared_attr, Session, relationship, with_loader_criteria
 from .Base import Base
 import os
 
@@ -16,8 +16,7 @@ class TimestampMixin:
     def approvedAt(cls):
         return Column(DateTime, nullable=True)  # NULL means not approved
 
-
-
+# Table for approving data transferred for QPD
 class TrainingDataTransfer(TimestampMixin, Base):
     __tablename__ = "training_data_transfers"
 
@@ -25,6 +24,8 @@ class TrainingDataTransfer(TimestampMixin, Base):
     training_name = Column(String, nullable=False)  # Name of the training
     num_datapoints = Column(Integer, nullable=False)  # Number of transferred datapoints
     data_path = Column(String, nullable=False)  # Where data is stored
+    federated_session_id = Column(Integer, ForeignKey("federated_sessions.id"), nullable=False, index=True)
+    federated_session = relationship("FederatedSession", back_populates="transferred_data")
 
     def as_dict(self):
         return {
@@ -34,6 +35,7 @@ class TrainingDataTransfer(TimestampMixin, Base):
             "transferred_at": self.transferredAt.isoformat(),
             "data_path": self.data_path,
             "approved_at": self.approvedAt.isoformat() if self.approvedAt else None,
+            "federated_session": self.federated_session.as_dict() if self.federated_session else None,
         }
 
 # Fixing soft deletion filtering by applying it on the correct table

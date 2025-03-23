@@ -21,4 +21,9 @@ If any error occurs in db due to above command, go to _alembic/versions_ folder 
 ### To create migration for new tables
 
 - Run `alembic revision --autogenerate -m ""`
+- Run `alembic upgrade head`
+
+some useful cmds-
+`uvicorn main:app --lazy-imports`
+`uvicorn main:app --reload --reload-dir=app/`
 

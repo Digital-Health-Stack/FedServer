@@ -83,7 +83,7 @@ def verify_token(token: str):
                     detail="Could not validate credentials",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            # return username  # Return the username extracted from the token
+            # return first matching user object
             return db.query(User).filter(User.username == username).first()
         else:
             raise HTTPException(status_code=440, detail="Session Timed Out!")
@@ -119,4 +119,11 @@ def create_tokens(db: Session, username: str, exception: HTTPException, check = 
         "refresh_token": new_refresh_token,
         "token_type": "bearer"
     }
+
+def role(required_role: str):
+    def role_checker(user: User = Depends(get_current_user)):
+        if user.role != required_role:
+            raise HTTPException(status_code=403, detail=f"Access denied: {required_role} role required")
+        return user
+    return role_checker
 

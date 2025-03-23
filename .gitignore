@@ -1,6 +1,7 @@
 __pycache__
 /backend/app/storage/database.db
 /frontend/node_modules
+
 work.md
 global_test_data
 global_parameters.txt

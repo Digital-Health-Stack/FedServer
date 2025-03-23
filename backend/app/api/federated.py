@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_, update
 from utility.db import get_db
 from utility.FederatedLearning import FederatedLearning
-from utility.auth import get_current_user
+from utility.auth import role
 from utility.federated_learning import start_federated_learning
 import json
 import os
@@ -18,7 +18,7 @@ federated_router = APIRouter()
 federated_manager = FederatedLearning()
 
 @federated_router.get("/client/initiated_sessions", response_model=list[ClientSessionStatusSchema])
-def get_initiated_jobs(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_initiated_jobs(current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     sessions = db.query(
             FederatedSession.id,
             FederatedSession.curr_round,
@@ -37,7 +37,7 @@ def get_initiated_jobs(current_user: User = Depends(get_current_user), db: Sessi
         ))) for session in sessions]
 
 @federated_router.get("/client/participated_sessions", response_model = list[ClientSessionStatusSchema])
-def get_participated_sessions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_participated_sessions(current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     sessions = db.query(
         FederatedSession.curr_round,
         FederatedSession.max_round,
@@ -60,7 +60,7 @@ async def create_federated_session(
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(role("client"))
 ):  
     # Remove empty layers
     federated_details.fed_info.model_info["layers"] = [
@@ -83,7 +83,7 @@ async def create_federated_session(
 
 
 @federated_router.get('/get-all-federated-sessions')
-def get_all_federated_session(current_user: User = Depends(get_current_user)):
+def get_all_federated_session(current_user: User = Depends(role("admin"))):
     return [
         {
             'id': id,
@@ -95,7 +95,7 @@ def get_all_federated_session(current_user: User = Depends(get_current_user)):
     ]
 
 @federated_router.get('/get-federated-session/{session_id}')
-def get_federated_session(session_id: int, current_user: User = Depends(get_current_user)):
+def get_federated_session(session_id: int, current_user: User = Depends(role("client"))):
     try:
         federated_session_data = federated_manager.get_session(session_id)
         client = next((client for client in federated_session_data.clients if client.user_id == current_user.id), None)
@@ -112,6 +112,7 @@ def get_federated_session(session_id: int, current_user: User = Depends(get_curr
         raise HTTPException(status_code=404, detail="Session not found")
     
 
+##*************** Do i need client dependency here ?***************
 @federated_router.post('/submit-client-price-response')
 def submit_client_price_response(client_response: ClientFederatedResponse, request: Request, db: Session = Depends(get_db)):
     '''
@@ -140,15 +141,14 @@ def submit_client_price_response(client_response: ClientFederatedResponse, reque
                 )
             # Commit changes to the database
             db.commit()
-            
-
             return {'success': True, 'message': 'Training status updated successfully'}
+        
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @federated_router.post('/submit-client-federated-response')
-def submit_client_federated_response(client_response: ClientFederatedResponse, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def submit_client_federated_response(client_response: ClientFederatedResponse, request: Request, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     '''
         decision : 1 means client accepts and 0 means rejects
         client_status = 2 means client has accepted the request
@@ -180,7 +180,7 @@ def submit_client_federated_response(client_response: ClientFederatedResponse, r
 
 
 @federated_router.post('/update-client-status-four')
-def update_client_status_four(request: ClientModleIdResponse, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_client_status_four(request: ClientModleIdResponse, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     '''
         Client have received the model parameters and waiting for server to start training
     '''
@@ -225,7 +225,7 @@ def get_model_parameters(session_id: str):
     return response_data
 
 @federated_router.post('/receive-client-parameters')
-def receive_client_parameters(request: ClientReceiveParameters,  current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def receive_client_parameters(request: ClientReceiveParameters,  current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     session_id = request.session_id
     client_parameter = request.client_parameter
     
