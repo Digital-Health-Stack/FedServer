@@ -13,3 +13,6 @@ aggregated_sums.txt
 venv
 /storage/database.db
 backend/app/storage/database.db
+.env
+
+
