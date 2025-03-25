@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from utility.db import get_db
-from schemas.Dataset_Schema import DatasetCreate, TaskCreate, BenchmarkCreate, DatasetResponse, TaskResponse, BenchmarkResponse
+from schemas.dataset import DatasetCreate, TaskCreate, BenchmarkCreate, DatasetResponse, TaskResponse, BenchmarkResponse
 from helpers.datasets_crud import create_dataset, delete_dataset, create_task, delete_task, create_benchmark, delete_benchmark, get_datasets, get_tasks_for_dataset, get_benchmark_for_task
 
 dataset_router = APIRouter()

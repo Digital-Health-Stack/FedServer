@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from schemas.Dataset_Schema import DatasetCreate, TaskCreate, BenchmarkCreate
+from schemas.dataset import DatasetCreate, TaskCreate, BenchmarkCreate
 from models.Dataset import Dataset, Task
 from models.Benchmark import Benchmark
 
