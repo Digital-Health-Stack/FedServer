@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from utility.db import get_db
 from datetime import datetime
-from schemas.UserSchema import RefreshToken, UserCreate, UserLogin
+from schemas.user import RefreshToken, UserCreate, UserLogin
 from models.User import User
 from utility.auth import get_password_hash, verify_password, decode_refresh_token, create_tokens, get_current_user
 

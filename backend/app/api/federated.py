@@ -11,7 +11,7 @@ import os
 from models.FederatedSession import FederatedSession, FederatedSessionClient
 from models.User import User
 
-from schemas.UserSchema import ClientSessionStatusSchema
+from schemas.user import ClientSessionStatusSchema
 from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModleIdResponse, ClientReceiveParameters
 
 federated_router = APIRouter()
@@ -66,14 +66,15 @@ async def create_federated_session(
     federated_details.fed_info.model_info["layers"] = [
         layer for layer in federated_details.fed_info.model_info["layers"] if layer.get("layer_type")
     ]
-    print("Checkpoint 1: ",federated_details)
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host,db)
+    
+    session.log_event(db, f"Federated session created by admin {current_user.id} from {request.client.host}")
     
     try:
         background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, db)
-        print("Background Task Added")
+        session.log_event(db, "Background task for federated learning started")
     except Exception as e:
-        print(f"An error occurred while adding background process {Exception}")
+        session.log_event(db, f"Error starting background task: {str(e)}")
         return {"message": "An error occurred while starting federated learning."}
     
     return {
