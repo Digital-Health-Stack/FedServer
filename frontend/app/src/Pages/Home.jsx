@@ -8,9 +8,9 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <h1 className="text-3xl font-bold underline text-center text-red-500">
-        Click on the Vite and React logos to learn more code
+    <div className="flex h-screen items-center justify-center flex-col">
+      <h1 className="text-3xl font-bold text-center text-blue-500">
+        Welcome to FedClient
       </h1>
       <button
         onClick={gotoRegister}

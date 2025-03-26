@@ -4,6 +4,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   HomeIcon,
+  UserIcon,
   ChartBarIcon,
   ServerStackIcon,
   ClipboardDocumentListIcon,
@@ -57,6 +58,14 @@ const NavBar = () => {
             <li>
               <NavLink
                 className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
+                to="/Register"
+              >
+                <UserIcon className="w-5 h-5" /> Register
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
                 to="/trainings"
               >
                 <ChartBarIcon className="w-5 h-5" /> Trainings
@@ -73,7 +82,7 @@ const NavBar = () => {
             <li>
               <NavLink
                 className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
-                to="/datasets"
+                to="/ManageData"
               >
                 <ClipboardDocumentListIcon className="w-5 h-5" /> Datasets
               </NavLink>

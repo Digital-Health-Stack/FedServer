@@ -8,6 +8,7 @@ from utility.auth import get_password_hash, verify_password, decode_refresh_toke
 
 user_router = APIRouter()
 
+# remove this end-point later
 @user_router.get("/users")
 def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
