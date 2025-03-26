@@ -15,7 +15,8 @@ import { ToastContainer } from "react-toastify";
 import ManageData from "./Pages/ManageData";
 import ViewRecentUploads from "./components/DataPipeline/ViewRecentUploads";
 import ViewAllDatasets from "./components/DataPipeline/ViewAllDatasets";
-import DataSetOverview from "./components/DataPipeline/DataSetVisuals/DataSetOverview";
+import RawDataSetOverview from "./components/DataPipeline/DataSetVisuals/RawDataSetOverview.jsx";
+import ProcessedDataSetOverview from "./components/DataPipeline/DataSetVisuals/ProcessedDataSetOverview.jsx";
 import PreprocessingDocs from "./components/DataPipeline/DataSetVisuals/ProcessingComponents/PreprocessingDocs.jsx";
 
 export default function App() {
@@ -57,8 +58,12 @@ export default function App() {
             />
             <Route path="/view-all-datasets" element={<ViewAllDatasets />} />
             <Route
-              path="/dataset-overview/:dir/:filename"
-              element={<DataSetOverview />}
+              path="/raw-dataset-overview/:filename"
+              element={<RawDataSetOverview />}
+            />
+            <Route
+              path="/processed-dataset-overview/:filename"
+              element={<ProcessedDataSetOverview />}
             />
             <Route path="/preprocessing-docs" element={<PreprocessingDocs />} />
             <Route path="/*" element={<Error />} />

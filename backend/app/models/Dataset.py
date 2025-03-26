@@ -3,11 +3,17 @@ from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime
 from models.Base import Base
 
+class RawDataset(Base):
+    __tablename__ = "raw_datasets"
+    filename = Column(String, primary_key=True, index=True)
+    description = Column(String, nullable=True)
+    datastats = Column(JSON)
+
 class Dataset(Base):
     __tablename__ = "datasets"
 
     dataset_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), unique=True, nullable=False, index=True)
+    filename = Column(String(255), unique=True, nullable=False, index=True)
     description = Column(String, nullable=True)
     datastats = Column(JSON, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now(), index=True)

@@ -1,8 +1,9 @@
 from pydantic import BaseModel
+from datetime import datetime
 from typing import Optional
 
 class DatasetCreate(BaseModel):
-    name: str
+    filename: str
     description: Optional[str] = None
     datastats: Optional[dict] = None
 
@@ -24,3 +25,17 @@ class BenchmarkCreate(BaseModel):
 
 class BenchmarkResponse(BenchmarkCreate):
     benchmark_id: int
+
+class RawDatasetListResponse(BaseModel):
+    filename: str
+    description: Optional[str] = None
+
+class DatasetListResponse(BaseModel):
+    dataset_id: int
+    filename: str
+    description: Optional[str] = None
+    created_at: datetime
+
+class Operation(BaseModel):
+    column: str
+    operation: str
