@@ -3,7 +3,6 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError, NoResultFound
 from schemas.dataset import DatasetCreate, TaskCreate, BenchmarkCreate
 from models.Dataset import Dataset, Task, RawDataset
 from models.Benchmark import Benchmark
-from models.RawDataset import RawDataset
 
 def create_raw_dataset(db: Session, filename: str, datastats: dict):
     try:

@@ -84,7 +84,7 @@ async def create_federated_session(
 
 
 @federated_router.get('/get-all-federated-sessions')
-def get_all_federated_session(current_user: User = Depends(role("admin"))):
+def get_all_federated_session(current_user: User = Depends(role("client"))):
     return [
         {
             'id': id,

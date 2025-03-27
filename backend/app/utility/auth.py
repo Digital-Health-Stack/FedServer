@@ -100,25 +100,49 @@ def verify_token(token: str):
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     return verify_token(token)
 
-def create_tokens(db: Session, username: str, exception: HTTPException, check = null):
-    # Verify if the refresh token exists in the database
-    db_user = db.query(User).filter(User.username == username).first()
-    if (not db_user) or (check and check(db_user)):
-        raise exception
-    
-    # Create a new access token
-    new_access_token = create_access_token(data={"sub": db_user.username})
-    new_refresh_token = create_refresh_token(data={"sub": db_user.username})
-    
-    # Store refresh token in database
-    db_user.refresh_token = new_refresh_token
-    db.commit()
+def create_tokens(db: Session, username: str, exception: HTTPException, check=None):
+    try:
+        db_user = db.query(User).filter(User.username == username).first()
 
-    return {
-        "access_token": new_access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer"
-    }
+        if not db_user or (check and check(db_user)): 
+            raise exception
+        
+        # Generate tokens
+        new_access_token = create_access_token(data={"sub": db_user.username})
+        new_refresh_token = create_refresh_token(data={"sub": db_user.username})
+        # Store refresh token in the database
+        db_user.refresh_token = new_refresh_token
+        db.commit()
+
+        return {
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer"
+        }
+
+    except Exception as e:
+        db.rollback()  # Ensure database integrity in case of failure
+        raise HTTPException(status_code=500, detail="Invalid credentials")
+    
+# def create_tokens(db: Session, username: str, exception: HTTPException, check = null):
+#     # Verify if the refresh token exists in the database
+#     db_user = db.query(User).filter(User.username == username).first()
+#     if (not db_user) or (check and check(db_user)):
+#         raise exception
+    
+#     # Create a new access token
+#     new_access_token = create_access_token(data={"sub": db_user.username})
+#     new_refresh_token = create_refresh_token(data={"sub": db_user.username})
+    
+#     # Store refresh token in database
+#     db_user.refresh_token = new_refresh_token
+#     db.commit()
+
+#     return {
+#         "access_token": new_access_token,
+#         "refresh_token": new_refresh_token,
+#         "token_type": "bearer"
+#     }
 
 def role(required_role: str):
     def role_checker(user: User = Depends(get_current_user)):

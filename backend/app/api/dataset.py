@@ -33,10 +33,7 @@ from helpers.datasets_crud import (
     create_benchmark,
     delete_benchmark,
 )
-# from models.Dataset import Dataset
-# from models.RawDataset import RawDataset
-# from models.Task import Task
-# from models.Benchmark import Benchmark
+
 from utility.db import get_db
 from helpers.hdfs_services import HDFSServiceManager
 from helpers.spark_services import SparkSessionManager
@@ -45,7 +42,7 @@ load_dotenv()
 
 executor = ThreadPoolExecutor(max_workers=os.cpu_count())
 
-router = APIRouter(tags=["Datasets"])
+dataset_router = APIRouter(tags=["Dataset"])
 
 HDFS_RAW_DATASETS_DIR = os.getenv("HDFS_RAW_DATASETS_DIR")
 HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR")
@@ -112,14 +109,14 @@ async def process_preprocessing(directory: str, filename: str, operations: List[
 
 ######################## Dataset Routes #######################
 
-@router.get("/preprocessing", summary="Test server connection")
+@dataset_router.get("/preprocessing", summary="Test server connection")
 def hello_server():
     return {"message": "Preprocessing router operational"}
 
 
 
 ############ Raw Dataset Management Routes
-@router.get("/list-raw-datasets", response_model=List[RawDatasetListResponse])
+@dataset_router.get("/list-raw-datasets", response_model=List[RawDatasetListResponse])
 def list_raw_datasets_endpoint(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -128,14 +125,14 @@ def list_raw_datasets_endpoint(
     result = list_raw_datasets(db, skip=skip, limit=limit)
     return handle_crud_result(result)
 
-@router.get("/raw-dataset-overview/{filename}", response_model=dict)
+@dataset_router.get("/raw-dataset-overview/{filename}", response_model=dict)
 def get_raw_dataset_overview(filename: str, db: Session = Depends(get_db)):
     result = get_raw_dataset_stats(db, filename=filename)
     if isinstance(result, dict) and "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     return result
 
-@router.put("/rename-raw-dataset-file")
+@dataset_router.put("/rename-raw-dataset-file")
 def rename_raw_dataset_file(
     old_file_name: str = Query(...),
     new_file_name: str = Query(...),
@@ -144,7 +141,7 @@ def rename_raw_dataset_file(
     result = rename_raw_dataset(db, old_file_name, new_file_name)
     return handle_crud_result(result)
 
-@router.delete("/delete-raw-dataset-file")
+@dataset_router.delete("/delete-raw-dataset-file")
 def delete_raw_dataset_file(
     filename: str = Query(...),
     db: Session = Depends(get_db)
@@ -152,7 +149,7 @@ def delete_raw_dataset_file(
     result = delete_raw_dataset(db, filename)
     return handle_crud_result(result)
 
-@router.post("/create-new-dataset", status_code=status.HTTP_202_ACCEPTED)
+@dataset_router.post("/create-new-dataset", status_code=status.HTTP_202_ACCEPTED)
 async def create_new_dataset(request: Request):
     data = await request.json()
     filename = data.get("fileName")
@@ -173,7 +170,7 @@ async def create_new_dataset(request: Request):
 
 
 ############ Processed Dataset Management Routes
-@router.get("/list-datasets", response_model=List[DatasetListResponse])
+@dataset_router.get("/list-datasets", response_model=List[DatasetListResponse])
 def list_datasets_endpoint(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -182,14 +179,14 @@ def list_datasets_endpoint(
     result = list_datasets(db, skip=skip, limit=limit)
     return handle_crud_result(result)
 
-@router.get("/dataset-overview/{filename}", response_model=dict)
+@dataset_router.get("/dataset-overview/{filename}", response_model=dict)
 def get_dataset_overview(filename: str, db: Session = Depends(get_db)):
     result = get_dataset_stats(db, filename=filename)
     if isinstance(result, dict) and "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     return result
 
-@router.put("/rename-dataset-file")
+@dataset_router.put("/rename-dataset-file")
 def rename_processed_dataset_file(
     dataset_id: int = Query(...),
     new_name: str = Query(...),
@@ -198,7 +195,7 @@ def rename_processed_dataset_file(
     result = rename_dataset(db, dataset_id, new_name)
     return handle_crud_result(result)
 
-@router.delete("/delete-dataset-file")
+@dataset_router.delete("/delete-dataset-file")
 def delete_processed_dataset_file(
     dataset_id: int = Query(...),
     db: Session = Depends(get_db)
@@ -206,7 +203,7 @@ def delete_processed_dataset_file(
     result = delete_dataset(db, dataset_id)
     return handle_crud_result(result)
 
-@router.post("/preprocess-dataset", status_code=status.HTTP_202_ACCEPTED)
+@dataset_router.post("/preprocess-dataset", status_code=status.HTTP_202_ACCEPTED)
 async def preprocess_dataset_endpoint(request: Request):
     data = await request.json()
     executor.submit(
@@ -222,33 +219,33 @@ async def preprocess_dataset_endpoint(request: Request):
 
 
 ########## Task Management Routes
-@router.post("/tasks", response_model=TaskResponse)
+@dataset_router.post("/tasks", response_model=TaskResponse)
 def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
     result = create_task(db, task)
     return handle_crud_result(result)
 
-@router.delete("/tasks/{task_id}")
+@dataset_router.delete("/tasks/{task_id}")
 def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
     result = delete_task(db, task_id)
     return handle_crud_result(result)
 
 ########### Benchmark Management Routes
-@router.post("/benchmarks", response_model=BenchmarkResponse)
+@dataset_router.post("/benchmarks", response_model=BenchmarkResponse)
 def create_new_benchmark(benchmark: BenchmarkCreate, db: Session = Depends(get_db)):
     result = create_benchmark(db, benchmark)
     return handle_crud_result(result)
 
-@router.delete("/benchmarks/{benchmark_id}")
+@dataset_router.delete("/benchmarks/{benchmark_id}")
 def delete_existing_benchmark(benchmark_id: int, db: Session = Depends(get_db)):
     result = delete_benchmark(db, benchmark_id)
     return handle_crud_result(result)
 
 ############ HDFS specific routes
-@router.get("/testing_list_all_datasets")
+@dataset_router.get("/testing_list_all_datasets_from_hdfs")
 async def testing_list_all_datasets():
     return await hdfs_client.testing_list_all_datasets()
 
-@router.get("/list-recent-uploads")   
+@dataset_router.get("/list-recent-uploads")   
 async def list_recent_uploads():
     return await hdfs_client.list_recent_uploads()
 

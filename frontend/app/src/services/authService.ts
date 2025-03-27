@@ -1,18 +1,6 @@
 import { AxiosInstance } from "axios";
 import { HTTPService } from "./config";
 
-// UI doesn't support creating admins yet (have to do it manually on DB)
-
-// export const createUser = async (
-//     userData: {
-//         username: String,
-//         data_url: String,
-//         password: String
-//     }
-// ) => {
-//     return HTTPService.post("/signup", userData);
-// };
-
 export const login = async (credentials: {
   username: String;
   password: String;

@@ -1,15 +1,19 @@
-import { Route, Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useLocation, Navigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export const PrivateRoute = ({ children }) => {
-    const { user } = useAuth(); // Access user or authentication status from context
+  const { user } = useAuth();
+  const location = useLocation();
 
-    // If the user is not authenticated, redirect to the login page
-    return user ? children : <Navigate to="/Register" />;
+  return user ? (
+    children
+  ) : (
+    <Navigate to="/admin-login" state={{ from: location }} replace />
+  );
 };
 
 export const OnlyGuestRoute = ({ children }) => {
-    const { user } = useAuth();
+  const { user } = useAuth();
 
-    return user ? <Navigate to={'/dashboard'} /> : children
-}
+  return user ? <Navigate to={"/"} /> : children;
+};

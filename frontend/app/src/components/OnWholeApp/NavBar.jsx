@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Bars3Icon,
   XMarkIcon,
   HomeIcon,
-  UserIcon,
+  UserMinusIcon,
+  UserPlusIcon, 
   ChartBarIcon,
   ServerStackIcon,
   ClipboardDocumentListIcon,
@@ -13,6 +15,7 @@ import {
 
 const NavBar = () => {
   const [isNavbarOpen, setIsNavbarOpen] = useState(false);
+  const { logout, user } = useAuth();
 
   const handleToggle = () => {
     setIsNavbarOpen(!isNavbarOpen);
@@ -55,14 +58,16 @@ const NavBar = () => {
                 <HomeIcon className="w-5 h-5" /> Home
               </NavLink>
             </li>
-            <li>
-              <NavLink
-                className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
-                to="/Register"
-              >
-                <UserIcon className="w-5 h-5" /> Register
-              </NavLink>
-            </li>
+            {!user && (
+              <li>
+                <NavLink
+                  className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
+                  to="/admin-login"
+                >
+                  <UserPlusIcon className="w-5 h-5" /> Admin Login
+                </NavLink>
+              </li>
+            )}
             <li>
               <NavLink
                 className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
@@ -95,6 +100,17 @@ const NavBar = () => {
                 <TrophyIcon className="w-5 h-5" /> Benchmarks
               </NavLink>
             </li>
+            {user && (
+              <li>
+                <button
+                  className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
+                  onClick={logout}
+                >
+                  <UserMinusIcon className="w-5 h-5" />
+                  Log out
+                </button>
+              </li>
+            )}
           </ul>
         </div>
       </div>

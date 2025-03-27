@@ -1,7 +1,7 @@
 import "./index.css";
 import { Route, Routes } from "react-router-dom";
 import Home from "./Pages/Home";
-import Register from "./Pages/Register";
+import AdminLogin from "./Pages/AdminLogin";
 import About from "./Pages/About";
 import Error from "./Pages/Error";
 import NavBar from "./components/OnWholeApp/NavBar";
@@ -34,10 +34,10 @@ export default function App() {
             <Route path="/" exact element={<Home />} />
 
             <Route
-              path="/Register"
+              path="/admin-login"
               element={
                 <OnlyGuestRoute>
-                  <Register
+                  <AdminLogin
                     clientToken={clientToken}
                     setClientToken={setClientToken}
                     setSocket={setSocket}

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import NumericColumn from "./NumericColumn.jsx";
-import StringColumn from "./StringColumn.jsx";
+import NumericColumn from "../ColumnComponents/NumericColumn.jsx";
+import StringColumn from "../ColumnComponents/StringColumn.jsx";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
-  PushPinIcon,
+  BookmarkIcon,
 } from "@heroicons/react/24/solid";
 
 const ColumnDetails = ({ columnStats }) => {
@@ -64,7 +64,7 @@ const ColumnDetails = ({ columnStats }) => {
                 onClick={() => togglePin(unpinnedColumns[currentIndex])}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
-                <PushPinIcon className="h-6 w-6 text-blue-600" />
+                <BookmarkIcon className="h-6 w-6 text-blue-600" />
               </button>
             </div>
 
@@ -114,7 +114,7 @@ const ColumnDetails = ({ columnStats }) => {
                   onClick={() => togglePin(col)}
                   className="p-2 hover:bg-gray-100 rounded-full"
                 >
-                  <PushPinIcon className="h-6 w-6 text-red-600 rotate-45" />
+                  <BookmarkIcon className="h-6 w-6 text-red-600 rotate-45" />
                 </button>
               </div>
 

@@ -8,8 +8,15 @@ from utility.db import get_db
 from models.User import User
 from schemas.user import UserCreate
 from utility.auth import get_password_hash
+from dotenv import dotenv_values
 
 confidential_router = APIRouter()
+
+@confidential_router.post("/get-env-vars")
+def get_env_vars():
+    env_vars = dotenv_values(".env")  
+    return {"env_variables": env_vars}
+
 
 @confidential_router.post("/admin-signup", status_code=201)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
