@@ -197,6 +197,7 @@ const DataSetOverview = () => {
         const datasetRes = await axios.get(
           `${DATASET_DETAILS_URL}/${filename}`
         );
+        console.log(datasetRes.data);
         setDataset(datasetRes.data);
 
         // Fetch associated tasks

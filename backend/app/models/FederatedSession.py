@@ -80,3 +80,15 @@ class FederatedSessionClient(TimestampMixin, Base):
     
     user = relationship('User', back_populates="federated_session_clients")
     session = relationship('FederatedSession', back_populates='clients')
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "session_id": self.session_id,
+            "status": self.status,
+            "ip": self.ip,
+            "local_model_id": self.local_model_id,
+            "user": self.user.as_dict() if self.user else None,
+            "session": self.session.as_dict() if self.session else None
+        }

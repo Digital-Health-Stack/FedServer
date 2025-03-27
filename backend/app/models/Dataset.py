@@ -5,9 +5,18 @@ from models.Base import Base
 
 class RawDataset(Base):
     __tablename__ = "raw_datasets"
-    filename = Column(String, primary_key=True, index=True)
+    dataset_id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String,nullable=False, index=True)
     description = Column(String, nullable=True)
     datastats = Column(JSON)
+
+    def as_dict(self):
+        return {
+            "dataset_id": self.dataset_id,
+            "filename": self.filename,
+            "description": self.description,
+            "datastats": self.datastats
+        }
 
 class Dataset(Base):
     __tablename__ = "datasets"
@@ -19,6 +28,13 @@ class Dataset(Base):
     created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
     tasks = relationship("Task", back_populates="dataset", cascade="all, delete")
 
+    def as_dict(self):
+        return {
+            "dataset_id": self.dataset_id,
+            "filename": self.filename,
+            "description": self.description,
+            "datastats": self.datastats
+        }
 
 # each dataset will have multiple tasks (decided by server admin), every task will have an associated Metric
 class Task(Base):
@@ -38,4 +54,12 @@ class Task(Base):
 
     Index("idx_tasks_dataset", dataset_id)
     Index("idx_tasks_metric", metric)
+
+    def as_dict(self):
+        return {
+            "task_id": self.task_id,
+            "dataset_id": self.dataset_id,
+            "task_name": self.task_name,
+            "metric": self.metric
+        }
 

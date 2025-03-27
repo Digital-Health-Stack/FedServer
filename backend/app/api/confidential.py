@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from utility.db import get_db
 from models.User import User
 from schemas.user import UserCreate
+from schemas.dataset import DatasetCreate
 from utility.auth import get_password_hash
 from dotenv import dotenv_values
+from helpers.datasets_crud import create_dataset, create_raw_dataset
 
 confidential_router = APIRouter()
 
@@ -35,3 +37,11 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return {"message": "User created successfully"}
+
+@confidential_router.post("/create-dataset", status_code=201)
+def create_dataset_endpoint(dataset: DatasetCreate, db: Session = Depends(get_db)):
+    return create_dataset(db, dataset)
+
+@confidential_router.post("/create-raw-dataset", status_code=201)
+def create_raw_dataset_endpoint(dataset: DatasetCreate, db: Session = Depends(get_db)):
+    return create_raw_dataset(db, dataset)

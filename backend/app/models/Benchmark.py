@@ -15,3 +15,12 @@ class Benchmark(Base):
 
     Index("idx_benchmarks_task", task_id)
     Index("idx_benchmarks_time", created_at.desc())
+
+    def as_dict(self):
+        return {
+            "benchmark_id": self.benchmark_id,
+            "task_id": self.task_id,
+            "metric_value": self.metric_value,
+            "training_id": self.training_id,
+            "created_at": self.created_at
+        }

@@ -4,9 +4,9 @@ from schemas.dataset import DatasetCreate, TaskCreate, BenchmarkCreate
 from models.Dataset import Dataset, Task, RawDataset
 from models.Benchmark import Benchmark
 
-def create_raw_dataset(db: Session, filename: str, datastats: dict):
+def create_raw_dataset(db: Session, dataset: DatasetCreate):
     try:
-        db_dataset = RawDataset(filename=filename, datastats=datastats)
+        db_dataset = RawDataset(**dataset.dict())
         db.add(db_dataset)
         db.commit()
         db.refresh(db_dataset)
@@ -50,8 +50,8 @@ def list_raw_datasets(db: Session, skip: int, limit: int):
 
 def get_raw_dataset_stats(db: Session, filename: str):
     try:
-        dataset = db.query(RawDataset).filter(RawDataset.filename == filename).one()
-        return dataset.datastats
+        dataset = db.query(RawDataset).filter(RawDataset.filename == filename).first()
+        return dataset.as_dict() if dataset else {"details": "File not found"}
     except NoResultFound:
             return {"error": "File not found"}
     except SQLAlchemyError as e:
@@ -103,8 +103,8 @@ def list_datasets(db: Session, skip: int, limit: int):
     
 def get_dataset_stats(db: Session, filename: str):
     try:
-        dataset = db.query(Dataset).filter(Dataset.filename == filename).one()
-        return dataset.datastats
+        dataset = db.query(Dataset).filter(Dataset.filename == filename).first()
+        return dataset.as_dict() if dataset else {"details": "File not found"}
     except NoResultFound:
             return {"error": "File not found"}
     except SQLAlchemyError as e:

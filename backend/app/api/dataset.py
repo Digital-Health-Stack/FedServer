@@ -125,7 +125,7 @@ def list_raw_datasets_endpoint(
     result = list_raw_datasets(db, skip=skip, limit=limit)
     return handle_crud_result(result)
 
-@dataset_router.get("/raw-dataset-overview/{filename}", response_model=dict)
+@dataset_router.get("/raw-dataset-details/{filename}", response_model=dict)
 def get_raw_dataset_overview(filename: str, db: Session = Depends(get_db)):
     result = get_raw_dataset_stats(db, filename=filename)
     if isinstance(result, dict) and "error" in result:
@@ -179,7 +179,7 @@ def list_datasets_endpoint(
     result = list_datasets(db, skip=skip, limit=limit)
     return handle_crud_result(result)
 
-@dataset_router.get("/dataset-overview/{filename}", response_model=dict)
+@dataset_router.get("/dataset-details/{filename}", response_model=dict)
 def get_dataset_overview(filename: str, db: Session = Depends(get_db)):
     result = get_dataset_stats(db, filename=filename)
     if isinstance(result, dict) and "error" in result:
