@@ -8,6 +8,7 @@ import {
 } from "@heroicons/react/24/solid";
 
 const StringColumn = ({ column }) => {
+  console.log("String Column Data:", column);
   const bins = column.topCategories.map((category) => category.value);
   const counts = column.topCategories.map((category) => category.count);
 

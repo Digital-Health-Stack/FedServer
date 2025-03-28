@@ -6,18 +6,20 @@ import About from "./Pages/About";
 import Error from "./Pages/Error";
 import NavBar from "./components/OnWholeApp/NavBar";
 import MyDataProvider from "./GlobalContext";
-// import EventsAction from "./EventsActions";
+
 import { useState } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute, OnlyGuestRoute } from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
-// import "react-toastify/dist/ReactToastify.min.css";
+
 import ManageData from "./Pages/ManageData";
 import ViewRecentUploads from "./components/DataPipeline/ViewRecentUploads";
 import ViewAllDatasets from "./components/DataPipeline/ViewAllDatasets";
 import RawDataSetOverview from "./components/DataPipeline/DataSetVisuals/RawDataSetOverview.jsx";
 import ProcessedDataSetOverview from "./components/DataPipeline/DataSetVisuals/ProcessedDataSetOverview.jsx";
 import PreprocessingDocs from "./components/DataPipeline/DataSetVisuals/ProcessingComponents/PreprocessingDocs.jsx";
+import Benchmarks from "./components/DataPipeline/DataSetVisuals/DatasetDetails/BenchmarkList.jsx";
+import BenchmarkTraining from "./components/DataPipeline/DataSetVisuals/DatasetDetails/BenchmarkTraining.jsx";
 
 export default function App() {
   const [clientToken, setClientToken] = useState("");
@@ -66,6 +68,13 @@ export default function App() {
               element={<ProcessedDataSetOverview />}
             />
             <Route path="/preprocessing-docs" element={<PreprocessingDocs />} />
+
+            <Route path="/tasks/:task_id/benchmarks" element={<Benchmarks />} />
+
+            <Route
+              path="/benchmarks/:benchmark_id/training"
+              element={<BenchmarkTraining />}
+            />
             <Route path="/*" element={<Error />} />
           </Routes>
         </AuthProvider>

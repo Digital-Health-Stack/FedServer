@@ -1,8 +1,9 @@
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, NoResultFound
-from schemas.dataset import DatasetCreate, TaskCreate, BenchmarkCreate
-from models.Dataset import Dataset, Task, RawDataset
-from models.Benchmark import Benchmark
+from typing import Optional
+from fastapi import HTTPException, status
+from schemas.dataset import DatasetCreate
+from models.Dataset import Dataset, RawDataset, Task
 
 def create_raw_dataset(db: Session, dataset: DatasetCreate):
     try:
@@ -109,56 +110,16 @@ def get_dataset_stats(db: Session, filename: str):
             return {"error": "File not found"}
     except SQLAlchemyError as e:
         return {"error": f"Database error: {e}"}
-    
-def create_task(db: Session, task: TaskCreate):
-    try:
-        db_task = Task(**task.dict())
-        db.add(db_task)
-        db.commit()
-        db.refresh(db_task)
-        return db_task
-    except IntegrityError:
-        db.rollback()
-        return {"error": "Task creation failed due to integrity constraints."}
-    except SQLAlchemyError as e:
-        db.rollback()
-        return {"error": f"Database error: {e}"}
 
-def delete_task(db: Session, task_id: int):
-    try:
-        task = db.query(Task).filter(Task.task_id == task_id).first()
-        if not task:
-            return {"error": "Task not found."}
-        db.delete(task)
-        db.commit()
-        return {"message": "Task deleted successfully."}
-    except SQLAlchemyError as e:
-        db.rollback()
-        return {"error": f"Database error: {e}"}
+def get_dataset_by_filename(db: Session, filename: str):
+    return db.query(Dataset).filter(Dataset.filename == filename).first()
 
-def create_benchmark(db: Session, benchmark: BenchmarkCreate):
-    try:
-        db_benchmark = Benchmark(**benchmark.dict())
-        db.add(db_benchmark)
-        db.commit()
-        db.refresh(db_benchmark)
-        return db_benchmark
-    except IntegrityError:
-        db.rollback()
-        return {"error": "Benchmark creation failed due to integrity constraints."}
-    except SQLAlchemyError as e:
-        db.rollback()
-        return {"error": f"Database error: {e}"}
+# Dataset CRUD operations
+def get_tasks_by_dataset_id(db: Session, dataset_id: int):
+    return db.query(Task).filter(Task.dataset_id == dataset_id).all()
 
-def delete_benchmark(db: Session, benchmark_id: int):
-    try:
-        benchmark = db.query(Benchmark).filter(Benchmark.benchmark_id == benchmark_id).first()
-        if not benchmark:
-            return {"error": "Benchmark not found."}
-        db.delete(benchmark)
-        db.commit()
-        return {"message": "Benchmark deleted successfully."}
-    except SQLAlchemyError as e:
-        db.rollback()
-        return {"error": f"Database error: {e}"}
-
+def get_tasks_by_dataset_filename(db: Session, filename: str):
+    dataset = db.query(Dataset).filter(Dataset.filename == filename).first()
+    if not dataset:
+        return None
+    return db.query(Task).filter(Task.dataset_id == dataset.dataset_id).all()

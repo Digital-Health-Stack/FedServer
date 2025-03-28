@@ -5,19 +5,18 @@ import SummaryStats from "./DatasetDetails/SummaryStats.jsx";
 import ColumnDetails from "./DatasetDetails/ColumnDetails.jsx";
 import PreprocessingDetails from "./DatasetDetails/PreprocessingDetails.jsx";
 
-const REACT_APP_DATASET_DETAILS_URL = process.env.REACT_APP_DATASET_DETAILS_URL;
+const RAW_DATASET_DETAILS_URL = process.env.REACT_APP_RAW_OVERVIEW_PATH;
 
 const DataSetOverview = () => {
   const [data, setData] = useState(null);
-  const dataset_id = useParams().filename;
-  const directory = useParams().dir;
+  const filename = useParams().filename;
 
   useEffect(() => {
     const loadData = async () => {
       const overview = await axios.get(
-        `${REACT_APP_DATASET_DETAILS_URL}/${directory}/${dataset_id}`
+        `${RAW_DATASET_DETAILS_URL}/${filename}`
       );
-      setData(overview.data);
+      setData(overview.data.datastats);
       console.log("file overview data received:", overview.data);
     };
 
@@ -35,15 +34,15 @@ const DataSetOverview = () => {
   return (
     <div>
       <SummaryStats
-        fileName={data.fileName}
+        fileName={data.filename}
         numRows={data.numRows}
         numCols={data.numColumns}
       />
       <ColumnDetails columnStats={data.columnStats} />
       <PreprocessingDetails
         columns={columnDetails}
-        fileName={data.fileName}
-        directory={directory}
+        fileName={data.filename}
+        directory="Uploads"
       />
     </div>
   );

@@ -1,10 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, status
 from fastapi import Request, BackgroundTasks
 from sqlalchemy.orm import Session
+from typing import Dict, Any
 from typing import List
 import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
+from models.Dataset import Task, Dataset
+from models.Benchmark import Benchmark
+from schemas.dataset import TaskCreate, BenchmarkCreate
 
 from schemas.dataset import (
     DatasetCreate,
@@ -28,10 +32,20 @@ from helpers.datasets_crud import (
     rename_dataset,
     list_datasets,
     get_dataset_stats,
+)
+from helpers.task_crud import (
     create_task,
     delete_task,
+    get_tasks_by_dataset_id,
+    get_tasks_by_dataset_name,
+)
+from helpers.benchmark_crud import (
     create_benchmark,
     delete_benchmark,
+    get_benchmarks_by_task_id,
+    get_benchmarks_by_dataset_name_and_task_name,
+    get_benchmarks_by_dataset_id_and_task_id,
+    get_training_by_benchmark_id
 )
 
 from utility.db import get_db
@@ -51,11 +65,11 @@ RECENTLY_UPLOADED_DATASETS_DIR = os.getenv("RECENTLY_UPLOADED_DATASETS_DIR")
 hdfs_client = HDFSServiceManager()
 spark_client = SparkSessionManager()
 
-# Helper function to handle CRUD results
-def handle_crud_result(result):
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+# # Helper function to handle CRUD results
+# def handle_crud_result(result):
+#     if isinstance(result, dict) and "error" in result:
+#         raise HTTPException(status_code=400, detail=result["error"])
+#     return result
 
 ###################### Background processing tasks ######################
 async def process_create_dataset(filename: str, filetype: str):
@@ -66,15 +80,17 @@ async def process_create_dataset(filename: str, filetype: str):
         
         await hdfs_client.rename_file_or_folder(source_path, processing_path)
         dataset_overview = await spark_client.create_new_dataset(f"{filename}__PROCESSING__", filetype)
-        
+        description = f"Raw dataset created from {filename}"
         # Create raw dataset entry
-        crud_result = create_raw_dataset(db, filename=filename, datastats=dataset_overview)
-        handle_crud_result(crud_result)
+        crud_result = create_raw_dataset(db, filename=filename, description=description,datastats=dataset_overview)
+        if isinstance(crud_result, dict) and "error" in crud_result:
+            raise HTTPException(status_code=400, detail=crud_result["error"])
         
         await hdfs_client.rename_file_or_folder(processing_path, source_path)
     except Exception as e:
         await hdfs_client.rename_file_or_folder(processing_path, source_path, ignore_missing=True)
-        raise e
+        print("Error in processing the data is: ", str(e))
+        return {"error": str(e)}
     finally:
         db.close()
 
@@ -98,12 +114,14 @@ async def process_preprocessing(directory: str, filename: str, operations: List[
             datastats=processed_info["stats"]
         )
         crud_result = create_dataset(db, dataset=new_dataset)
-        handle_crud_result(crud_result)
+        if isinstance(crud_result, dict) and "error" in crud_result:
+            raise HTTPException(status_code=400, detail=crud_result["error"])
         
         await hdfs_client.rename_file_or_folder(processing_path, f"{directory}/{filename}")
     except Exception as e:
         await hdfs_client.rename_file_or_folder(processing_path, f"{directory}/{filename}", ignore_missing=True)
-        raise e
+        print("Error in preprocessing the data is: ", str(e))
+        return {"error": str(e)}
     finally:
         db.close()
 
@@ -123,7 +141,9 @@ def list_raw_datasets_endpoint(
     db: Session = Depends(get_db)
 ):
     result = list_raw_datasets(db, skip=skip, limit=limit)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 @dataset_router.get("/raw-dataset-details/{filename}", response_model=dict)
 def get_raw_dataset_overview(filename: str, db: Session = Depends(get_db)):
@@ -139,7 +159,9 @@ def rename_raw_dataset_file(
     db: Session = Depends(get_db)
 ):
     result = rename_raw_dataset(db, old_file_name, new_file_name)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 @dataset_router.delete("/delete-raw-dataset-file")
 def delete_raw_dataset_file(
@@ -147,7 +169,9 @@ def delete_raw_dataset_file(
     db: Session = Depends(get_db)
 ):
     result = delete_raw_dataset(db, filename)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 @dataset_router.post("/create-new-dataset", status_code=status.HTTP_202_ACCEPTED)
 async def create_new_dataset(request: Request):
@@ -177,7 +201,9 @@ def list_datasets_endpoint(
     db: Session = Depends(get_db)
 ):
     result = list_datasets(db, skip=skip, limit=limit)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 @dataset_router.get("/dataset-details/{filename}", response_model=dict)
 def get_dataset_overview(filename: str, db: Session = Depends(get_db)):
@@ -193,7 +219,9 @@ def rename_processed_dataset_file(
     db: Session = Depends(get_db)
 ):
     result = rename_dataset(db, dataset_id, new_name)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 @dataset_router.delete("/delete-dataset-file")
 def delete_processed_dataset_file(
@@ -201,7 +229,9 @@ def delete_processed_dataset_file(
     db: Session = Depends(get_db)
 ):
     result = delete_dataset(db, dataset_id)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 @dataset_router.post("/preprocess-dataset", status_code=status.HTTP_202_ACCEPTED)
 async def preprocess_dataset_endpoint(request: Request):
@@ -219,35 +249,136 @@ async def preprocess_dataset_endpoint(request: Request):
 
 
 ########## Task Management Routes
-@dataset_router.post("/tasks", response_model=TaskResponse)
+
+@dataset_router.post("/create-task", response_model=TaskResponse)
 def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
     result = create_task(db, task)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
-@dataset_router.delete("/tasks/{task_id}")
+@dataset_router.delete("/delete-task/{task_id}")
 def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
     result = delete_task(db, task_id)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+@dataset_router.get("/list-tasks-with-datasetid/{dataset_id}")
+def read_tasks_by_dataset_id(dataset_id: int, db: Session = Depends(get_db)):
+    tasks = get_tasks_by_dataset_id(db, dataset_id)
+    if not tasks:
+        raise HTTPException(status_code=404, detail="No tasks found for this dataset")
+    return [task.as_dict() for task in tasks]
+
+@dataset_router.get("/list-tasks-with-datasetname/{filename}")
+def read_tasks_by_dataset_filename(filename: str, db: Session = Depends(get_db)):
+    tasks = get_tasks_by_dataset_name(db, filename)
+    if tasks is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    if not tasks:
+        raise HTTPException(status_code=404, detail="No tasks found for this dataset")
+    return [task.as_dict() for task in tasks]
+
 
 ########### Benchmark Management Routes
-@dataset_router.post("/benchmarks", response_model=BenchmarkResponse)
+
+@dataset_router.post("/add-benchmarks", response_model=BenchmarkResponse)
 def create_new_benchmark(benchmark: BenchmarkCreate, db: Session = Depends(get_db)):
     result = create_benchmark(db, benchmark)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
-@dataset_router.delete("/benchmarks/{benchmark_id}")
+@dataset_router.delete("/delete-benchmarks/{benchmark_id}")
 def delete_existing_benchmark(benchmark_id: int, db: Session = Depends(get_db)):
     result = delete_benchmark(db, benchmark_id)
-    return handle_crud_result(result)
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
-############ HDFS specific routes
-@dataset_router.get("/testing_list_all_datasets_from_hdfs")
-async def testing_list_all_datasets():
-    return await hdfs_client.testing_list_all_datasets()
+@dataset_router.get("/get-benchmarks-with-taskid/{task_id}")
+def read_benchmarks_by_task_id(task_id: int, db: Session = Depends(get_db)):
+    benchmarks = get_benchmarks_by_task_id(db, task_id)
+    if not benchmarks:
+        raise HTTPException(status_code=404, detail="No benchmarks found for this task")
+    return [benchmark.as_dict() for benchmark in benchmarks]
 
-@dataset_router.get("/list-recent-uploads")   
-async def list_recent_uploads():
-    return await hdfs_client.list_recent_uploads()
+@dataset_router.get("/get-benchmarks-with-dataset-and-tasknames/{dataset_name}/{task_name}")
+def read_benchmarks_by_dataset_and_task_names(
+    dataset_name: str,
+    task_name: str,
+    db: Session = Depends(get_db)
+):
+    benchmarks = get_benchmarks_by_dataset_name_and_task_name(db, dataset_name, task_name)
+    if benchmarks is None:
+        raise HTTPException(status_code=404, detail="Dataset or task not found")
+    if not benchmarks:
+        raise HTTPException(status_code=404, detail="No benchmarks found")
+    return [benchmark.as_dict() for benchmark in benchmarks]
+
+@dataset_router.get("/get-benchmarks-with-dataset-and-taskid/{dataset_id}/{task_id}")
+def read_benchmarks_by_dataset_and_task_ids(
+    dataset_id: int,
+    task_id: int,
+    db: Session = Depends(get_db)
+):
+    benchmarks = get_benchmarks_by_dataset_id_and_task_id(db, dataset_id, task_id)
+    if benchmarks is None:
+        raise HTTPException(status_code=404, detail="Task not found in this dataset")
+    if not benchmarks:
+        raise HTTPException(status_code=404, detail="No benchmarks found")
+    return [benchmark.as_dict() for benchmark in benchmarks]
+
+@dataset_router.get("/get-training-with-benchmarkid/{benchmark_id}")
+def read_training_by_benchmark_id(benchmark_id: int, db: Session = Depends(get_db)):
+    training = get_training_by_benchmark_id(db, benchmark_id)
+    if not training:
+        raise HTTPException(status_code=404, detail="Benchmark or training not found")
+    return training.as_dict()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # delete later

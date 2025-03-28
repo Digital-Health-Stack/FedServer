@@ -11,6 +11,7 @@ import {
 } from "@heroicons/react/24/solid";
 
 const NumericColumn = ({ column }) => {
+  console.log("NumericColumn data:", column);
   const stats = [
     {
       label: "Entries",
