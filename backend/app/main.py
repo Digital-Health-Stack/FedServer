@@ -8,6 +8,8 @@ from api.notification import notifications_router
 from api.user import user_router
 from api.temporary import temporary_router
 from api.confidential import confidential_router
+from api.benchmark import benchmark_router
+from api.task import task_router
 
 load_dotenv()
 
@@ -34,3 +36,5 @@ app.include_router(federated_router,tags=["Federated"])
 app.include_router(notifications_router,tags=["Notification"])
 app.include_router(temporary_router,tags=["Temporary"])
 app.include_router(confidential_router,tags=["Confidential"])
+app.include_router(benchmark_router,tags=["Benchmark"])
+app.include_router(task_router,tags=["Task"])
