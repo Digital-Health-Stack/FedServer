@@ -68,13 +68,13 @@ async def create_federated_session(
     ]
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host,db)
     
-    session.log_event(db, f"Federated session created by admin {current_user.id} from {request.client.host}")
+    # session.log_event(db, f"Federated session created by admin {current_user.id} from {request.client.host}")
     
     try:
         background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, db)
-        session.log_event(db, "Background task for federated learning started")
+        # session.log_event(db, "Background task for federated learning started")
     except Exception as e:
-        session.log_event(db, f"Error starting background task: {str(e)}")
+        # session.log_event(db, f"Error starting background task: {str(e)}")
         return {"message": "An error occurred while starting federated learning."}
     
     return {

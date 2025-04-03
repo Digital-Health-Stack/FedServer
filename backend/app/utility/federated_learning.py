@@ -105,7 +105,7 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     add_notifications_for_recently_active_users(db=db, message=message, valid_until=session_data.wait_till, excluded_users=[user])
     
     # Wait for client confirmation of interest
-    await wait_for_client_confirmation(federated_manager, session_data.id)
+    await wait_for_client_confirmation(federated_manager, session_data.id, db)
 
     # Send Model Configurations to interested clients and wait for their confirmation
     await send_model_configs_and_wait_for_confirmation(federated_manager, session_data.id)
@@ -179,18 +179,85 @@ async def wait_for_price_confirmation(federated_manager: FederatedLearning, sess
         print("⌛ Waiting for client price confirmations... (Training Status: 1)")
         await asyncio.sleep(5)  # Non-blocking sleep
 
-async def wait_for_client_confirmation(federated_manager: FederatedLearning, session_id: int):
-    all_ready_for_training = False
+# async def wait_for_client_confirmation(federated_manager: FederatedLearning, session_id: int):
+#     all_ready_for_training = False
 
-    while not all_ready_for_training:
-        session_data = federated_manager.get_session(session_id)
-        await asyncio.sleep(5)
-        now = datetime.now()
-        all_ready_for_training = all(client.status != 1 for client in session_data.clients) and session_data.wait_till < now
+#     while not all_ready_for_training:
+#         session_data = federated_manager.get_session(session_id)
+#         await asyncio.sleep(5)
+#         now = datetime.now()
+#         all_ready_for_training = all(client.status != 1 for client in session_data.clients) and session_data.wait_till < now
         
-        print("Waiting for client confirmations....Stage 1")
+#         print("Waiting for client confirmations....Stage 1")
 
-    print("All Clients have taken their decision.")
+#     # Update Training Status to 3 in training
+#     print("All Clients have taken their decision.")
+
+async def wait_for_client_confirmation(federated_manager: FederatedLearning, session_id: int, db: Session):
+    """
+    Waits for all clients to confirm participation or until timeout occurs.
+    Updates training status accordingly in the database.
+    """
+    try:
+        all_ready_for_training = False
+        timeout_reached = False
+
+        while not all_ready_for_training and not timeout_reached:
+            # Get current session data
+            session_data = federated_manager.get_session(session_id)
+            if not session_data:
+                raise Exception(f"Session {session_id} not found in federated manager")
+            
+            # Check current time against wait_till
+            now = datetime.now()
+            timeout_reached = session_data.wait_till < now
+            
+            # Check if all clients have responded (status != 1 means they've decided)
+            all_ready_for_training = all(client.status != 1 for client in session_data.clients)
+            
+            if not all_ready_for_training and not timeout_reached:
+                print(f"Waiting for client confirmations... {len([c for c in session_data.clients if c.status == 1])} pending")
+                await asyncio.sleep(5)  # Check every 5 seconds
+            
+        # Update database based on outcome
+        federated_session = db.query(FederatedSession).filter_by(id=session_id).first()
+        if not federated_session:
+            raise Exception(f"Session {session_id} not found in database")
+        
+        if all_ready_for_training:
+            # All clients have responded - check if we have enough participants
+            accepted_clients = [c for c in session_data.clients if c.status == 2]
+            if len(accepted_clients) >= federated_session.min_clients_required:
+                federated_session.training_status = 3  # Start training
+                print(f"Starting training with {len(accepted_clients)} clients")
+            else:
+                federated_session.training_status = -1  # Not enough participants
+                print(f"Training canceled - only {len(accepted_clients)} clients accepted (minimum {federated_session.min_clients_required} required)")
+        else:
+            # Timeout reached before all clients responded
+            federated_session.training_status = -1  # Mark as failed
+            print("Training canceled - timeout reached before all clients responded")
+        
+        # Update session in database
+        db.commit()
+        
+        return {
+            'success': True,
+            'training_status': federated_session.training_status,
+            'message': 'Client confirmation process completed'
+        }
+        
+    except Exception as e:
+        print(f"Error in wait_for_client_confirmation: {str(e)}")
+        # Update status to failed if error occurs
+        federated_session = db.query(FederatedSession).filter_by(id=session_id).first()
+        if federated_session:
+            federated_session.training_status = -1
+            db.commit()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error during client confirmation: {str(e)}"
+        )
 
 class MessageType:
     GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS = "get_model_parameters_start_background_process"
@@ -231,8 +298,6 @@ async def send_model_configs_and_wait_for_confirmation(federated_manager: Federa
 
 async def wait_for_all_clients_to_stage_four(session_data: FederatedSession):
     # Implement the logic to wait for all clients to confirm that they have started background process
-    # session_data = federated_manager.federated_sessions[session_id]
-    # interested_clients = [client for client in session_data.clients if client.status == 2]
     with Session(engine) as db:
         while True:
             # Expire all objects in the session to force reloading
