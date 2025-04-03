@@ -31,10 +31,10 @@ app.add_middleware(
 )
 
 app.include_router(dataset_router,tags=["Dataset"])
+app.include_router(benchmark_router,tags=["Benchmark"])
+app.include_router(task_router,tags=["Task"])
 app.include_router(user_router,tags=["User"])
 app.include_router(federated_router,tags=["Federated"])
 app.include_router(notifications_router,tags=["Notification"])
-app.include_router(temporary_router,tags=["Temporary"])
 app.include_router(confidential_router,tags=["Confidential"])
-app.include_router(benchmark_router,tags=["Benchmark"])
-app.include_router(task_router,tags=["Task"])
+app.include_router(temporary_router,tags=["Temporary"])
