@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <div className="flex h-screen items-center justify-center flex-col">
       <h1 className="text-3xl font-bold text-center text-blue-500">
-        Welcome to FedClient
+        Welcome to FedServer
       </h1>
       <button
         onClick={gotoRegister}

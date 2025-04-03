@@ -364,6 +364,7 @@ import { useParams } from "react-router-dom";
 import SummaryStats from "./DatasetDetails/SummaryStats";
 import ColumnDetails from "./DatasetDetails/ColumnDetails";
 import Tasks from "./DatasetDetails/TaskCard";
+import PreprocessingDetails from "./DatasetDetails/PreprocessingDetails";
 
 const PROCESSED_DATASET_URL = process.env.REACT_APP_PROCESSED_OVERVIEW_PATH;
 
