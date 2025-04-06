@@ -12,7 +12,7 @@ from schemas.dataset import (
     DatasetListResponse,
     Operation
 )
-from helpers.datasets_crud import (
+from crud.datasets_crud import (
     create_raw_dataset,
     delete_raw_dataset,
     rename_raw_dataset,

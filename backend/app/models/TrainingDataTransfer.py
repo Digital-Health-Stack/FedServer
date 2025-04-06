@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, event
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, event, JSON
 from sqlalchemy.orm import declared_attr, Session, relationship, with_loader_criteria
 from .Base import Base
 import os
@@ -24,18 +24,20 @@ class TrainingDataTransfer(TimestampMixin, Base):
     training_name = Column(String, nullable=False)  # Name of the training
     num_datapoints = Column(Integer, nullable=False)  # Number of transferred datapoints
     data_path = Column(String, nullable=False)  # Where data is stored
+    # although parent filename will be in the session information, we need to store it here for easy access
+    parent_filename = Column(String, nullable=False)  # Filename of the parent dataset
+    datastats = Column(JSON, nullable=False)  # Statistics of the dataset
     federated_session_id = Column(Integer, ForeignKey("federated_sessions.id"), nullable=False, index=True)
-    federated_session = relationship("FederatedSession", back_populates="transferred_data")
 
     def as_dict(self):
         return {
             "id": self.id,
             "training_name": self.training_name,
             "num_datapoints": self.num_datapoints,
-            "transferred_at": self.transferredAt.isoformat(),
             "data_path": self.data_path,
-            "approved_at": self.approvedAt.isoformat() if self.approvedAt else None,
-            "federated_session": self.federated_session.as_dict() if self.federated_session else None,
+            "parent_filename": self.parent_filename,
+            "datastats": self.datastats,
+            "federated_session_id": self.federated_session_id,
         }
 
 # Fixing soft deletion filtering by applying it on the correct table
@@ -50,3 +52,5 @@ def filter_soft_deleted(execute_state):
                     include_aliases=True
                 )
             )
+
+

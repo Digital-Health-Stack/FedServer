@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, Float, String, event
 from sqlalchemy.orm import declared_attr, relationship, Session, with_loader_criteria
 from .Base import Base
-from models.TrainingDataTransfer import TrainingDataTransfer
 import os
 
 load_dotenv()
@@ -51,7 +50,6 @@ class FederatedSession(TimestampMixin, Base):
     
     admin = relationship("User", back_populates="federated_sessions")
     clients = relationship('FederatedSessionClient', back_populates='session')
-    transferred_data = relationship('TrainingDataTransfer', back_populates='federated_session')
     
     def as_dict(self):  
         return {

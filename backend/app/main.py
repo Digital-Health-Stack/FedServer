@@ -10,7 +10,7 @@ from api.temporary import temporary_router
 from api.confidential import confidential_router
 from api.benchmark import benchmark_router
 from api.task import task_router
-
+from api.training_data_transfers import qpd_router
 load_dotenv()
 
 # Create FastAPI app
@@ -36,5 +36,6 @@ app.include_router(task_router,tags=["Task"])
 app.include_router(user_router,tags=["User"])
 app.include_router(federated_router,tags=["Federated"])
 app.include_router(notifications_router,tags=["Notification"])
+app.include_router(qpd_router,tags=["QPD"])
 app.include_router(confidential_router,tags=["Confidential"])
 app.include_router(temporary_router,tags=["Temporary"])

@@ -8,7 +8,7 @@ from schemas.dataset import (
     BenchmarkResponse,
 )
 
-from helpers.benchmark_crud import (
+from crud.benchmark_crud import (
     create_benchmark,
     delete_benchmark,
     get_benchmarks_by_task_id,

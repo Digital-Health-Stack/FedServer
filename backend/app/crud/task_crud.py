@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from models.Dataset import Task, Dataset
 from schemas.dataset import TaskCreate
 from typing import List
-from helpers.datasets_crud import get_dataset_by_filename
+from backend.app.crud.datasets_crud import get_dataset_by_filename
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
