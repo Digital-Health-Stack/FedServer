@@ -10,7 +10,7 @@ from schemas.user import UserCreate
 from schemas.dataset import DatasetCreate
 from utility.auth import get_password_hash
 from dotenv import dotenv_values
-from backend.app.crud.datasets_crud import create_dataset, create_raw_dataset
+from crud.datasets_crud import create_dataset, create_raw_dataset
 
 confidential_router = APIRouter()
 

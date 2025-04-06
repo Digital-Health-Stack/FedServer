@@ -23,9 +23,6 @@ class TransferListItem(BaseModel):
     approvedAt: Optional[datetime]
     federated_session_id: int
 
-    class Config:
-        orm_mode = True
-
 class TransferDetails(BaseModel):
     id: int
     training_name: str
@@ -36,6 +33,3 @@ class TransferDetails(BaseModel):
     approvedAt: Optional[datetime]
     federated_session_id: int
     datastats: Dict
-    
-    class Config:
-        orm_mode = True
