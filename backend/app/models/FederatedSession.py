@@ -32,6 +32,16 @@ def filter_soft_deleted(execute_state):
                 )
             )
 
+class FederatedSessionLog(Base):
+    __tablename__ = 'federated_session_logs'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey('federated_sessions.id', ondelete="CASCADE"), nullable=False)
+    message = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    
+    session = relationship('FederatedSession', back_populates='logs')
+
 class FederatedSession(TimestampMixin, Base):
     __tablename__ = 'federated_sessions'
     
@@ -50,6 +60,14 @@ class FederatedSession(TimestampMixin, Base):
     
     admin = relationship("User", back_populates="federated_sessions")
     clients = relationship('FederatedSessionClient', back_populates='session')
+    logs = relationship("FederatedSessionLog", order_by=FederatedSessionLog.timestamp, back_populates="session", cascade="all, delete-orphan")
+    
+    def log_event(self, db, message):
+        """Logs an event to the database and console"""
+        log_entry = FederatedSessionLog(session_id=self.id, message=message)
+        db.add(log_entry)
+        db.commit()
+        print(f"[LOG] Session {self.id}: {message} | Round: {self.curr_round} | Status: {self.training_status}")
     
     def as_dict(self):  
         return {
