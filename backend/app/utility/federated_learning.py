@@ -72,29 +72,35 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     """
     
     # Fetch benchmark stats and calculate required data points (price)
+    session_data.log_event(db, "Starting federated learning process")
+    
+    session_data.log_event(db, "Fetching benchmark stats and calculating training price")
     required_data_points = fetch_benchmark_and_calculate_price(session_data, db)
-
-    print("Price for Training :", required_data_points)
+    session_data.log_event(db, f"Calculated training price as {required_data_points} data points")
+    
+    
     # Store the calculated price in the session
+    session_data.log_event(db, f"Storing calculated price in session {session_data.id}")
     federated_session = db.query(FederatedSession).filter_by(id=session_data.id).first()
     if federated_session:    
         federated_session.session_price = required_data_points
         db.commit()
         db.refresh(federated_session)
+        session_data.log_event(db, "Price successfully stored in session")
     else:
-        raise ValueError(f"FederatedSession with ID {session_data.id} not found.")
+        error_msg = f"FederatedSession with ID {session_data.id} not found."
+        session_data.log_event(db, f"Session {session_data.id}: {error_msg}")
+        return
     
     # Send the price to the client and wait for approval
+    session_data.log_event(db, "Waiting for client price confirmation")
     approved = await wait_for_price_confirmation(federated_manager, session_data.id)
 
     if not approved:
-        print(f"Client {user.id} declined the price. Aborting training session {session_data.id}.")
-        return  # Stop execution if client rejects price
+        session_data.log_event(db, f"Client {user.id} declined the price. Training aborted.")
+        return
 
-    print(f"Client {user.id} accepted the price. Starting federated learning session {session_data.id}.")
-    
-    # Send the price to the client and wait for approval
-    await wait_for_price_confirmation(federated_manager, session_data.id)
+    session_data.log_event(db, f"Client {user.id} accepted the price. Training starts.")
     
     message = {
         'type': "new-session",
@@ -102,52 +108,57 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
         'session_id': session_data.id
     }
     
+    session_data.log_event(db, "Sending notifications to active users")
     add_notifications_for_recently_active_users(db=db, message=message, valid_until=session_data.wait_till, excluded_users=[user])
+    session_data.log_event(db, f"Notification:new-session is sent to all users.")
     
     # Wait for client confirmation of interest
     await wait_for_client_confirmation(federated_manager, session_data.id, db)
 
     # Send Model Configurations to interested clients and wait for their confirmation
     await send_model_configs_and_wait_for_confirmation(federated_manager, session_data.id)
-
+    
     #############################################
     # code used to get instance of testing unit
     # Here Input has to be taken in future for the metrics
     test = Test(session_data.id, session_data)
-    #############################################
+    session_data.log_event(db, f"Initialized test unit.")
 
     # Start Training
+    session_data.log_event(db, f"Starting training with {session_data.max_round} rounds")
     for i in range(1, session_data.max_round + 1):
-        print("-" * 50)
+        session_data.log_event(db, f"Starting round {i}.")
         federated_session = db.query(FederatedSession).filter_by(id = session_data.id).first()
         federated_session.curr_round = i
-        print(f"Round {i}")
-        print("-" * 50)
-
+        db.commit()
+        session_data.log_event(db, f"Round {i} marked in database")
+        
         await send_training_signal_and_wait_for_clients_training(federated_manager, session_data.id)
         # Aggregate
-        print("Done upto just before aggregation...")
+        session_data.log_event(db, f"Performing aggregation for round {i}.")
         federated_manager.aggregate_weights_fedAvg_Neural(session_data.id)
         with Session(engine) as db:
             federated_session = db.query(FederatedSession).filter_by(id=session_data.id).first()
             if not federated_session:
-                raise ValueError(f"FederatedSession with ID {session_data.id} not found.")
+                error_msg = f"FederatedSession not found during round {i}."
+                session_data.log_event(db, error_msg)
+                raise ValueError(error_msg)
             
             ################# Testing start
             results = test.start_test(json.loads(federated_session.global_parameters))
-            print("Global test results: ", results)
-            ################## Testing end
+            session_data.log_event(db, f"Global test results: {results}")
+            
             # Reset client_parameters to an empty JSON object
             federated_session.client_parameters = "{}"  # Empty JSON object
             db.commit()  # Save the reset to the database
-            print(f"Client parameters reset after Round {i}.")
+            session_data.log_event(db, f"Client parameters reset after Round {i}.")
 
         # Save test results for future reference
         """ Yashvir: here you can delete the data of this session from the federated_sessions dictionary after saving the results 
             , saved results contains session_data and test_results across all rounds
         """
     test.save_test_results()
-    print("##########################Training Ends####################################")
+    session_data.log_event(db, f"Training completed. Test results saved.")
 
 
 async def wait_for_price_confirmation(federated_manager: FederatedLearning, session_id: str, timeout: int = 300):
@@ -163,20 +174,22 @@ async def wait_for_price_confirmation(federated_manager: FederatedLearning, sess
         bool: True if the client accepted the price, False if timeout occurred.
     """
     start_time = asyncio.get_event_loop().time()  # Get async time to prevent blocking
-
+    session_data = federated_manager.get_session(session_id)
+    session_data.log_event(db, f"Starting price confirmation wait (timeout: {timeout}s)")
+    
     while True:
         session_data = federated_manager.get_session(session_id)
 
         if session_data.training_status == 2:  # Status 2 means price was accepted
-            print(f"✅ Client accepted the price for session {session_id}. Proceeding with training.")
+            session_data.log_event(db, f"Client accepted the price for session {session_id}")
             return True
 
         # Check for timeout
         if asyncio.get_event_loop().time() - start_time > timeout:
-            print(f"⏳ Timeout: Client did not confirm the price within {timeout} seconds. Aborting session {session_id}.")
+            session_data.log_event(db, f"Timeout: Client did not confirm price within {timeout}s")
             return False
 
-        print("⌛ Waiting for client price confirmations... (Training Status: 1)")
+        session_data.log_event(db, "Waiting for client price confirmation.")
         await asyncio.sleep(5)  # Non-blocking sleep
 
 # async def wait_for_client_confirmation(federated_manager: FederatedLearning, session_id: int):
@@ -199,6 +212,8 @@ async def wait_for_client_confirmation(federated_manager: FederatedLearning, ses
     Updates training status accordingly in the database.
     """
     try:
+        session_data = federated_manager.get_session(session_id)
+        session_data.log_event(db, "Starting client confirmation process")
         all_ready_for_training = False
         timeout_reached = False
 
@@ -216,7 +231,8 @@ async def wait_for_client_confirmation(federated_manager: FederatedLearning, ses
             all_ready_for_training = all(client.status != 1 for client in session_data.clients)
             
             if not all_ready_for_training and not timeout_reached:
-                print(f"Waiting for client confirmations... {len([c for c in session_data.clients if c.status == 1])} pending")
+                pending = len([c for c in session_data.clients if c.status == 1])
+                session_data.log_event(db, f"Waiting for client confirmations... {pending} pending")
                 await asyncio.sleep(5)  # Check every 5 seconds
             
         # Update database based on outcome
@@ -229,17 +245,18 @@ async def wait_for_client_confirmation(federated_manager: FederatedLearning, ses
             accepted_clients = [c for c in session_data.clients if c.status == 2]
             if len(accepted_clients) >= federated_session.min_clients_required:
                 federated_session.training_status = 3  # Start training
-                print(f"Starting training with {len(accepted_clients)} clients")
+                session_data.log_event(db, f"Starting training with {len(accepted_clients)} clients")
             else:
                 federated_session.training_status = -1  # Not enough participants
-                print(f"Training canceled - only {len(accepted_clients)} clients accepted (minimum {federated_session.min_clients_required} required)")
+                session_data.log_event(db, f"Training canceled - only {len(accepted_clients)} clients accepted (minimum {federated_session.min_clients_required} required)")
         else:
             # Timeout reached before all clients responded
             federated_session.training_status = -1  # Mark as failed
-            print("Training canceled - timeout reached before all clients responded")
+            session_data.log_event(db, "Training canceled - timeout reached before all clients responded")
         
         # Update session in database
         db.commit()
+        session_data.log_event(db, "Client confirmation process completed")
         
         return {
             'success': True,
@@ -248,7 +265,7 @@ async def wait_for_client_confirmation(federated_manager: FederatedLearning, ses
         }
         
     except Exception as e:
-        print(f"Error in wait_for_client_confirmation: {str(e)}")
+        session_data.log_event(db, f"Error in client confirmation: {str(e)}")
         # Update status to failed if error occurs
         federated_session = db.query(FederatedSession).filter_by(id=session_id).first()
         if federated_session:
@@ -266,6 +283,8 @@ class MessageType:
 async def send_model_configs_and_wait_for_confirmation(federated_manager: FederatedLearning, session_id: int):
 
     session_data = federated_manager.get_session(session_id)
+    session_data.log_event(db, "Preparing to send model configurations")
+    
     interested_clients = [client.user_id for client in session_data.clients if client.status == 2]
     
     model_config = session_data.federated_info
@@ -277,11 +296,12 @@ async def send_model_configs_and_wait_for_confirmation(federated_manager: Federa
     }
 
     with Session(engine) as db:
+        session_data.log_event(db, f"Sending model configs to {len(interested_clients)} clients")
         add_notifications_for(db, message, interested_clients)
 
     # Wait for all clients to confirm they have started their background process
     await wait_for_all_clients_to_stage_four(session_data)
-
+    session_data.log_event(db, "All clients confirmed model config receipt")
 
 # async def send_message_with_type(client: FederatedSessionClient, message_type: str, data: dict, session_data: FederatedSession):
 #     message = {
@@ -296,9 +316,11 @@ async def send_model_configs_and_wait_for_confirmation(federated_manager: Federa
 #     print(f"client id {client.id}")
     
 
+# Need to rethink
 async def wait_for_all_clients_to_stage_four(session_data: FederatedSession):
     # Implement the logic to wait for all clients to confirm that they have started background process
     with Session(engine) as db:
+        session_data.log_event(db, "Checking for client local model IDs")
         while True:
             # Expire all objects in the session to force reloading
             db.expire_all()
@@ -311,25 +333,24 @@ async def wait_for_all_clients_to_stage_four(session_data: FederatedSession):
                     break
 
             if all_clients_ready:
-                print("All sent local model id")
+                session_data.log_event(db, "All clients provided local model IDs")
                 break
             else:
+                session_data.log_event(db, "Waiting for clients to provide local model IDs...")
                 await asyncio.sleep(5)
-                print("Waiting for all clients to send local model id.")
 
 
 async def send_training_signal_and_wait_for_clients_training(federated_manager: FederatedLearning, session_id: str):
     session_data = federated_manager.get_session(session_id)
+    session_data.log_event(db, "Preparing to send training signals")
     interested_clients = [client.user_id for client in session_data.clients if client.status == 4]
     
     model_config = session_data.federated_info
     with Session(engine) as db:
         for client in session_data.clients:
             if client.user_id in interested_clients:
-                # Get local_model_id directly from session_data.clients
                 local_model_id = client.local_model_id
-
-                # Create a customized message for the client
+                
                 message = {
                     "type": MessageType.START_TRAINING,
                     "data": {
@@ -338,11 +359,13 @@ async def send_training_signal_and_wait_for_clients_training(federated_manager: 
                     },
                     "session_id": session_data.id,
                 }
+                session_data.log_event(db, f"Sending training signal to client {client.user_id}")
                 add_notifications_for_user(db, client.user_id, message)
         
+    session_data.log_event(db, "Waiting for clients to complete local training")
     # Run the wait_for_all_clients_to_local_training task in the background
     await wait_for_all_clients_to_local_training(session_data)
-    
+    session_data.log_event(db, "All clients completed local training")
 
 async def wait_for_all_clients_to_local_training(session_data: FederatedSession):
     # Implement the logic to wait for all clients to confirm that they have started background process
@@ -352,16 +375,18 @@ async def wait_for_all_clients_to_local_training(session_data: FederatedSession)
         session = db.query(FederatedSession).filter(FederatedSession.id == session_data.id).first()
         
         if not session:
+            session_data.log_event(db, f"Session {session_data.id} not found")
             raise ValueError(f"FederatedSession with ID {session.id} not found.")
         
         num_interested_clients = len(session.clients)
-        print("Error Check: Total Interested Clients:", num_interested_clients)
+        session_data.log_event(db, f"Total interested clients: {num_interested_clients}")
         
         while True:
             # Expire all objects in the session to force reloading
             db.expire_all()
             session = db.query(FederatedSession).filter(FederatedSession.id == session_data.id).first()
             if not session:
+                session_data.log_event(db, f"Session {session_data.id} not found (possibly deleted)")
                 raise ValueError(f"FederatedSession with ID {session_data.id} not found (possibly deleted).")
 
             
@@ -375,14 +400,13 @@ async def wait_for_all_clients_to_local_training(session_data: FederatedSession)
             ])
             
             
-            print("Client Parameters:", num_clients_with_local_models)  # Debugging
+            session_data.log_event(db, f"Training progress: {num_clients_with_local_models}/{num_interested_clients} clients ready")
             
-            print(f"Progress: {num_clients_with_local_models}/{num_interested_clients} clients ready.")
             # Check if all interested clients have submitted their parameters
             if num_clients_with_local_models >= num_interested_clients:
-                print("All Local Models Trained and Received.")
+                session_data.log_event(db, "All clients completed local training")
                 break
             else:
+                session_data.log_event(db, f"Waiting for {num_interested_clients - num_clients_with_local_models} more clients")
                 await asyncio.sleep(5)
-                print(f"Waiting for {num_interested_clients - num_clients_with_local_models} more clients.")
 
