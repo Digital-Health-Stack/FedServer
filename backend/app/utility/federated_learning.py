@@ -177,7 +177,7 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     session_data.log_event(db, f"Training completed. Test results saved.")
 
 
-async def wait_for_price_confirmation(federated_manager: FederatedLearning, session_id: str, timeout: int = 300, db: Session):
+async def wait_for_price_confirmation(federated_manager: FederatedLearning, session_id: str, db: Session, timeout: int = 300):
     """
     Asynchronously waits for the client to accept the price before proceeding with federated learning.
 
