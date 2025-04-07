@@ -94,3 +94,48 @@ def get_tasks_by_dataset_id(db: Session, dataset_id: int) -> List[Task]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}"
         )
+
+def get_task_by_id(db: Session, task_id: int) -> Task:
+    """Get a task by its ID"""
+    try:
+        task = db.query(Task).filter(Task.task_id == task_id).first()
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task with id {task_id} not found"
+            )
+        return task
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+
+def update_task_by_id(db: Session, task_id: int, task_update: TaskCreate) -> Task:
+    """Update an existing task by its ID"""
+    try:
+        task = db.query(Task).filter(Task.task_id == task_id).first()
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task with id {task_id} not found"
+            )
+
+        for key, value in task_update.dict(exclude_unset=True).items():
+            setattr(task, key, value)
+
+        db.commit()
+        db.refresh(task)
+        return task
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Update failed due to integrity constraints: {str(e)}"
+        )
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
