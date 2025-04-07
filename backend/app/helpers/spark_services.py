@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 from pyspark.sql.functions import col, count, mean, stddev, min, max, approx_count_distinct, lit, rank, when
 from pyspark.sql.window import Window
 from pyspark.sql.types import NumericType, StringType
-from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
-from helpers.hdfs_services import HDFSServiceManager
+# from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
+# from helpers.hdfs_services import HDFSServiceManager
 import threading
 import time
 import os
@@ -13,7 +13,7 @@ import json
 import uuid
 
 load_dotenv()
-hdfs_client = HDFSServiceManager()
+# hdfs_client = HDFSServiceManager()
 
 HADOOP_USER_NAME = os.getenv("HADOOP_USER_NAME")
 HDFS_NAME_NODE_URL = os.getenv("HDFS_NAME_NODE_URL")
@@ -35,6 +35,7 @@ class SparkSessionManager:
     _reference_count = 0
     _config_lock = threading.Lock()  
 
+    # "http://172.24.239.133:8088"
     def __new__(cls, app_name="default_app", master="yarn"):
         with cls._lock:
             if not cls._instance:
@@ -182,6 +183,9 @@ class SparkSessionManager:
         Notes:
         - ensure no same file name exists in the tmpuploads directory, or in uploads directory
         """
+
+        print("print current working directory:", os.getcwd())
+
         with SparkSessionManager() as spark:
             # later create a switch case based on file type
             if filetype == "csv":

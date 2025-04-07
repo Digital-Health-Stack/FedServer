@@ -22,3 +22,4 @@ services:
       - .env
     environment:
       - DB_URL=sqlite:////db_volume/database.db
+  
