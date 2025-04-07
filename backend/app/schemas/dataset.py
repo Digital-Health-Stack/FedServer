@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional,Any
 
 class DatasetCreate(BaseModel):
     filename: str
@@ -14,6 +14,7 @@ class TaskCreate(BaseModel):
     dataset_id: int
     task_name: str
     metric: str
+    temp_benchmark: Optional[Any] = None
 
 class TaskResponse(TaskCreate):
     task_id: int

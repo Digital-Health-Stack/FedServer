@@ -9,6 +9,8 @@ from crud.task_crud import (
     delete_task,
     get_tasks_by_dataset_id,
     get_tasks_by_dataset_name,
+    get_task_by_id,
+    update_task_by_id,
 )
 
 from dotenv import load_dotenv
@@ -63,3 +65,20 @@ def read_tasks_by_dataset_filename(filename: str, db: Session = Depends(get_db))
         print(f"Error retrieving tasks: {e}")
         return {"error": str(e)}
 
+@task_router.get("/get-task/{task_id}", response_model=TaskResponse)
+def read_task_by_id(task_id: int, db: Session = Depends(get_db)):
+    try:
+        task = get_task_by_id(db, task_id)
+        return task
+    except Exception as e:
+        print(f"Error retrieving task: {e}")
+        return {"error": str(e)}
+    
+@task_router.put("/update-task/{task_id}", response_model=TaskResponse)
+def update_existing_task(task_id: int, task: TaskCreate, db: Session = Depends(get_db)):
+    try:
+        updated_task = update_task_by_id(db, task_id, task)
+        return updated_task
+    except Exception as e:
+        print(f"Error updating task: {e}")
+        return {"error": str(e)}
