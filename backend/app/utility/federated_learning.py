@@ -15,25 +15,41 @@ from utility.test import Test
 from models.Benchmark import Benchmark
 from utility.notification import add_notifications_for, add_notifications_for_user, add_notifications_for_recently_active_users
 from utility.SampleSizeEstimation import calculate_required_data_points
+from crud.task_crud import (
+    get_task_by_id,
+)
 
+
+def get_baseline_stats_from_task(db: Session, task_id: int):
+    task = get_task_by_id(db, task_id)
+    if not task:
+        raise ValueError("Task not found!")
+    metric_name = task.metric
+    if not task.temp_benchmark or metric_name not in task.temp_benchmark:
+        raise ValueError(f"No benchmark data found for metric '{metric_name}'")
+    benchmark_data = task.temp_benchmark.get(metric_name)
+    if not benchmark_data:
+        raise ValueError(f"Metric '{metric_name}' not found in temp_benchmark")
+    baseline_mean = benchmark_data.get("std_mean")
+    baseline_std = benchmark_data.get("std_dev")
+    if baseline_mean is None or baseline_std is None:
+        raise ValueError(f"Incomplete benchmark data for '{metric_name}'")
+
+    return baseline_mean, baseline_std
+        
 
 
 def fetch_benchmark_and_calculate_price(session_data: FederatedSession, db: Session)->float :
-    benchmark = db.query(Benchmark).filter(
-            Benchmark.id == 1
-        ).first()
-    if not benchmark:
-        raise ValueError("Benchmark not found!")
     
-    # Extract benchmark mean and standard deviation
-    metric_name = benchmark.benchmark_metric
-    metrics = benchmark.metrics
-    baseline_mean = metrics[metric_name]["mean"]
-    baseline_std = metrics[metric_name]["std_dev"]
+    task_id = session_data.federated_info["dataset_info"].get("task_id")
+    baseline_mean, baseline_std = get_baseline_stats_from_task(db, task_id)
     
-    new_mean = session_data.federated_info.get("std_mean")
-    new_std = session_data.federated_info.get("std_deviation")
-    
+    try:
+        new_mean = float(session_data.federated_info["expected_results"].get("std_mean"))
+        new_std = float(session_data.federated_info["expected_results"].get("std_deviation"))
+    except (TypeError, ValueError) as e:
+        raise ValueError("Expected results must contain valid float values for std_mean and std_deviation.") from e
+
     if new_mean is None or new_std is None:
         raise ValueError("New model metrics (std_mean and std_deviation) are missing in session data.")
     
@@ -94,7 +110,7 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     
     # Send the price to the client and wait for approval
     session_data.log_event(db, "Waiting for client price confirmation")
-    approved = await wait_for_price_confirmation(federated_manager, session_data.id)
+    approved = await wait_for_price_confirmation(federated_manager, session_data.id, db)
 
     if not approved:
         session_data.log_event(db, f"Client {user.id} declined the price. Training aborted.")
@@ -161,7 +177,7 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     session_data.log_event(db, f"Training completed. Test results saved.")
 
 
-async def wait_for_price_confirmation(federated_manager: FederatedLearning, session_id: str, timeout: int = 300):
+async def wait_for_price_confirmation(federated_manager: FederatedLearning, session_id: str, timeout: int = 300, db: Session):
     """
     Asynchronously waits for the client to accept the price before proceeding with federated learning.
 
