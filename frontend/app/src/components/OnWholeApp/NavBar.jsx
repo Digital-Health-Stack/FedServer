@@ -6,7 +6,7 @@ import {
   XMarkIcon,
   HomeIcon,
   UserMinusIcon,
-  UserPlusIcon, 
+  UserPlusIcon,
   ChartBarIcon,
   ServerStackIcon,
   ClipboardDocumentListIcon,
@@ -23,7 +23,7 @@ const NavBar = () => {
 
   return (
     <nav className="bg-gray-900 border-b border-gray-700 text-white">
-      <div className="container mx-auto flex justify-between items-center p-1/2">
+      <div className="container mx-auto flex justify-between items-center p-1">
         {/* Logo */}
         <a className="text-xl font-bold flex items-center text-white" href="/">
           <span>FedServer</span>

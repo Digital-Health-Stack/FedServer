@@ -21,6 +21,7 @@ HDFS_RAW_DATASETS_DIR = os.getenv("HDFS_RAW_DATASETS_DIR")
 HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR")
 HDFS_FILE_READ_URL = f"hdfs://{HDFS_NAME_NODE_URL}/user/{HADOOP_USER_NAME}"
 RECENTLY_UPLOADED_DATASETS_DIR = os.getenv("RECENTLY_UPLOADED_DATASETS_DIR")
+SPARK_MASTER_URL = os.getenv("SPARK_MASTER_URL")
 
 class SparkSessionManager:
     """
@@ -35,8 +36,8 @@ class SparkSessionManager:
     _reference_count = 0
     _config_lock = threading.Lock()  
 
-    # "http://172.24.239.133:8088"
-    def __new__(cls, app_name="default_app", master="yarn"):
+    # "spark://172.24.239.133:7077"
+    def __new__(cls, app_name="default_app", master=SPARK_MASTER_URL):
         with cls._lock:
             if not cls._instance:
                 cls._instance = super().__new__(cls)
@@ -205,7 +206,7 @@ class SparkSessionManager:
                 return {"message": "Unsupported file type."}
 
             dataset_overview = self._get_overview(df)
-            dataset_overview["fileName"] = filename
+            dataset_overview["filename"] = filename
             return dataset_overview        
         return {"message": "Dataset created."}
     
@@ -281,7 +282,7 @@ class SparkSessionManager:
             print(f"Preprocessed dataset saved to: {HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename} and time taken: ",time.time()-t1)
 
             overview = self._get_overview(df)
-            overview["fileName"] = newfilename
+            overview["filename"] = newfilename
             return overview
 
 # the _get_overview  function will return something like this:

@@ -10,6 +10,11 @@ class DatasetCreate(BaseModel):
 class DatasetResponse(DatasetCreate):
     dataset_id: int
 
+class DatasetUpdate(BaseModel):
+    dataset_id: int
+    filename: str
+    description: Optional[str] = None
+
 class TaskCreate(BaseModel):
     dataset_id: int
     task_name: str
@@ -28,6 +33,7 @@ class BenchmarkResponse(BenchmarkCreate):
     benchmark_id: int
 
 class RawDatasetListResponse(BaseModel):
+    dataset_id: int
     filename: str
     description: Optional[str] = None
 

@@ -32,7 +32,7 @@ class HDFSServiceManager:
                 return operation(client)
             except Exception as e:
                 print(f"Error during HDFS operation: {e}")
-                raise
+                raise Exception(f"Error during HDFS operation: {e}")
             finally:
                 client = None  # Explicitly clean up the client
 
@@ -57,7 +57,7 @@ class HDFSServiceManager:
             return self._with_hdfs_client(delete)
         except Exception as e:
             print(f"Error deleting file from HDFS: {e}")
-            return None
+            raise Exception(f"Error deleting file from HDFS: {e}")
 
     async def list_recent_uploads(self):
         def human_readable_size(size_in_bytes):
@@ -106,7 +106,7 @@ class HDFSServiceManager:
             return self._with_hdfs_client(rename)
         except Exception as e:
             print(f"Error renaming file in HDFS: {e}")
-            return None
+            raise Exception(f"Error renaming file in HDFS: {e}")
 
     ########## Don't delete ################
     # this method is never used in the current implementation of FedData

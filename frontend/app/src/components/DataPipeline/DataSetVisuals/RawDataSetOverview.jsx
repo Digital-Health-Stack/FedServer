@@ -34,15 +34,15 @@ const DataSetOverview = () => {
   return (
     <div>
       <SummaryStats
-        fileName={data.filename}
+        filename={filename}
         numRows={data.numRows}
         numCols={data.numColumns}
       />
       <ColumnDetails columnStats={data.columnStats} />
       <PreprocessingDetails
         columns={columnDetails}
-        fileName={data.filename}
-        directory="Uploads"
+        filename={filename}
+        directory="uploads"
       />
     </div>
   );

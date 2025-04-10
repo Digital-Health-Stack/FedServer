@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const environmentVariables = [
+  "REACT_APP_SERVER_BASE_URL",
   "REACT_APP_VIEW_RECENT_UPLOADS_URL",
   "REACT_APP_RAW_DATASETS_ENDPOINT",
   "REACT_APP_RAW_DATASET_RENAME_ENDPOINT",
@@ -21,6 +22,7 @@ const environmentVariables = [
   "REACT_APP_GET_BENCHMARKS_WITH_DATASET_AND_TASK_ID",
   "REACT_APP_GET_TRAINING_WITH_BENCHMARK_ID",
   "REACT_APP_TRAINING_DETAILS_URL",
+  "REACT_APP_PRIVATE_SERVER_URL",
 ];
 
 export default defineConfig(({ mode }) => {

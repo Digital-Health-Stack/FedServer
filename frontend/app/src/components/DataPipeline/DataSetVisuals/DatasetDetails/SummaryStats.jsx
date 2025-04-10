@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const SummaryStats = ({ fileName, numRows, numCols }) => {
+const SummaryStats = ({ filename, numRows, numCols }) => {
   return (
     <div className="p-6 bg-gray-100">
       <h1 className="text-3xl font-bold mb-6 text-center">Dataset Overview</h1>
@@ -13,7 +13,7 @@ const SummaryStats = ({ fileName, numRows, numCols }) => {
                 File Name:
               </span>
               <span className="text-2xl font-bold text-green-800">
-                {fileName}
+                {filename}
               </span>
             </p>
             <p className="text-lg text-gray-1000 flex justify-between items-center">

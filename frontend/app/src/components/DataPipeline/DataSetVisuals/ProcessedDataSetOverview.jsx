@@ -402,7 +402,7 @@ const ProcessedDataSetOverview = () => {
   return (
     <div className="space-y-6">
       <SummaryStats
-        fileName={dataset.filename}
+        filename={filename}
         numRows={dataset.datastats?.numRows}
         numCols={dataset.datastats?.numColumns}
       />
@@ -415,8 +415,8 @@ const ProcessedDataSetOverview = () => {
 
       <PreprocessingDetails
         columns={columnDetails}
-        fileName={dataset.filename}
-        directory="Uploads"
+        filename={filename}
+        directory="processed"
       />
     </div>
   );

@@ -6,7 +6,7 @@ import PreprocessingOptions from "../ProcessingComponents/PreprocessingOptions.j
 const REACT_APP_PREPROCESS_DATASET_URL =
   process.env.REACT_APP_PREPROCESS_DATASET_URL;
 
-const PreprocessingDetails = ({ columns, fileName, directory }) => {
+const PreprocessingDetails = ({ columns, filename, directory }) => {
   const [selectedColumn, setSelectedColumn] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
   const [operations, setOperations] = useState([]);
@@ -34,7 +34,7 @@ const PreprocessingDetails = ({ columns, fileName, directory }) => {
 
   const handleSubmit = async () => {
     const payload = {
-      fileName: fileName,
+      filename: filename,
       directory: directory,
       operations: operations,
     };

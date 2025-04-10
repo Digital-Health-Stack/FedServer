@@ -5,17 +5,21 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, Reshape, MaxPooling2D, AveragePooling2D
 from elephas.spark_model import SparkModel
+from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.losses import MeanAbsoluteError
+from tensorflow.keras.metrics import MeanAbsoluteError
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class CustomCNN:
-    def __init__(self, config, spark_context, mode='asynchronous', num_workers=2):
+    def __init__(self, config, mode='asynchronous', num_workers=2):
         """
-        Initialize CNN model with enhanced error handling and GPU support detection
+        Initialize CNN model with error handling and GPU support detection.
         """
         self.config = config
-        self.spark_context = spark_context
+        # self.spark_context = spark_context  # This is problematic for pickling serialize
         self.model = None
         self.spark_model = None
 
@@ -48,12 +52,11 @@ class CustomCNN:
                 activation=output_layer['activation_function']
             ))
 
+            sgd = SGD(lr=0.1)
             # Compile with metrics from config
-            self.model.compile(
-                loss=config['model_info']['loss'],
-                optimizer=config['model_info']['optimizer'],
-                metrics=config['model_info']['test_metrics']
-            )
+            self.model.compile(sgd, 'categorical_crossentropy',['acc'] )  
+
+            # return self.model
 
             # Initialize Spark model
             self.spark_model = SparkModel(
@@ -63,15 +66,21 @@ class CustomCNN:
                 frequency='epoch',
                 # custom_objects=self._get_custom_objects()
             )
-
         except Exception as e:
             logging.error(f"Initialization failed: {str(e)}")
             raise
 
+    # def _get_custom_objects(self):
+    #     """Ensure custom objects are available for Spark serialization"""
+    #     return {
+    #         'Adam': tf.keras.optimizers.Adam,
+    #         'MSE': tf.keras.losses.MeanSquaredError,
+    #         'mae': tf.keras.metrics.MeanAbsoluteError  # Must Match the metric name used in compile
+    #     }
+
     def _add_layer(self, layer_config):
         """Helper to add layers based on configuration"""
         layer_type = layer_config['layer_type']
-        
         if layer_type == 'dense':
             self.model.add(Dense(
                 int(layer_config['num_nodes']),
@@ -96,14 +105,6 @@ class CustomCNN:
             self.model.add(Reshape(ast.literal_eval(layer_config['target_shape'])))
         else:
             raise ValueError(f"Unsupported layer type: {layer_type}")
-
-    # def _get_custom_objects(self):
-    #     """Ensure custom objects are available for Spark serialization"""
-    #     return {
-    #         'Adam': tf.keras.optimizers.Adam,
-    #         'MSE': tf.keras.losses.MeanSquaredError,
-    #         'MAE': tf.keras.metrics.MeanAbsoluteError
-    #     }
 
     def fit(self, rdd_data, epochs=1, batch_size=32):
         """Enhanced training method with proper error propagation"""
@@ -142,6 +143,7 @@ class CustomCNN:
         except Exception as e:
             logging.error(f"Parameter update failed: {str(e)}")
             raise
+
 
 
 
