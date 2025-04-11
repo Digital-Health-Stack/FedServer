@@ -54,7 +54,7 @@ class FederatedSession(TimestampMixin, Base):
     session_price = Column(Float, default= 0, nullable=True)
     # 1 for server waiting for admin to price, 2 for server waiting for all clients and 3 for training starts, 4 for completed
     training_status = Column(Integer, default=1, nullable=False) 
-    client_parameters = Column(JSON, default='{}', nullable=False)
+    client_parameters = Column(JSON, default='{}', nullable=False)  
     # Wait Time
     wait_till = Column(DateTime, default=lambda: datetime.now() + timedelta(minutes=int(os.getenv('SESSION_WAIT_MINUTES'))))
     
@@ -90,7 +90,7 @@ class FederatedSessionClient(TimestampMixin, Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     session_id = Column(Integer, ForeignKey('federated_sessions.id'), nullable=False)
-    status = Column(Integer, default=1, nullable=False) # Status values: 1 (not responded), 2 (accepted), 3 (rejected)
+    status = Column(Integer, default=1, nullable=False) # Status values: 0 (means client accepted), 1 (means client initiated model)
     ip = Column(String, nullable=False)
     local_model_id = Column(String, nullable=True)
     

@@ -151,8 +151,6 @@ def submit_client_price_response(client_response: ClientFederatedResponse, reque
 def submit_client_federated_response(client_response: ClientFederatedResponse, request: Request, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     '''
         decision : 1 means client accepts and 0 means rejects
-        client_status = 2 means client has accepted the request
-        client_status = 3 means client rejected the request
     '''
     session_id = client_response.session_id
     decision = client_response.decision

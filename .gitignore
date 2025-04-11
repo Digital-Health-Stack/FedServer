@@ -16,6 +16,7 @@ backend/app/storage/database.db
 .env
 testing.py 
 execute.py
+wslenv
 
 
 

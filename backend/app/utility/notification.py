@@ -14,8 +14,11 @@ def add_notifications_for_recently_active_users(db: Session, message: dict, vali
     # Fetch users whose updatedAt is within the last 24 hours
     users_to_notify = db.query(User).filter(and_(
         User.updatedAt >= last_updated_at,
+        User.role != "admin",
         ~User.id.in_([user.id for user in excluded_users])
     )).all()
+    
+    print("Checkpoint Notification -", users_to_notify)
     
     add_notifications_for(db, message, users_to_notify, valid_until)
 
