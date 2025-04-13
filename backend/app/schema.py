@@ -33,9 +33,8 @@ class ClientFederatedResponse(BaseModel):
     session_id: int
     decision: int
     
-class ClientModleIdResponse(BaseModel):
+class ClientModelIdResponse(BaseModel):
     session_id: int
-    local_model_id: str
 
 class ClientReceiveParameters(BaseModel):
     session_id: int

@@ -1,18 +1,17 @@
-from fastapi import APIRouter, Depends, Request, BackgroundTasks, HTTPException
+from fastapi import APIRouter, status, Depends, Request, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_, update
 from utility.db import get_db
 from utility.FederatedLearning import FederatedLearning
-from utility.auth import role
+from utility.auth import role, get_current_user
 from utility.federated_learning import start_federated_learning
-import json
-import os
+from typing import Any
 
-from models.FederatedSession import FederatedSession, FederatedSessionClient
+from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, ClientModelWeights
 from models.User import User
 
 from schemas.user import ClientSessionStatusSchema
-from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModleIdResponse, ClientReceiveParameters
+from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModelIdResponse, ClientReceiveParameters
 
 federated_router = APIRouter()
 federated_manager = FederatedLearning()
@@ -67,13 +66,13 @@ async def create_federated_session(
         layer for layer in federated_details.fed_info.model_info["layers"] if layer.get("layer_type")
     ]
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host,db)
-    session.log_event(db, f"Federated session created by admin {current_user.id} from {request.client.host}")
+    federated_manager.log_event(session.id, f"Federated session created by admin {current_user.id} from {request.client.host}")
     
     try:
         background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, db)
-        session.log_event(db, "Background task for federated learning started")
+        federated_manager.log_event(session.id, "Background task for federated learning started")
     except Exception as e:
-        session.log_event(db, f"Error starting background task: {str(e)}")
+        federated_manager.log_event(session.id, f"Error starting background task: {str(e)}")
         return {"message": "An error occurred while starting federated learning."}
     
     return {
@@ -91,19 +90,21 @@ def get_all_federated_session(current_user: User = Depends(role("client"))):
             'name': federated_info.get('organisation_name')
         }
         for [id, training_status, federated_info]
-        in federated_manager.get_my_sessions(current_user)
+        in federated_manager.get_all()
     ]
 
 @federated_router.get('/get-federated-session/{session_id}')
-def get_federated_session(session_id: int, current_user: User = Depends(role("client"))):
+def get_federated_session(session_id: int, db: Session = Depends(get_db),current_user: User = Depends(role("client"))):
     try:
-        federated_session_data = federated_manager.get_session(session_id)
+        federated_session_data = db.query(FederatedSession).filter_by(id = session_id).first()
+        if not federated_session_data:
+            raise HTTPException(status_code=404, detail="Session not found")
         client = next((client for client in federated_session_data.clients if client.user_id == current_user.id), None)
 
         federated_response = {
             'federated_info': federated_session_data.federated_info,
             'training_status': federated_session_data.training_status,
-            'client_status': client.status if client else 1,
+            'client_status': client.status if client else -1,
             'session_price': federated_session_data.session_price
         }
 
@@ -112,9 +113,8 @@ def get_federated_session(session_id: int, current_user: User = Depends(role("cl
         raise HTTPException(status_code=404, detail="Session not found")
     
 
-##*************** Do i need client dependency here ?***************
-@federated_router.post('/submit-client-price-response')
-def submit_client_price_response(client_response: ClientFederatedResponse, request: Request, db: Session = Depends(get_db)):
+@federated_router.post('/submit-client-price-acceptance-response')
+def submit_client_price_response(client_response: ClientFederatedResponse, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     '''
         decision : 1 means client accepts the price, -1 means client rejects the price
         training_status = 2 means the training process should start
@@ -125,14 +125,19 @@ def submit_client_price_response(client_response: ClientFederatedResponse, reque
         
         session = federated_manager.get_session(session_id)
         if(session):
-            # Fetch the FederatedSession by session_id
+            # Only admin can respond
+            if session.admin_id != current_user.id:
+                return {'success': False, 'message': 'Only the admin of this session can respond'}
+            
             federated_session = db.query(FederatedSession).filter_by(id = session_id).first()
             if not federated_session:
                 raise HTTPException(status_code=404, detail="Federated session not found")
             # Update training_status based on the decision
             if decision == 1:
+                federated_manager.log_event(session_id, f"Admin Accepted the price updating training status = 2")
                 federated_session.training_status = 2  # Update training_status to 2 (start training)
-            elif decision == -1:
+            elif decision == 0:
+                federated_manager.log_event(session_id, f"Admin rejected the price updating training status = -1")
                 federated_session.training_status = -1  # Keep or set to a default status for rejection
             else:
                 raise HTTPException(
@@ -147,44 +152,46 @@ def submit_client_price_response(client_response: ClientFederatedResponse, reque
         print(e)
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
-@federated_router.post('/submit-client-federated-response')
+@federated_router.post('/submit-client-training-acceptance-response')
 def submit_client_federated_response(client_response: ClientFederatedResponse, request: Request, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     '''
         decision : 1 means client accepts and 0 means rejects
     '''
     session_id = client_response.session_id
     decision = client_response.decision
-    if decision == 1:
-        client_status = 2
-    
+    if decision == 0:
+        return {
+            "success": True,
+            "message": "Your decision to decline participation in the training session has been recorded. Thank you for your response."
+        }
     session = federated_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
     
-    if(session):
-        client = db.query(FederatedSessionClient).filter_by(session_id = session_id, user_id = current_user.id).first()
-        if not client:
-            federated_session_client = FederatedSessionClient(
-                user_id = current_user.id,
-                session_id = session_id,
-                status = client_status,
-                ip = request.client.host
-            )
-            
-            db.add(federated_session_client)
-        else:
-            client.status = client_status
+    client = db.query(FederatedSessionClient).filter_by(session_id = session_id, user_id = current_user.id).first()
+    if not client:
+        federated_session_client = FederatedSessionClient(
+            user_id = current_user.id,
+            session_id = session_id,
+            status = 0,
+            ip = request.client.host
+        )
+        db.add(federated_session_client)
         db.commit()
-    
     return { 'success': True, 'message': 'Client Decision has been saved'}
 
 
-@federated_router.post('/update-client-status-four')
-def update_client_status_four(request: ClientModleIdResponse, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
+@federated_router.post('/client-initialize-model')
+def client_initialize_model(
+    request: ClientModelIdResponse, 
+    current_user: User = Depends(role("client")), 
+    db: Session = Depends(get_db)
+):
     '''
-        Client have received the model parameters and waiting for server to start training
+    Client has initialized the model and notifies the server.
+    Status is updated from 0 to 1.
     '''
-
     session_id = request.session_id
-    local_model_id = request.local_model_id
     db.execute(
         update(FederatedSessionClient)
         .where(and_(
@@ -192,34 +199,31 @@ def update_client_status_four(request: ClientModleIdResponse, current_user: User
             FederatedSessionClient.session_id == session_id
         ))
         .values(
-            status = 4,
-            local_model_id = local_model_id
+            status = 1,
         )
     )
-    
     db.commit()
-
-    return {'message': 'Client Status Updated to 4'}
+    return {'message': 'Client status updated to 1 (initialized model)'}
 
 @federated_router.get('/get-model-parameters/{session_id}')
-def get_model_parameters(session_id: str):
+def get_model_parameters(session_id: int, db: Session = Depends(get_db)):
     '''
         Client have received the model parameters and waiting for server to start training
     '''
-    global_parameters = json.loads(federated_manager.get_session(session_id).global_parameters)
+    global_model_weight = db.query(GlobalModelWeights).filter(GlobalModelWeights.session_id == session_id).first()
+    
+    if not global_model_weight or not global_model_weight.weights:
+        # If global_model_weight doesn't exist or weights are empty, set is_first to 1
+        is_first = 1
+        global_parameters = {}  # Or set this to any placeholder or default value
+    else:
+        is_first = 0
+        global_parameters = global_model_weight.weights
     
     response_data = {
         "global_parameters": global_parameters,
-        "is_first": 0
+        "is_first": is_first
     }
-
-    # Save global_parameters string into a file
-    file_path = "global_parameters.txt"  # Specify the desired file path and name
-    with open(file_path, "a") as file:
-        file.write("\n---\n")  # Add a separator before each new entry
-        file.write(json.dumps(global_parameters))  # Append the JSON string
-        file.write("\n")  # Add a newline after the entry for readability
-    print(f"Global parameters have been saved to {file_path}.")
     return response_data
 
 @federated_router.post('/receive-client-parameters')
@@ -232,46 +236,50 @@ def receive_client_parameters(request: ClientReceiveParameters,  current_user: U
     if not session_data:
         raise HTTPException(status_code=404, detail=f"Federated Session with ID {session_id} not found!")
     
-    # Deserialize client_parameters from JSON to a Python dictionary
-    existing_parameters = json.loads(session_data.client_parameters) if session_data.client_parameters else {}
+    round_number = session_data.curr_round
     
-    existing_parameters[str(current_user.id)] = client_parameter
-    session_data.client_parameters = json.dumps(existing_parameters)
+    # Check if a submission already exists for this user, session, and round
+    submission = db.query(FederatedRoundClientSubmission).filter_by(
+        session_id=session_id,
+        user_id=current_user.id,
+        round_number=round_number
+    ).first()
+
+    if submission:
+        federated_manager.log_event(session_id, f"Client parameters for this round {round_number} already submitted.")
+        raise HTTPException(status_code=400, detail="Client parameters for this round already submitted.")
+    # Create new submission entry
+    submission = FederatedRoundClientSubmission(
+        session_id=session_id,
+        user_id=current_user.id,
+        round_number=round_number
+    )
+    db.add(submission)
+    db.flush()  # Ensures submission.id is available before committing
     
+    
+    # Create associated client model weights
+    client_model_weight = ClientModelWeights(
+        submission_id=submission.id,
+        weights=client_parameter
+    )
+    db.add(client_model_weight)
+
     db.commit()
     
-    # federated_manager.federated_sessions[session_id]['client_parameters'][client_id] = request.client_parameter
     return {"message": "Client Parameters Received"}
 
-@federated_router.get('/get-all-completed-trainings')
-def get_training_results():
-    # iterate ove Global_test_results folder and return the completed sessions' results
-    try:
-        results_dir = "Global_test_results"
-        results = []
-        for file in os.listdir(results_dir):
-            if file.endswith(".json"):
-                with open(os.path.join(results_dir, file), "r") as f:
-                    result = json.load(f)
-                    # return only session_id and organisation_name
-                    # only save session_id from file name not all filename
-                    results.append({
-                        "session_id": file.split("_")[0],
-                        "org_name": result["session_data"]["organisation_name"]
-                    })
-        return {"results": results}
+    
+@federated_router.get('/training-result/{session_id}')
+def get_training_result(session_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Any:
+    """
+    Fetch test results directly from the database for a given FederatedSession ID.
+    """
+    session = db.query(FederatedSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Federated session not found.")
+    test_results = session.as_dict().get("test_results", [])
+    if not test_results:
+        return {"message": "No test results available for this session yet."}
 
-    except Exception as e:
-        return {"message": f"No training results"}
-
-
-@federated_router.get('/get-training-result/{session_id}')
-def get_training_results(session_id: str):
-    # iterate ove Global_test_results folder and return the session_id's results
-    try:
-        results_dir = "Global_test_results"
-        with open(os.path.join(results_dir, f"{session_id}_test_results.json"), "r") as f:
-            result = json.load(f)
-            return result
-    except Exception as e:
-        return {"message": f"No training results with this session_id"}
+    return test_results

@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Session, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from models.FederatedSession import FederatedSessionLog
+from sqlalchemy.orm import Session
+from schemas.logs import FederatedSessionLogResponse
+from utility.db import get_db
 
 log_router = APIRouter()
 
@@ -13,7 +16,7 @@ def get_logs(session_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No logs found for this session")
     return logs
 
-@log_router.delete("/session/{session_id}", response_model=dict)
+@log_router.delete("/{session_id}", response_model=dict)
 def delete_all_logs_of_session(session_id: int, db: Session = Depends(get_db)):
     """
     Delete all log entries for a specific federated session.

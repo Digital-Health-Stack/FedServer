@@ -3,8 +3,7 @@ from operator import or_
 from typing import Dict, List
 from schema import FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select
-from models.FederatedSession import FederatedSession, FederatedSessionClient
-from utility.Server import Server
+from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, FederatedSessionLog
 import numpy as np
 from models import User as UserModel
 from sqlalchemy.orm import Session, joinedload
@@ -48,25 +47,21 @@ class FederatedLearning:
         federated_session_client = FederatedSessionClient(
             user_id = user.id,
             session_id = federated_session.id,
-            status = 2,
+            status = 0,
             ip = ip
         )
-            
         db.add(federated_session_client)
+        db.commit()
+        # Create the global model weight for the session
+        global_model_weight = GlobalModelWeights(
+            session_id=federated_session.id,
+            weights={},  # You can initialize this as an empty dictionary or with some default weights
+            created_at=datetime.now()
+        )
+        db.add(global_model_weight)
         db.commit()
         return federated_session
 
-        # self.federated_sessions[session_id] = {
-        #     "federated_info": federated_info,
-        #     "admin": None,
-        #     "curr_round": 1,
-        #     "max_round": 10,
-        #     # "interested_clients": {}, # contains ids of interested_clients
-        #     "global_parameters": [],   # contains global parameters
-        #     "clients_status": {user_id: {"status": 1} for user_id in clients_data}, 
-        #     "training_status": 1,            # 1 for server waiting for all clients and 2 for training starts
-        #     "client_parameters": {}
-        # }
     
     def get_session(self, federated_session_id: int) -> FederatedLearningInfo:
         """
@@ -92,9 +87,13 @@ class FederatedLearning:
             
     def get_all(self):
         with Session(engine) as db:
-            stmt = select(FederatedSession.id, FederatedSession.training_status).order_by(desc(FederatedSession.createdAt))
+            stmt = select(
+                FederatedSession.id,
+                FederatedSession.training_status,
+                FederatedSession.federated_info
+            ).order_by(desc(FederatedSession.createdAt))
+        
             federated_sessions = db.execute(stmt).all()
-            
             return federated_sessions
     
     def get_my_sessions(self, user: UserModel):
@@ -118,10 +117,30 @@ class FederatedLearning:
             
             return federated_sessions
     
-    def clear_client_parameters(self,session_id: str):
-        self.federated_sessions[session_id]['client_parameters'] = {}
+    def clear_client_parameters(self, session_id: str, round_number: int):
+        """
+        Clears client parameters for a specific session and round
+        by deleting related FederatedRoundClientSubmission and ClientModelWeight entries.
+        """
+        with Session(engine) as db:
+            # Fetch all submissions for the current round
+            submissions = db.query(FederatedRoundClientSubmission).filter_by(
+                session_id=session_id,
+                round_number=round_number
+            ).all()
 
-    def aggregate_weights_fedAvg_Neural(self, session_id: str):
+            if not submissions:
+                print(f"No client submissions found for session {session_id} and round {round_number}. Nothing to clear.")
+                return
+
+            # Delete all fetched submissions (weights will cascade delete)
+            for submission in submissions:
+                db.delete(submission)
+
+            db.commit()
+            print(f"Cleared all client parameters for session {session_id} and round {round_number}.")
+
+    def aggregate_weights_fedAvg_Neural(self, session_id: str, round_number: int):
         """
         # ========================================================================================================
         # Expected Params config for each client to work Federated Averaging correctly
@@ -137,20 +156,21 @@ class FederatedLearning:
         """
         # Retrieve client parameters
         with Session(engine) as db:
-            federated_session = db.query(FederatedSession).filter_by(id=session_id).first()
+            # Fetch all client submissions for this round
+            submissions = db.query(FederatedRoundClientSubmission).filter_by(
+                session_id=session_id,
+                round_number=round_number
+            ).all()
+            if not submissions:
+                raise ValueError("No client submissions found for this round.")
             
-            if not federated_session:
-                raise ValueError(f"FederatedSession with ID {session_id} not found.")
-            # Count the number of clients
-            num_interested_clients = len(federated_session.clients)
-            client_parameters = json.loads(federated_session.client_parameters or "{}")  # Ensure client_parameters is a dict
-
             # Initialize a dictionary to hold the aggregated sums of parameters
+            num_clients = len(submissions)
             aggregated_sums = {}
 
-            def initialize_aggregated_sums(param, aggregated):
+            def initialize_aggregated_sums(param):
                 if isinstance(param, list):
-                    return [initialize_aggregated_sums(sub_param, aggregated) for sub_param in param]
+                    return [initialize_aggregated_sums(p) for p in param]
                 else:
                     return np.zeros_like(param)
 
@@ -168,28 +188,36 @@ class FederatedLearning:
                 else:
                     return (aggregated / count).tolist()
 
-            # Iterate over each client's parameters
-            for client in client_parameters:
-                client_param = client_parameters[client]
-
-                # Initialize aggregated_sums with the same structure as the first client's parameters
+            for submission in submissions:
+                weights = submission.model_weights.weights
                 if not aggregated_sums:
-                    for key in client_param:
-                        aggregated_sums[key] = initialize_aggregated_sums(client_param[key], aggregated_sums)
+                    for key in weights:
+                        aggregated_sums[key] = initialize_aggregated_sums(weights[key])
 
-                # Sum the parameters for each key
-                for key in client_param:
-                    aggregated_sums[key] = sum_parameters(aggregated_sums[key], client_param[key])
+                for key in weights:
+                    aggregated_sums[key] = sum_parameters(aggregated_sums[key], weights[key])
 
             # Average the aggregated sums
             for key in aggregated_sums:
-                aggregated_sums[key] = average_parameters(aggregated_sums[key], num_interested_clients)
+                aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
 
             print("Aggregated Parameters after FedAvg:",
                   {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
 
-            # Save the aggregated parameters back to the session
-            federated_session.global_parameters = json.dumps(aggregated_sums)
+            # Replace the old GlobalModelWeights if it exists
+            global_weight = db.query(GlobalModelWeights).filter_by(session_id=session_id).first()
+            if global_weight:
+                global_weight.weights = aggregated_sums
+                global_weight.updated_at = datetime.now()  # Add this field if not present already
+                print(f"Updated existing global weight for session {session_id}")
+            else:
+                global_weight = GlobalModelWeights(
+                    session_id=session_id,
+                    weights=aggregated_sums
+                )
+                db.add(global_weight)
+                print(f"Created new global weight for session {session_id}")
+            db.commit()
 
             # Save aggregated_sums dictionary into a text file with appending
             file_path = "aggregated_sums.txt"  # Specify the desired file path and name
@@ -204,6 +232,36 @@ class FederatedLearning:
                 file.write("\n")  # Add a newline after the entry for readability
 
             print(f"Aggregated sums have been appended to {file_path} with a separator.")
+
+    def log_event(self, session_id: int,message: str):
+        with Session(engine) as db:
+            log_entry = FederatedSessionLog(session_id=session_id, message=message)
+            db.add(log_entry)
             db.commit()
+            print(f"[LOG] Session {session_id}: {message} ")
+    
+    def get_latest_global_weights(self,session_id: int):
+        """
+        Retrieve the latest global model weights for a given federated session.
+
+        Args:
+            session_id (int): The ID of the federated session.
+            db (Session): SQLAlchemy database session.
+
+        Returns:
+            dict or None: The latest global weights as a dictionary, or None if not found.
+        """
+        # Retrieve client parameters
+        with Session(engine) as db:
+            weights_entry = (
+                db.query(GlobalModelWeights)
+                .filter(GlobalModelWeights.session_id == session_id)
+                .order_by(GlobalModelWeights.created_at.desc())
+                .first()
+            )
+
+            if weights_entry and weights_entry.weights:
+                return weights_entry.weights
+        return None
 
 
