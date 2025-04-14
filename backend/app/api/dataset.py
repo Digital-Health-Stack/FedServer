@@ -285,8 +285,8 @@ async def edit_raw_dataset(
         
         if old_file_name != newdetails.filename:
             await hdfs_client.rename_file_or_folder(
-                f"{HDFS_RAW_DATASETS_DIR}/{old_file_name}",
-                f"{HDFS_RAW_DATASETS_DIR}/{newdetails.filename}"
+                f"{HDFS_PROCESSED_DATASETS_DIR}/{old_file_name}",
+                f"{HDFS_PROCESSED_DATASETS_DIR}/{newdetails.filename}"
             )
 
         result = edit_dataset_details(db, newdetails)

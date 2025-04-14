@@ -12,7 +12,7 @@ import FileCard from "./ViewAllFiles/FileCard";
 
 const ViewAllDatasets = () => {
   // Environment variables and navigation setup
-  const [selectedFolder, setSelectedFolder] = useState("raw");
+  const [selectedFolder, setSelectedFolder] = useState("processed");
   const [datasets, setDatasets] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -124,7 +124,7 @@ const ViewAllDatasets = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {datasets.map((dataset) => (
                   <FileCard
                     key={dataset.dataset_id}
