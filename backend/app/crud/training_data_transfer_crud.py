@@ -3,13 +3,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import desc
 from models.TrainingDataTransfer import TrainingDataTransfer
 from datetime import datetime, timezone
+from schemas.training_data_transfer import TransferCreate
 
-def create_transfer(db: Session, data: dict):
+def create_transfer(db: Session, data: TransferCreate):
     try:
-        transfer = TrainingDataTransfer(**data)
+        transfer = TrainingDataTransfer(**data.dict())
         db.add(transfer)
         db.commit()
         db.refresh(transfer)
+        print("Checkpoint: in transfer crud, in the create_transfer function")
         return transfer
     except SQLAlchemyError as e:
         db.rollback()
@@ -33,27 +35,50 @@ def get_all_transfers(db: Session):
     except SQLAlchemyError as e:
         return {"error": f"Database error: {e}"}
     
-def get_pending_transfers(db: Session):
-    """ Returns all QPD records that are not approved """
+def get_pending_transfers(db: Session, skip: int = 0, limit: int = 100):
+    """Returns paginated QPD records that are not yet approved."""
     try:
-        return db.query(TrainingDataTransfer).options(
-            load_only(
-                TrainingDataTransfer.id,
-                TrainingDataTransfer.training_name,
-                TrainingDataTransfer.num_datapoints,
-                TrainingDataTransfer.data_path,
-                TrainingDataTransfer.parent_filename,
-                TrainingDataTransfer.transferredAt,
-                TrainingDataTransfer.approvedAt,
-                TrainingDataTransfer.federated_session_id
-            ).order_by(desc(TrainingDataTransfer.transferredAt))
-        ).filter(TrainingDataTransfer.approvedAt.is_(None)).all()
+        return (
+            db.query(TrainingDataTransfer)
+            .options(
+                load_only(
+                    TrainingDataTransfer.id,
+                    TrainingDataTransfer.training_name,
+                    TrainingDataTransfer.num_datapoints,
+                    TrainingDataTransfer.data_path,
+                    TrainingDataTransfer.parent_filename,
+                    TrainingDataTransfer.transferredAt,
+                    TrainingDataTransfer.approvedAt,
+                    TrainingDataTransfer.federated_session_id
+                )
+            )
+            .filter(TrainingDataTransfer.approvedAt.is_(None))
+            .order_by(desc(TrainingDataTransfer.transferredAt))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
     except SQLAlchemyError as e:
         return {"error": f"Database error: {e}"}
+
 
 def get_transfer_details(db: Session, transfer_id: int):
     try:
         return db.query(TrainingDataTransfer).execution_options(include_approved=True).filter(TrainingDataTransfer.id == transfer_id).first()
+    except SQLAlchemyError as e:
+        return {"error": f"Database error: {e}"}
+
+def get_transfer_mini_details(db: Session, transfer_id: int):
+    try:
+        return db.query(TrainingDataTransfer).filter(TrainingDataTransfer.id == transfer_id).options(
+            load_only(
+                TrainingDataTransfer.id,
+                TrainingDataTransfer.data_path,
+                TrainingDataTransfer.parent_filename,
+                TrainingDataTransfer.federated_session_id,
+            )
+        ).first()
+    
     except SQLAlchemyError as e:
         return {"error": f"Database error: {e}"}
 
@@ -71,7 +96,7 @@ def approve_transfer(db: Session, transfer_id: int):
 
 def delete_transfer(db: Session, transfer_id: int):
     try:
-        transfer = db.query(TrainingDataTransfer).filter(TrainingDataTransfer.id == transfer_id).first()
+        transfer = db.query(TrainingDataTransfer).execution_options(include_approved=True).filter(TrainingDataTransfer.id == transfer_id).first()
         if not transfer:
             return {"error": "Transferred data not found"}
         db.delete(transfer)

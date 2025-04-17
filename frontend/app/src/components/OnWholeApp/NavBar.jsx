@@ -79,9 +79,9 @@ const NavBar = () => {
             <li>
               <NavLink
                 className="flex items-center gap-2 py-2 px-4 hover:text-gray-400"
-                to="/data-quality"
+                to="/assess-data-quality"
               >
-                <ServerStackIcon className="w-5 h-5" /> Access Data Quality
+                <ServerStackIcon className="w-5 h-5" /> Assess Data Quality
               </NavLink>
             </li>
             <li>

@@ -36,6 +36,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 # Login route
 @user_router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
+    # print("Login request received: ", user.username, user.password)
     def is_invalid(db_user: User):
         return not verify_password(user.password, db_user.hashed_password)
         

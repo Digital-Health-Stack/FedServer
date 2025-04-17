@@ -19,5 +19,13 @@ execute.py
 wslenv
 create_data.py
 
+backend/app/data 
+backend/app/logs/
+backend/app/aggregated_sums.txt
+create_data.py
+./create_data.py
+/logs
+
+
 
 

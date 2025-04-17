@@ -7,5 +7,6 @@ class FederatedSessionLogResponse(BaseModel):
     message: str
     timestamp: datetime
 
+    # orm_mode was giving warning 
     class Config:
-        orm_mode = True
+        from_attributes = True

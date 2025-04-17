@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function Home() {
+export default function Dashboard() {
   const navigate = useNavigate();
   const gotoRegister = () => {
     navigate("/register");
@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <div className="flex h-screen items-center justify-center flex-col">
       <h1 className="text-3xl font-bold text-center text-blue-500">
-        Welcome to FedServer
+        Welcome to FedServer G 
       </h1>
       <button
         onClick={gotoRegister}

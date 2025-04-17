@@ -96,12 +96,14 @@ async def process_preprocessing(directory: str, filename: str, operations: List[
             operations
         )
 
+        print("Check:: in processing fn- if error goes to except block: ", processed_info)
         # Create new dataset entry
         new_dataset = DatasetCreate(
             filename=processed_info["filename"],
             description=f"Processed version of {filename}",
             datastats=processed_info
         )
+
         crud_result = create_dataset(db, dataset=new_dataset)
         if isinstance(crud_result, dict) and "error" in crud_result:
             raise HTTPException(status_code=400, detail=crud_result["error"])
@@ -115,6 +117,7 @@ async def process_preprocessing(directory: str, filename: str, operations: List[
         
     except Exception as e:
         await hdfs_client.rename_file_or_folder(processing_path, f"{directory}/{filename}", ignore_missing=True)
+        handle_file_renaming_during_processing(db, f"{filename}__PROCESSING__", filename, directory)
         print("Error in preprocessing the data is: ", str(e))
         return {"error": str(e)}
     finally:
@@ -156,16 +159,24 @@ def get_raw_dataset_overview(filename: str, db: Session = Depends(get_db)):
         return {"error": str(e)}
 
 @dataset_router.put("/rename-raw-dataset-file")
-def rename_raw_dataset_file(
+async def rename_raw_dataset_file(
     old_file_name: str = Query(...),
     new_file_name: str = Query(...),
     db: Session = Depends(get_db)
 ):
     try:
+        # Rename file on HDFS
+        await hdfs_client.rename_file_or_folder(
+            f"{HDFS_RAW_DATASETS_DIR}/{old_file_name}",
+            f"{HDFS_RAW_DATASETS_DIR}/{new_file_name}"
+        )
+
         result = rename_raw_dataset(db, old_file_name, new_file_name)
         if isinstance(result, dict) and "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
+
         return result
+
     except Exception as e:
         print("Error in renaming raw dataset: ", str(e))
         return {"error": str(e)}
@@ -197,11 +208,18 @@ async def edit_raw_dataset(
         return {"error": str(e)}
     
 @dataset_router.delete("/delete-raw-dataset-file")
-def delete_raw_dataset_file(
+async def delete_raw_dataset_file(
     dataset_id: str = Query(...),
     db: Session = Depends(get_db)
 ):
     try:
+        # delete file on HDFS
+        filename = get_raw_data_filename_by_id(db, dataset_id)
+        if isinstance(filename, dict) and "error" in filename:
+            raise HTTPException(status_code=404, detail=filename["error"])
+        
+        await hdfs_client.delete_file_from_hdfs(HDFS_RAW_DATASETS_DIR, filename)
+
         result = delete_raw_dataset(db, dataset_id)
         if isinstance(result, dict) and "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -258,13 +276,24 @@ def get_dataset_overview(filename: str, db: Session = Depends(get_db)):
         return {"error": str(e)}
 
 @dataset_router.put("/rename-dataset-file")
-def rename_processed_dataset_file(
+async def rename_processed_dataset_file(
     dataset_id: int = Query(...),
     new_name: str = Query(...),
     db: Session = Depends(get_db)
 ):
     try:
-        result = rename_dataset(db, dataset_id, new_name)
+        # get dataset name and rename on hdfs
+        old_file_name = get_data_filename_by_id(db, dataset_id)
+        if isinstance(old_file_name, dict) and "error" in old_file_name:
+            raise HTTPException(status_code=404, detail=old_file_name["error"])
+        
+        await hdfs_client.rename_file_or_folder(
+            f"{HDFS_PROCESSED_DATASETS_DIR}/{old_file_name}",
+            f"{HDFS_PROCESSED_DATASETS_DIR}/{new_name}"
+        )
+
+        # don't do it by ID, do it by filename (the function is reffered on other places too)
+        result = rename_dataset(db, old_file_name, new_name)
         if isinstance(result, dict) and "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
         return result
@@ -299,11 +328,18 @@ async def edit_raw_dataset(
         return {"error": str(e)}
     
 @dataset_router.delete("/delete-dataset-file")
-def delete_processed_dataset_file(
+async def delete_processed_dataset_file(
     dataset_id: int = Query(...),
     db: Session = Depends(get_db)
 ):
     try:
+        # delete file on HDFS
+        filename = get_data_filename_by_id(db, dataset_id)
+        if isinstance(filename, dict) and "error" in filename:
+            raise HTTPException(status_code=404, detail=filename["error"])
+        
+        await hdfs_client.delete_file_from_hdfs(HDFS_PROCESSED_DATASETS_DIR, filename)
+
         result = delete_dataset(db, dataset_id)
         if isinstance(result, dict) and "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])

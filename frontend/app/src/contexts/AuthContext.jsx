@@ -17,6 +17,7 @@ import { BASE_URL } from "../services/config";
 
 // import { toast } from 'react-toastify';
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const AuthContext = createContext();
 
@@ -204,22 +205,42 @@ export const AuthProvider = ({ children }) => {
 
         // Handle specific status codes as needed
         if (error.response.status === 401) {
-          alert("Unauthorized access - please log in again.");
+          // alert("Unauthorized access - please log in again.");
+          toast.error("Unauthorized access - please log in again.", {
+            position: "bottom-center",
+            autoClose: 3000,
+          });
           removeUserData();
           // Optionally, log the user out, redirect to login, or refresh the token
         } else if (error.response.status === 403) {
-          alert("Access denied - you do not have permission.");
+          // alert("Access denied - you do not have permission.");
+          toast.error("Access denied - you do not have permission.", {
+            position: "bottom-center",
+            autoClose: 3000,
+          });
         } else if (error.response.status === 500) {
-          alert("Internal server error - please try again later.");
+          // alert("Internal server error - please try again later.");
+          toast.error("Internal server error - please try again later.", {
+            position: "bottom-center",
+            autoClose: 3000,
+          });
         }
       } else if (error.request) {
         // No response was received from the server
         console.error("Error request:", error.request);
-        alert("Network error - please check your internet connection.");
+        // alert("Network error - please check your internet connection.");
+        toast.error("Network error - please check your internet connection.", {
+          position: "bottom-center",
+          autoClose: 3000,
+        });
       } else {
         // Error occurred in setting up the request
         console.error("Error message:", error.message);
-        alert("An error occurred - please try again.");
+        // alert("An error occurred - please try again.");
+        toast.error("An error occurred - please try again.", {
+          position: "bottom-center",
+          autoClose: 3000,
+        });
       }
       return Promise.reject(error); // Optionally, you can also return a custom error message here
     }

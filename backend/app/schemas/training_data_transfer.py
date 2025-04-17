@@ -7,11 +7,16 @@ class TransferBase(BaseModel):
     num_datapoints: int
     data_path: str
     parent_filename: str
+    datastats: Optional[Dict] = None
     federated_session_id: int
-    datastats: Dict
 
-class TransferCreate(TransferBase):
-    pass
+class TransferCreate(BaseModel):
+    training_name: str
+    num_datapoints: int
+    data_path: str
+    parent_filename: str
+    datastats: Optional[Dict] = None
+    federated_session_id: int
 
 class TransferListItem(BaseModel):
     id: int
@@ -32,4 +37,4 @@ class TransferDetails(BaseModel):
     transferredAt: datetime
     approvedAt: Optional[datetime]
     federated_session_id: int
-    datastats: Dict
+    datastats: Optional[Dict] = None

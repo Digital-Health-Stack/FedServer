@@ -170,6 +170,18 @@ def edit_dataset_details(db: Session, newdetails: DatasetUpdate):
     except SQLAlchemyError as e:
         db.rollback()
         return {"error": f"Database error: {e}"}
+
+def update_dataset_stats(db: Session, filename: str, datastats: dict):
+    try:
+        dataset = db.query(Dataset).filter(Dataset.filename == filename).first()
+        if not dataset:
+            return {"error": "Dataset not found."}
+        dataset.datastats = datastats
+        db.commit()
+        return {"message": "Dataset stats updated successfully."}
+    except SQLAlchemyError as e:
+        db.rollback()
+        return {"error": f"Database error: {e}"}
     
 def handle_file_renaming_during_processing(db: Session, old_file_name: str, new_file_name: str, directory: str):
 

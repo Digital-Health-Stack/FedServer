@@ -1,6 +1,6 @@
 import "./index.css";
 import { Route, Routes } from "react-router-dom";
-import Home from "./Pages/Home";
+import Dashboard from "./Pages/Dashboard.jsx";
 import AdminLogin from "./Pages/AdminLogin";
 import About from "./Pages/About";
 import Error from "./Pages/Error";
@@ -13,6 +13,7 @@ import { PrivateRoute, OnlyGuestRoute } from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
 import ManageData from "./Pages/ManageData";
+import AssessDataQuality from "./Pages/AssessDataQuality.jsx";
 import ViewRecentUploads from "./components/DataPipeline/ViewRecentUploads";
 import ViewAllDatasets from "./components/DataPipeline/ViewAllDatasets";
 import RawDataSetOverview from "./components/DataPipeline/DataSetVisuals/RawDataSetOverview.jsx";
@@ -33,7 +34,7 @@ export default function App() {
           {/* <EventsAction socket={socket} clientToken={clientToken} /> */}
           <NavBar />
           <Routes>
-            <Route path="/" exact element={<Home />} />
+            <Route path="/" exact element={<Dashboard />} />
 
             <Route
               path="/admin-login"
@@ -74,6 +75,15 @@ export default function App() {
             <Route
               path="/benchmarks/:benchmark_id/training"
               element={<BenchmarkTraining />}
+            />
+
+            <Route
+              path="/assess-data-quality"
+              element={
+                <PrivateRoute>
+                  <AssessDataQuality />
+                </PrivateRoute>
+              }
             />
             <Route path="/*" element={<Error />} />
           </Routes>

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
 import { useAuth } from "../contexts/AuthContext";
 import RegisterImg from "../assets/register.png";
+import { toast } from "react-toastify";
 
 export default function AdminLogin() {
   return (
@@ -51,7 +52,11 @@ const LoginForm = () => {
         error.response?.data?.detail ||
         error.response?.data?.message ||
         "Login failed. Please check your credentials and try again.";
-      alert(errorMessage);
+      // alert(errorMessage);
+      toast.error(errorMessage, {
+        position: "bottom-center",
+        autoClose: 3000,
+      });
     }
   };
 

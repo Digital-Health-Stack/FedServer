@@ -1,10 +1,9 @@
 from pyspark.sql import SparkSession
 from dotenv import load_dotenv
 from pyspark.sql.functions import col, count, mean, stddev, min, max, approx_count_distinct, lit, rank, when
-from pyspark.sql.window import Window
 from pyspark.sql.types import NumericType, StringType
-# from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
-# from helpers.hdfs_services import HDFSServiceManager
+from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
+# from helpers.hdfs_services import HDFSServiceManager  # not needed for now
 import threading
 import time
 import os
@@ -161,7 +160,13 @@ class SparkSessionManager:
                         .limit(10)
                         .collect()
                     )
-                    stats["topCategories"] = [{"value": row[column], "count": row["count"]} for row in top_categories]
+
+                    stats["topCategories"] = [
+                        {   "value": row[column][:50] + "..." if isinstance(row[column], str) and len(row[column]) > 50 else row[column],
+                            "count": row["count"]
+                        }
+                        for row in top_categories
+                    ]
 
                 # Add the column stats to the list
                 column_stats.append(stats)
@@ -184,31 +189,32 @@ class SparkSessionManager:
         Notes:
         - ensure no same file name exists in the tmpuploads directory, or in uploads directory
         """
+        try:
+            with SparkSessionManager() as spark:
+                # later create a switch case based on file type
+                if filetype == "csv":
+                    df = spark.read.csv(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}",header=True,inferSchema=True)
+                    filename = filename[:-14].replace("csv", "parquet")
+                    # if you write without parquet extension, it will create a directory with the filename and store the data in it
+                    df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{filename}")
+                    print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{filename}")
 
-        print("print current working directory:", os.getcwd())
+                elif filetype == "parquet":
+                    # we don't need inferSchema=True with parquet (as parquet stores the schema as metadata)
+                    df = spark.read.parquet(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}")
+                    df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{filename}")
+                    print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{filename}")
+                else:
+                    print("Unsupported file type for creating new dataset.")
+                    return {"message": "Unsupported file type."}
 
-        with SparkSessionManager() as spark:
-            # later create a switch case based on file type
-            if filetype == "csv":
-                df = spark.read.csv(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}",header=True,inferSchema=True)
-                filename = filename[:-14].replace("csv", "parquet")
-                # if you write without parquet extension, it will create a directory with the filename and store the data in it
-                df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{filename}")
-                print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{filename}")
-
-            elif filetype == "parquet":
-                # we don't need inferSchema=True with parquet (as parquet stores the schema as metadata)
-                df = spark.read.parquet(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}")
-                df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{filename}")
-                print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{filename}")
-            else:
-                print("Unsupported file type for creating new dataset.")
-                return {"message": "Unsupported file type."}
-
-            dataset_overview = self._get_overview(df)
-            dataset_overview["filename"] = filename
-            return dataset_overview        
-        return {"message": "Dataset created."}
+                dataset_overview = self._get_overview(df)
+                dataset_overview["filename"] = filename
+                return dataset_overview        
+            return {"message": "Dataset created."}
+        except Exception as e:
+            print(f"Error creating new dataset: {e}")
+            raise e
     
 
     async def preprocess_data(self, directory: str, filename: str, operations: list):
@@ -248,42 +254,101 @@ class SparkSessionManager:
         
         # don't put try except here, if any error occurs, it will be printed and counted as no error ..
         # so wherever this function is called next step will continue even after this error (put try except there instead)
-        with SparkSessionManager() as spark:
-            # Load the dataset from HDFS
-            print(f"Starting preprocessing for {HDFS_FILE_READ_URL}/{directory}/{filename}...")
-            df = spark.read.parquet(f"{HDFS_FILE_READ_URL}/{directory}/{filename}")
+        try:
+            with SparkSessionManager() as spark:
+                # Load the dataset from HDFS
+                print(f"Starting preprocessing for {HDFS_FILE_READ_URL}/{directory}/{filename}...")
+                df = spark.read.parquet(f"{HDFS_FILE_READ_URL}/{directory}/{filename}")
+                
+                # Record the time, and get the numeric columns
+                t1 = time.time()
+                All_Columns = df.columns
+                numericCols = [c for c in All_Columns if isinstance(df.schema[c].dataType, NumericType)]
+
+                # Apply the preprocessing steps
+                for step in operations:
+                    if step["operation"] == "Exclude from All Columns list":
+                        All_Columns.remove(step['column'])
+                        if step['column'] in numericCols:
+                            numericCols.remove(step['column'])
+                            
+                    elif step["column"] == "All Columns":
+                        try:
+                            df = All_Column_Operations(df, step, numericCols, All_Columns)
+                        except Exception as e:
+                            print(f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n")       
+                    else:
+                        try:
+                            df = Column_Operations(df, step)
+                        except Exception as e:
+                            print(f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n")
+
+                newfilename = f"{filename}_{uuid.uuid4().hex}.parquet"
+                df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename}")
+
+                print(f"Preprocessed dataset saved to: {HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename} and time taken: ",time.time()-t1)
+
+                overview = self._get_overview(df)
+                overview["filename"] = newfilename
+                return overview
+        except Exception as e:
+            print(f"Error in preprocessing dataset: {e}")
+            raise e
+
+    async def merge_s3_file_to_hdfs(self, s3_path: str, parent_filename:str, session_id:int):
+        """
+        Creating Dataset for QPD (Quality preserving Database) from the original dataset.
+        """      
+        try:
+            with SparkSessionManager() as spark:
+                # Load the dataset from HDFS
+                hdfs_path = f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{parent_filename}"
+                s3_path = s3_path
+                newfilename = f"{parent_filename.replace('.parquet','')}_merged_{session_id}.parquet"
+                newpath = f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename}"
+
+                # reading the files from HDFS and S3
+                print(f"Reading from hdfs path: {hdfs_path}")
+                hdfs_df = spark.read.parquet(hdfs_path, inferSchema=True)
+
+                print(f"Reading from s3 path: {s3_path}")
+                s3_df = spark.read.parquet(s3_path, inferSchema=True)
+                
+                # In Spark ≥ 3.3, DataFrame.isEmpty() is available and does not trigger a full count
+                # for older versions use df.limit(1).rdd.isEmpty()
+                if hdfs_df.isEmpty() or s3_df.isEmpty():
+                    print(f"File {hdfs_path} or {s3_path} is empty, skipping merge.")
+                    raise Exception(f"File {hdfs_path} or {s3_path} is empty, skipping merge.")
+                
+                ####-------------------------------------------------
+                # have to ensure they're compatible for merging, otherwise inconsistencies will be there in DB and hdfs 
+                # currently this will union correctly even for reordered cols, and missing cols in either df
+                ####-------------------------------------------------
+                
+                hdfs_df = hdfs_df.unionByName(s3_df, allowMissingColumns=True)
+
+                # Write the merged DataFrame back to HDFS
+                # overwriting may give error in multithreading environment, in the spark 
+                # https://stackoverflow.com/questions/52826890/spark-leaseexpiredexception-while-writing-large-dataframe-to-parquet-files
+                # hdfs_df.write.mode("overwrite").parquet(hdfs_path)
+
+                hdfs_df.write.parquet(newpath)
+                print(f"Merged dataset saved to: merged_{session_id}_{hdfs_path}")
+
+                # i have to merge s3 file into hdfs file
+                print(f"Merged {s3_path} into {hdfs_path}")
+
+                # Update the code to Delete the S3 file after merging
+
+                overview = self._get_overview(hdfs_df)
+                overview["filename"] = newfilename
+                return overview
+
+        except Exception as e:
+            print(f"Error Merging S3 dataset: {e}")
+            raise e
             
-            # Record the time, and get the numeric columns
-            t1 = time.time()
-            All_Columns = df.columns
-            numericCols = [c for c in All_Columns if isinstance(df.schema[c].dataType, NumericType)]
 
-            # Apply the preprocessing steps
-            for step in operations:
-                if step["operation"] == "Exclude from All Columns list":
-                    All_Columns.remove(step['column'])
-                    if step['column'] in numericCols:
-                        numericCols.remove(step['column'])
-                        
-                elif step["column"] == "All Columns":
-                    try:
-                        df = All_Column_Operations(df, step, numericCols, All_Columns)
-                    except Exception as e:
-                        print(f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n")       
-                else:
-                    try:
-                        df = Column_Operations(df, step)
-                    except Exception as e:
-                        print(f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n")
-
-            newfilename = f"{filename}_{uuid.uuid4().hex}"
-            df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename}")
-
-            print(f"Preprocessed dataset saved to: {HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename} and time taken: ",time.time()-t1)
-
-            overview = self._get_overview(df)
-            overview["filename"] = newfilename
-            return overview
 
 # the _get_overview  function will return something like this:
 # {

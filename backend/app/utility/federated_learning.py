@@ -7,6 +7,7 @@ from models.FederatedSession import FederatedSession, FederatedSessionClient, Fe
 from utility import FederatedLearning
 from models import User
 import asyncio
+import os
 import json
 from utility.db import engine
 from sqlalchemy.orm import Session
@@ -24,6 +25,11 @@ def save_weights_to_file(weights: dict, filename: str):
     """Save the given weights dictionary to a JSON file."""
     if weights is None:
         weights = {}
+
+    dirpath = os.path.dirname(filename)
+    print(f"path to save weights: {dirpath}")
+    if dirpath and not os.path.exists(dirpath):
+        os.makedirs(dirpath, exist_ok=True)
 
     with open(filename, 'a') as f:
         json.dump(weights, f, indent=4)

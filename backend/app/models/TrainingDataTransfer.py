@@ -26,18 +26,20 @@ class TrainingDataTransfer(TimestampMixin, Base):
     data_path = Column(String, nullable=False)  # Where data is stored
     # although parent filename will be in the session information, we need to store it here for easy access
     parent_filename = Column(String, nullable=False)  # Filename of the parent dataset
-    datastats = Column(JSON, nullable=False)  # Statistics of the dataset
+    datastats = Column(JSON, nullable=True)  # Statistics of the dataset
     federated_session_id = Column(Integer, ForeignKey("federated_sessions.id"), nullable=False, index=True)
 
     def as_dict(self):
         return {
             "id": self.id,
+            "federated_session_id": self.federated_session_id,
             "training_name": self.training_name,
             "num_datapoints": self.num_datapoints,
             "data_path": self.data_path,
             "parent_filename": self.parent_filename,
+            "transferredAt": self.transferredAt,
+            "approvedAt": self.approvedAt,
             "datastats": self.datastats,
-            "federated_session_id": self.federated_session_id,
         }
 
 # Fixing soft deletion filtering by applying it on the correct table

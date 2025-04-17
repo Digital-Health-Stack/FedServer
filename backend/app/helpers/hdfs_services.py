@@ -40,7 +40,7 @@ class HDFSServiceManager:
         # return asyncio.to_thread(wrapped_operation)
         return wrapped_operation()
 
-    def delete_file_from_hdfs(self, directory, filename):
+    async def delete_file_from_hdfs(self, directory, filename):
         """
         Delete a file from HDFS, don't make this method async (sync nature required for few use cases)
         """
@@ -52,11 +52,11 @@ class HDFSServiceManager:
                 print(f"Deleted {hdfs_path} from HDFS.")
             else:
                 print(f"Failed to delete {hdfs_path} from HDFS.")
+                raise Exception(f"Failed to delete {hdfs_path} from HDFS.")
 
         try:
             return self._with_hdfs_client(delete)
         except Exception as e:
-            print(f"Error deleting file from HDFS: {e}")
             raise Exception(f"Error deleting file from HDFS: {e}")
 
     async def list_recent_uploads(self):
@@ -74,9 +74,11 @@ class HDFSServiceManager:
                 files = client.list(f"/user/{HADOOP_USER_NAME}/{RECENTLY_UPLOADED_DATASETS_DIR}", status=True)
                 files = [{"filename": entry[0], "size": human_readable_size(entry[1]["length"])} for entry in files if entry[1]["type"] == "FILE"]
                 result['contents'] = {RECENTLY_UPLOADED_DATASETS_DIR: files}
+                return result
             except Exception as e:
-                result['error'] = str(e)
-            return result
+                print(f"Error listing files in HDFS: {e}")
+                raise Exception(f"Error listing files in HDFS: {e}")
+            
 
         return self._with_hdfs_client(list_files)
     

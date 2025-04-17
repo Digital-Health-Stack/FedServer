@@ -11,10 +11,7 @@ DATABASE_URL = os.getenv("DB_URL")
 if not DATABASE_URL:
     raise ValueError("DB_URL is not set. Check .env file.")
 
-print(f"Database URL: {DATABASE_URL}")
-print("current working directory: ", os.getcwd())
-
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=20)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -25,3 +22,4 @@ def get_db():
         yield db
     finally:
         db.close()
+
