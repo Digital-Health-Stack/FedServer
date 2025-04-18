@@ -2,8 +2,6 @@ from datetime import datetime, timedelta
 from typing import List, Union
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_
-
-from utility import date
 from models.Notification import Notification
 from models.User import User
 
@@ -18,7 +16,6 @@ def add_notifications_for_recently_active_users(db: Session, message: dict, vali
         ~User.id.in_([user.id for user in excluded_users])
     )).all()
     
-    print("Checkpoint Notification -", users_to_notify)
     
     add_notifications_for(db, message, users_to_notify, valid_until)
 

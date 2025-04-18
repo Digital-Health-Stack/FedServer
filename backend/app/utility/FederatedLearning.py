@@ -9,6 +9,7 @@ from models import User as UserModel
 from sqlalchemy.orm import Session, joinedload
 from utility.db import engine
 import json
+from fastapi import HTTPException
 
 
 class FederatedLearning:
@@ -35,14 +36,18 @@ class FederatedLearning:
                           Status values: 1 (not responded), 2 (accepted), 3 (rejected)
         - training_status: 1 (server waiting for all clients), 2 (training starts)
         """
+        
         federated_session = FederatedSession(
             federated_info=federated_info.__dict__,
             admin_id = user.id,
         )
-            
-        db.add(federated_session)
-        db.commit()
-        db.refresh(federated_session)
+        try:
+            db.add(federated_session)
+            db.commit()
+            db.refresh(federated_session)
+        except Exception as e:
+            db.rollback()  # Rollback in case of any error
+            raise HTTPException(status_code=500, detail=f"Failed to create federated session: {str(e)}")    
             
         federated_session_client = FederatedSessionClient(
             user_id = user.id,
@@ -56,7 +61,6 @@ class FederatedLearning:
         global_model_weight = GlobalModelWeights(
             session_id=federated_session.id,
             weights={},  # You can initialize this as an empty dictionary or with some default weights
-            created_at=datetime.now()
         )
         db.add(global_model_weight)
         db.commit()
@@ -90,7 +94,8 @@ class FederatedLearning:
             stmt = select(
                 FederatedSession.id,
                 FederatedSession.training_status,
-                FederatedSession.federated_info
+                FederatedSession.federated_info,
+                FederatedSession.createdAt
             ).order_by(desc(FederatedSession.createdAt))
         
             federated_sessions = db.execute(stmt).all()
@@ -256,7 +261,7 @@ class FederatedLearning:
             weights_entry = (
                 db.query(GlobalModelWeights)
                 .filter(GlobalModelWeights.session_id == session_id)
-                .order_by(GlobalModelWeights.created_at.desc())
+                .order_by(GlobalModelWeights.createdAt.desc())
                 .first()
             )
 

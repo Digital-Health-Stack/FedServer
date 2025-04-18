@@ -66,6 +66,11 @@ async def create_federated_session(
         layer for layer in federated_details.fed_info.model_info["layers"] if layer.get("layer_type")
     ]
     session: FederatedSession = federated_manager.create_federated_session(current_user, federated_details.fed_info, request.client.host,db)
+    if not session:
+        raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Federated session could not be created.",
+    )
     federated_manager.log_event(session.id, f"Federated session created by admin {current_user.id} from {request.client.host}")
     
     try:
@@ -87,15 +92,17 @@ def get_all_federated_session(current_user: User = Depends(role("client"))):
         {
             'id': id,
             'training_status': training_status,
-            'name': federated_info.get('organisation_name')
+            'name': federated_info.get('organisation_name'),
+            'created_at': createdAt
         }
-        for [id, training_status, federated_info]
+        for [id, training_status, federated_info, createdAt]
         in federated_manager.get_all()
     ]
 
 @federated_router.get('/get-federated-session/{session_id}')
 def get_federated_session(session_id: int, db: Session = Depends(get_db),current_user: User = Depends(role("client"))):
     try:
+        print("Checkpoint 1: ", session_id, type(session_id))
         federated_session_data = db.query(FederatedSession).filter_by(id = session_id).first()
         if not federated_session_data:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -281,5 +288,4 @@ def get_training_result(session_id: int, current_user: User = Depends(get_curren
     test_results = session.as_dict().get("test_results", [])
     if not test_results:
         return {"message": "No test results available for this session yet."}
-
     return test_results

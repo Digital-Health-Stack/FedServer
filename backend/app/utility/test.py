@@ -14,6 +14,7 @@ def save_weights_to_file(weights: dict, filename: str):
 
     with open(filename, 'a') as f:
         json.dump(weights, f, indent=4)
+        f.write("\n\n")  # optional: separate rounds visually
         
 class Test:
     def __init__(self, session_id):

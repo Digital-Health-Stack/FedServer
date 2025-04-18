@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import stats
 from statsmodels.stats.power import TTestIndPower
 
 def cohens_d(mean1, mean2, std1, std2):

@@ -1,8 +1,5 @@
 import numpy as np
-import tensorflow
-from tensorflow import keras
-from keras import Sequential
-from keras.layers import Dense, Flatten
+
 
 
 # model_params is dictionary
@@ -13,6 +10,8 @@ from keras.layers import Dense, Flatten
 # model_params['optimizer']
 class MultiLayerPerceptron:
     def __init__(self, model_params,epochs=1, lr=0.01):
+        from keras import Sequential
+        from keras.layers import Dense
         self.lr = lr
         self.epochs = epochs
 

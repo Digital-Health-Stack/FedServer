@@ -11,10 +11,10 @@ def get_logs(session_id: int, db: Session = Depends(get_db)):
     """
     Retrieve all logs for a specific federated session.
     """
-    logs = db.query(FederatedSessionLog).filter(FederatedSessionLog.session_id == session_id).order_by(FederatedSessionLog.timestamp).all()
+    logs = db.query(FederatedSessionLog).filter(FederatedSessionLog.session_id == session_id).order_by(FederatedSessionLog.createdAt).all()
     if not logs:
         raise HTTPException(status_code=404, detail="No logs found for this session")
-    return logs
+    return [log.as_dict() for log in logs]
 
 @log_router.delete("/{session_id}", response_model=dict)
 def delete_all_logs_of_session(session_id: int, db: Session = Depends(get_db)):
