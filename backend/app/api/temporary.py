@@ -6,6 +6,9 @@ from models.User import User
 import subprocess
 import sys
 from utility.auth import verify_token
+from utility.db import get_db
+from sqlalchemy.orm import Session
+from models.FederatedSession import FederatedSession
 
 temporary_router = APIRouter()
 
@@ -27,127 +30,177 @@ def check_user(token: str):
     current_user = verify_token(token)
     return current_user
 
-from datetime import datetime
-from operator import or_
-from typing import Dict, List
-from schema import FederatedLearningInfo, User
-from sqlalchemy import and_, desc, select
-from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, FederatedSessionLog
-import numpy as np
-from models import User as UserModel
-from sqlalchemy.orm import Session, joinedload
-from utility.db import engine
-import json
 
-def aggregate_weights_fedAvg_Neural( session_id: str, round_number: int):
-        """
-        # ========================================================================================================
-        # Expected Params config for each client to work Federated Averaging correctly
-        # ========================================================================================================
-        # Parameters expected for each client_parameter in the form of a dictionary:
-        # for eg. 1 client parameter is like below, one or more than one keys can be there (based on model needs)
-        # {
-        #     "weights": [list of numpy arrays],
-        #     "biases": [list of numpy arrays],
-        #     "other_parameters": [list of numpy arrays]
-        # }
-        # ========================================================================================================
-        """
-        # Retrieve client parameters
-        with Session(engine) as db:
-            # Fetch all client submissions for this round
-            submissions = db.query(FederatedRoundClientSubmission).filter_by(
-                session_id=session_id,
-                round_number=round_number
-            ).all()
-            if not submissions:
-                raise ValueError("No client submissions found for this round.")
-            
-            file_path = "logs/client_submissions_log.txt"
+@temporary_router.get('/check-session-creation')
+def check_session_creation(db: Session = Depends(get_db)):
+    # Dummy federated_info data
+    federated_info = {
+        "organisation_name": "Prashant 17 Apr, 10:40 AM",
+        "model_name": "CNN",
+        "model_info": {
+            "input_shape": "(128,128,1)",
+            "output_layer": {
+                "num_nodes": "1",
+                "activation_function": "sigmoid"
+            },
+            "loss": "mae",
+            "optimizer": "adam",
+            "test_metrics": [
+                "mse",
+                "mae"
+            ],
+            "layers": [
+                {
+                    "layer_type": "convolution",
+                    "filters": "32",
+                    "kernel_size": "(3,3)",
+                    "stride": "(2,2)",
+                    "activation_function": "relu"
+                },
+                {
+                    "layer_type": "pooling",
+                    "pooling_type": "average",
+                    "pool_size": "(2,2)",
+                    "stride": "(2,2)"
+                },
+                {
+                    "layer_type": "convolution",
+                    "filters": "16",
+                    "kernel_size": "(3,3)",
+                    "stride": "(1,1)",
+                    "activation_function": "relu"
+                },
+                {
+                    "layer_type": "pooling",
+                    "pooling_type": "max",
+                    "pool_size": "(2,2)",
+                    "stride": "(2,2)"
+                },
+                {
+                    "layer_type": "convolution",
+                    "filters": "8",
+                    "kernel_size": "(3,3)",
+                    "stride": "(1,1)",
+                    "activation_function": "relu"
+                },
+                {
+                    "layer_type": "pooling",
+                    "pooling_type": "max",
+                    "pool_size": "(2,2)",
+                    "stride": "(2,2)"
+                },
+                {
+                    "layer_type": "flatten"
+                }
+            ]
+        },
+        "dataset_info": {
+            "client_filename": "health_client.parquet",
+            "server_filename": "health_server.parquet",
+            "task_id": "5",
+            "task_name": "Bone Age Prediction",
+            "metric": "MAE",
+            "output_columns": [
+                "pct_2013"
+            ]
+        },
+        "expected_results": {
+            "std_mean": "9",
+            "std_deviation": "0.03"
+        }
+    }
+    
+    # Simulating a valid admin_id, assuming an admin user with id 1 exists
+    admin_id = 1
 
-            with open(file_path, "a", encoding="utf-8") as f:
-                f.write("\n--- Client Submissions Log ---\n")
-                for submission in submissions:
-                    user_id = submission.user_id  # or whatever field holds the user info
-                    weights = submission.model_weights.weights
-                    f.write(f"User ID: {user_id}\n")
-                    f.write(f"Weights: {json.dumps(weights)}\n")
-                    f.write("---\n")
-            # Initialize a dictionary to hold the aggregated sums of parameters
-            num_clients = len(submissions)
-            aggregated_sums = {}
-
-            def initialize_aggregated_sums(param):
-                if isinstance(param, list):
-                    return [initialize_aggregated_sums(p) for p in param]
-                else:
-                    return np.zeros_like(param)
-
-            def sum_parameters(aggregated, param):
-                if isinstance(param, list):
-                    for i in range(len(param)):
-                        aggregated[i] = sum_parameters(aggregated[i], param[i])
-                    return aggregated
-                else:
-                    return aggregated + np.array(param)
-
-            def average_parameters(aggregated, count):
-                if isinstance(aggregated, list):
-                    return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
-                else:
-                    return (aggregated / count).tolist()
-
-            for submission in submissions:
-                weights = submission.model_weights.weights
-                if not aggregated_sums:
-                    for key in weights:
-                        aggregated_sums[key] = initialize_aggregated_sums(weights[key])
-
-                for key in weights:
-                    aggregated_sums[key] = sum_parameters(aggregated_sums[key], weights[key])
-
-            # Average the aggregated sums
-            for key in aggregated_sums:
-                aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
-
-            print("Aggregated Parameters after FedAvg:",
-                  {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
-            with open(file_path, "a", encoding="utf-8") as f:
-                f.write("\n--- Aggregated Parameters after FedAvg ---\n")
-
-                # Print type and length summary
-                for k, v in aggregated_sums.items():
-                    v_type = type(v)
-                    v_len = len(v) if isinstance(v, list) else 'N/A'
-                    f.write(f"{k}: Type: {v_type}, Length: {v_len}\n")
-
-                # Print actual aggregated parameter values
-                f.write("\nFull Aggregated Parameters:\n")
-                f.write(json.dumps(aggregated_sums, indent=4))  # Pretty JSON format
-                f.write("\n---\n")
-            
-
-            # Replace the old GlobalModelWeights if it exists
-            global_weight = db.query(GlobalModelWeights).filter_by(session_id=session_id).first()
-            if global_weight:
-                global_weight.weights = aggregated_sums
-                global_weight.updated_at = datetime.now()  # Add this field if not present already
-                print(f"Updated existing global weight for session {session_id}")
-            else:
-                global_weight = GlobalModelWeights(
-                    session_id=session_id,
-                    weights=aggregated_sums
-                )
-                db.add(global_weight)
-                print(f"Created new global weight for session {session_id}")
-            db.commit()
-
-@temporary_router.get("/check-aggregated-sums")
-def trigger_aggregation(session_id: str , round_number: int ):
+    # Insert the federated session into the database
     try:
-        aggregate_weights_fedAvg_Neural(session_id=session_id, round_number=round_number)
-        return {"message":"Aggregation is done successfully."}
+        federated_session = FederatedSession(
+            federated_info=federated_info,
+            admin_id=admin_id
+        )
+        db.add(federated_session)
+        db.commit()
+        db.refresh(federated_session)
+        return {
+            "message": "Federated session created successfully",
+            "session_id": federated_session.id
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        print("Error creating federated session:", str(e))  # or use logging
+        raise HTTPException(status_code=500, detail="Failed to create session")
+    
 
 
+@temporary_router.get('/get-session/{session_id}')
+def get_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "id": session.id,
+        "federated_info": session.federated_info,
+        "admin_id": session.admin_id,
+    }
+
+
+
+
+import numpy as np
+from statsmodels.stats.power import TTestIndPower
+
+def cohens_d(mean1, mean2, std1, std2):
+    """
+    Calculate Cohen's d for effect size between two independent samples.
+    """
+    # Pooled standard deviation
+    s = np.sqrt((std1**2 + std2**2) / 2)
+    if s == 0:
+        return 0
+    d = (mean2 - mean1) / s
+    return 1/d
+
+def estimate_sample_size(effect_size, alpha=0.05, power=0.80):
+    """
+    Estimate required sample size per group for two-sample t-test using Cohen's d.
+    """
+    analysis = TTestIndPower()
+    if effect_size == 0:
+        return None  # Cannot compute sample size with zero effect size
+    sample_size = analysis.solve_power(effect_size=abs(effect_size), alpha=alpha, power=power, alternative='two-sided')
+    return int(np.ceil(sample_size))
+
+def get_num_predictors_from_config(model_config):
+    """
+    Extract number of filters from the last convolution layer in the CNN model config.
+    If no convolution layer is present, it will return 0.
+    """
+    # Loop through the layers in reverse order to find the last convolutional layer
+    for layer in reversed(model_config['model_info']['layers']):
+        if layer['layer_type'] == 'convolution':
+            return int(layer['filters'])  # Return the number of filters (predictors)
+    
+    return 0  # If no convolution layer is found, return 0 predictors
+
+def calculate_required_data_points(num_predictors, baseline_mean, baseline_std, new_mean, new_std, alpha=0.05, power=0.80):
+    """
+    Calculate the required number of data points as payment in a federated learning system,
+    based on the number of predictors and effect size.
+    """
+    # Get the number of predictors from the model configuration
+    
+
+    # Calculate effect size (Cohen's d)
+    effect_size = cohens_d(baseline_mean, new_mean, baseline_std, new_std)
+
+    # Adjust alpha for multiple tests (Bonferroni correction)
+    alpha_adjusted = alpha / num_predictors if num_predictors > 0 else alpha
+
+    # Estimate the required sample size
+    required_sample_size = estimate_sample_size(effect_size, alpha=alpha_adjusted, power=power)
+    return required_sample_size
+
+@temporary_router.get("/check-price")
+def check_price(predictors:float, baseline_mean: float, baseline_std: float, new_mean:float, new_std: float):
+    return calculate_required_data_points(predictors, baseline_mean, baseline_std, new_mean, new_std)

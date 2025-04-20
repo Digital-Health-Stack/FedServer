@@ -90,7 +90,6 @@ class CustomCNN:
 
             # Compile model
             optimizer_config = config.get('optimizer', {'type': 'adam', 'learning_rate': 0.001})
-            print("Checkpoint 1 : ", optimizer_config)
             if optimizer_config['type'] == 'adam':
                 optimizer = optimizers.Adam(learning_rate=float(optimizer_config.get('learning_rate', 0.001)))
             elif optimizer_config['type'] == 'sgd':

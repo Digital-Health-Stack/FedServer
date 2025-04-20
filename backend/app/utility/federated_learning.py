@@ -68,21 +68,14 @@ def fetch_benchmark_and_calculate_price(session_data: FederatedSession, db: Sess
         raise ValueError("New model metrics (std_mean and std_deviation) are missing in session data.")
     
     # Extract num_predictors strictly from input_shape
-    input_shape = session_data.federated_info["model_info"].get("input_shape")
+    model_config = session_data.federated_info
 
-    if not input_shape:
-        raise ValueError("Input shape is missing in model_info.")
+    if not model_config:
+        raise ValueError("Model Config is missing in model_info.")
 
-    try:
-        shape_tuple = eval(input_shape)  # Convert string "(128,128,1)" → tuple (128,128,1)
-        num_predictors = 1
-        for dim in shape_tuple:
-            num_predictors *= dim  # Compute total number of input features
-    except Exception:
-        raise ValueError(f"Invalid input_shape format: {input_shape}")
     # Calculate the required data points (price)
     price = calculate_required_data_points(
-        baseline_mean, baseline_std, new_mean, new_std, num_predictors
+        model_config, baseline_mean, baseline_std, new_mean, new_std
     )
     return price
     
@@ -155,7 +148,6 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
         federated_manager, 
         session_data.id
     )
-    federated_manager.log_event(session_data.id, f"Checkpoint 1 : {success}")
     if success:
         with Session(engine) as db:
             # Update the training status of the session
@@ -195,12 +187,13 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
         
         await send_training_signal_and_wait_for_clients_training(federated_manager, session_data.id)
         # Aggregate
-        federated_manager.log_event(session_data.id, f"Performing aggregation for round {i}.")
+        federated_manager.log_event(session_data.id, f"Performing aggregation.")
         before_global_weights = federated_manager.get_latest_global_weights(session_data.id)
         save_weights_to_file(before_global_weights, "logs/before_weights.json")
         
         federated_manager.aggregate_weights_fedAvg_Neural(session_data.id, i)
         
+        federated_manager.log_event(session_data.id, f"Aggregation is done")
         after_global_weights = federated_manager.get_latest_global_weights(session_data.id)
         save_weights_to_file(after_global_weights, "logs/after_weights.json")
         
@@ -454,7 +447,7 @@ async def send_training_signal_and_wait_for_clients_training(federated_manager: 
             "session_id": session_data.id
         }
         add_notifications_for(db, message, interested_clients)
-        federated_manager.log_event(session_data.id, f"Round {curr_round}Notification:START_TRAINING is sent to all users.")
+        federated_manager.log_event(session_data.id, f"Round {curr_round}: Notification:START_TRAINING is sent to all users.")
         federated_manager.log_event(session_data.id, f"Round {curr_round}: Waiting for clients to complete local training")
     
         # Run the wait_for_all_clients_to_local_training task in the background

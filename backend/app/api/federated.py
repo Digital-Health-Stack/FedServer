@@ -6,7 +6,7 @@ from utility.FederatedLearning import FederatedLearning
 from utility.auth import role, get_current_user
 from utility.federated_learning import start_federated_learning
 from typing import Any
-
+from fastapi import Query
 from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, ClientModelWeights
 from models.User import User
 
@@ -85,10 +85,12 @@ async def create_federated_session(
         "session_id": session.id
     }
 
-
 @federated_router.get('/get-all-federated-sessions')
-def get_all_federated_session(current_user: User = Depends(role("client"))):
-    return [
+def get_all_federated_sessions(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(6, ge=1, le=100),
+):
+    all_sessions = [
         {
             'id': id,
             'training_status': training_status,
@@ -98,11 +100,24 @@ def get_all_federated_session(current_user: User = Depends(role("client"))):
         for [id, training_status, federated_info, createdAt]
         in federated_manager.get_all()
     ]
+    
+    # Calculate pagination
+    total = len(all_sessions)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_sessions = all_sessions[start:end]
+    
+    return {
+        'data': paginated_sessions,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    }
 
 @federated_router.get('/get-federated-session/{session_id}')
-def get_federated_session(session_id: int, db: Session = Depends(get_db),current_user: User = Depends(role("client"))):
+def get_federated_session(session_id: int, db: Session = Depends(get_db),current_user: User = Depends(role("client","admin"))):
     try:
-        print("Checkpoint 1: ", session_id, type(session_id))
         federated_session_data = db.query(FederatedSession).filter_by(id = session_id).first()
         if not federated_session_data:
             raise HTTPException(status_code=404, detail="Session not found")

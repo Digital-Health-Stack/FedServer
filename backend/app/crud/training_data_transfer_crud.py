@@ -11,7 +11,6 @@ def create_transfer(db: Session, data: TransferCreate):
         db.add(transfer)
         db.commit()
         db.refresh(transfer)
-        print("Checkpoint: in transfer crud, in the create_transfer function")
         return transfer
     except SQLAlchemyError as e:
         db.rollback()

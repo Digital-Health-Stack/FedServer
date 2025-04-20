@@ -206,8 +206,6 @@ class FederatedLearning:
             for key in aggregated_sums:
                 aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
 
-            print("Aggregated Parameters after FedAvg:",
-                  {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
 
             # Replace the old GlobalModelWeights if it exists
             global_weight = db.query(GlobalModelWeights).filter_by(session_id=session_id).first()

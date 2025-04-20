@@ -144,10 +144,16 @@ def create_tokens(db: Session, username: str, exception: HTTPException, check=No
 #         "token_type": "bearer"
 #     }
 
-def role(required_role: str):
+# def role(required_role: str):
+#     def role_checker(user: User = Depends(get_current_user)):
+#         if user.role != required_role:
+#             raise HTTPException(status_code=403, detail=f"Access denied: {required_role} role required")
+#         return user
+#     return role_checker
+
+def role(*allowed_roles: str):
     def role_checker(user: User = Depends(get_current_user)):
-        if user.role != required_role:
-            raise HTTPException(status_code=403, detail=f"Access denied: {required_role} role required")
+        if user.role not in allowed_roles:
+            raise HTTPException(status_code=403, detail=f"Access denied: one of {allowed_roles} roles required")
         return user
     return role_checker
-
