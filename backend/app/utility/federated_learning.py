@@ -19,7 +19,7 @@ from crud.task_crud import (
 from constant.message_type import MessageType
 import random
 from utility.test import Test
-
+from helpers.federated_services import process_parquet_and_save_xy
 
 def save_weights_to_file(weights: dict, filename: str):
     """Save the given weights dictionary to a JSON file."""
@@ -178,7 +178,7 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     dataset_info = federated_info.get("dataset_info")
     client_filename = dataset_info.get("client_filename")
     output_columns = dataset_info.get("output_columns")
-    process_parquet_and_save_xy(client_filename, session_id, output_columns)
+    process_parquet_and_save_xy(client_filename, session_data.id, output_columns)
     
     # Start Training
     federated_manager.log_event(session_data.id, f"Starting training with {session_data.max_round} rounds")
@@ -377,6 +377,8 @@ async def send_model_configs_and_wait_for_confirmation(
                 "type": MessageType.GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS,
                 "session_id": session_data.id
             }
+            federated_manager.log_event(session_data.id, f"Notification:GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS is sent to all users.")
+            add_notifications_for(db, message, client_ids)
             
 
             # Tracking variables
@@ -393,10 +395,6 @@ async def send_model_configs_and_wait_for_confirmation(
                 unready_clients = [c for c in current_clients if c.user_id in client_ids and c.status == 0]
                 ready_count = len(ready_clients)
                 
-                # Send notifications only to unready clients
-                unready_ids = [c.user_id for c in unready_clients]
-                add_notifications_for(db, message, unready_ids)
-                federated_manager.log_event(session_data.id, f"Notification:GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS is sent to all users {attempt}th time.")
                 # Log progress if changed
                 if ready_count != last_ready_count:
                     federated_manager.log_event(

@@ -109,6 +109,39 @@ class HDFSServiceManager:
         except Exception as e:
             print(f"Error renaming file in HDFS: {e}")
             raise Exception(f"Error renaming file in HDFS: {e}")
+    def download_folder_from_hdfs(self, hdfs_folder_path, local_destination_path):
+        """
+        Download a folder from HDFS to local filesystem
+        
+        Args:
+            hdfs_folder_path: Full path to the folder in HDFS
+            local_destination_path: Local path where folder should be downloaded
+        """
+        def download(client):
+            if not os.path.exists(local_destination_path):
+                os.makedirs(local_destination_path)
+                
+            # List all files in the HDFS folder
+            files = client.list(hdfs_folder_path, status=True)
+            
+            for file_entry in files:
+                hdfs_file_path = os.path.join(hdfs_folder_path, file_entry[0])
+                local_file_path = os.path.join(local_destination_path, file_entry[0])
+                
+                if file_entry[1]["type"] == "FILE":
+                    # Download the file
+                    client.download(hdfs_file_path, local_file_path)
+                    print(f"Downloaded {hdfs_file_path} to {local_file_path}")
+                else:
+                    # If it's a directory, create it locally and recurse
+                    os.makedirs(local_file_path, exist_ok=True)
+                    self.download_folder_from_hdfs(hdfs_file_path, local_file_path)
+        
+        try:
+            return self._with_hdfs_client(download)
+        except Exception as e:
+            print(f"Error downloading folder from HDFS: {e}")
+            raise Exception(f"Error downloading folder from HDFS: {e}")
 
     ########## Don't delete ################
     # this method is never used in the current implementation of FedData

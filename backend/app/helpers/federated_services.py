@@ -1,5 +1,5 @@
 import os
-from utility.hdfs_services import HDFSServiceManager
+from helpers.hdfs_services import HDFSServiceManager
 import pandas as pd
 import shutil
 import numpy as np
@@ -66,11 +66,17 @@ def process_parquet_and_save_xy(filename: str, session_id: str, output_column: l
         raise Exception(f"Output column(s) not found in the DataFrame: {missing_cols}")
 
     
-    # Extract features and target
-    X = combined_df['image'].values
-    Y = combined_df[output_column].values
+    def reshape_image(img_array):
+        stacked = np.stack(img_array, axis=0)  # shape: (224, 224, 1)
+        stacked = np.expand_dims(stacked, axis=-1)
+        return stacked.astype(np.float32)
 
+    X = np.array([reshape_image(img) for img in combined_df['image']])
     print(f"X shape: {X.shape}")
+    
+    Y = combined_df[output_column].values
+    if len(Y.shape) == 1:
+        Y = Y.reshape(-1, 1)  # Ensure 2D shape
     print(f"Y shape: {Y.shape}")
 
     # Save to local_dir
