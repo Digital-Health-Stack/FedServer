@@ -52,8 +52,8 @@ class Test:
             
         # read data from file
         try:
-            X_test = np.load(os.path.join("data", "X_1.npy"))
-            Y_test = np.load(os.path.join("data", "Y_1.npy"))
+            X_test = np.load(os.path.join("data", f"X_{self.session_id}.npy"))
+            Y_test = np.load(os.path.join("data", f"Y_{self.session_id}.npy"))
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
