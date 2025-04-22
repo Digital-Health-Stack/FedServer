@@ -221,19 +221,19 @@ class FederatedLearning:
                 print(f"Created new global weight for session {session_id}")
             db.commit()
 
-            # Save aggregated_sums dictionary into a text file with appending
-            file_path = "aggregated_sums.txt"  # Specify the desired file path and name
+            # # Save aggregated_sums dictionary into a text file with appending
+            # file_path = "aggregated_sums.txt"  # Specify the desired file path and name
 
-            # Convert the dictionary to a JSON string
-            aggregated_sums_str = json.dumps(aggregated_sums, indent=4)  # Format with indent for better readability
+            # # Convert the dictionary to a JSON string
+            # aggregated_sums_str = json.dumps(aggregated_sums, indent=4)  # Format with indent for better readability
 
-            # Append aggregated_sums to the file with a separator       
-            with open(file_path, "a") as file:  # Use "a" mode to append
-                file.write("\n---\n")  # Add a separator before each new entry
-                file.write(aggregated_sums_str)  # Append the formatted JSON string
-                file.write("\n")  # Add a newline after the entry for readability
+            # # Append aggregated_sums to the file with a separator       
+            # with open(file_path, "a") as file:  # Use "a" mode to append
+            #     file.write("\n---\n")  # Add a separator before each new entry
+            #     file.write(aggregated_sums_str)  # Append the formatted JSON string
+            #     file.write("\n")  # Add a newline after the entry for readability
 
-            print(f"Aggregated sums have been appended to {file_path} with a separator.")
+            # print(f"Aggregated sums have been appended to {file_path} with a separator.")
 
     def log_event(self, session_id: int,message: str):
         with Session(engine) as db:
