@@ -176,9 +176,9 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
     # Download data from Hadoop
     federated_info = session_data.federated_info
     dataset_info = federated_info.get("dataset_info")
-    client_filename = dataset_info.get("client_filename")
+    server_filename = dataset_info.get("server_filename")
     output_columns = dataset_info.get("output_columns")
-    process_parquet_and_save_xy(client_filename, session_data.id, output_columns)
+    process_parquet_and_save_xy(server_filename, session_data.id, output_columns)
     
     # Start Training
     federated_manager.log_event(session_data.id, f"Starting training with {session_data.max_round} rounds")

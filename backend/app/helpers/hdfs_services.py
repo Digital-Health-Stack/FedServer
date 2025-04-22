@@ -67,19 +67,52 @@ class HDFSServiceManager:
                     return f"{size_in_bytes:.2f} {unit}"
                 size_in_bytes /= 1024.0
             return f"{size_in_bytes:.2f} PB"
+        
+        def get_directory_size(client, path):
+            total_size = 0
+            try:
+                entries = client.list(path, status=True)
+                for name, meta in entries:
+                    full_path = f"{path}/{name}"
+                    if meta['type'] == 'FILE':
+                        total_size += meta['length']
+                    elif meta['type'] == 'DIRECTORY':
+                        total_size += get_directory_size(client, full_path)
+            except Exception as e:
+                print(f"Error accessing path {path}: {e}")
+            return total_size
 
         def list_files(client):
             result = {'contents': {}, 'error': None}
             try:
-                files = client.list(f"/user/{HADOOP_USER_NAME}/{RECENTLY_UPLOADED_DATASETS_DIR}", status=True)
-                files = [{"filename": entry[0], "size": human_readable_size(entry[1]["length"])} for entry in files if entry[1]["type"] == "FILE"]
-                result['contents'] = {RECENTLY_UPLOADED_DATASETS_DIR: files}
+                base_path = f"/user/{HADOOP_USER_NAME}/{RECENTLY_UPLOADED_DATASETS_DIR}"
+                files = client.list(base_path, status=True)
+
+                formatted = []
+                for entry in files:
+                    filename = entry[0]
+                    meta = entry[1]
+                    full_path = f"{base_path}/{filename}"
+
+                    if meta["type"] == "FILE":
+                        size = meta["length"]
+                    elif meta["type"] == "DIRECTORY":
+                        size = get_directory_size(client, full_path)
+                    else:
+                        continue
+
+                    formatted.append({
+                        "filename": filename,
+                        "size": human_readable_size(size),
+                        "type": meta["type"]
+                    })
+
+                result['contents'] = {RECENTLY_UPLOADED_DATASETS_DIR: formatted}
                 return result
+
             except Exception as e:
                 print(f"Error listing files in HDFS: {e}")
                 raise Exception(f"Error listing files in HDFS: {e}")
-            
-
         return self._with_hdfs_client(list_files)
     
     async def testing_list_all_datasets(self):

@@ -17,15 +17,17 @@ load_dotenv()
 # Create FastAPI app
 app = FastAPI()
 
-client1_url = os.getenv("CLIENT1_URL", "http://default-url.com")
-origins = [ 
-    "http://localhost:5173",
-    "http://localhost:5174",
-    client1_url  
-]
+# No need when doing with Cloud
+# client1_url = os.getenv("CLIENT1_URL", "http://default-url.com")
+# origins = [ 
+#     "http://localhost:5173",
+#     "http://localhost:5174",
+#     "http://3.110.206.177:5174"
+#     "http://3.110.206.177:9090"
+# ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],  # Or specify allowed methods, e.g., ["GET", "POST"]
     allow_headers=["*"],  # Or specify allowed headers
