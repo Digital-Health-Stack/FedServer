@@ -27,7 +27,6 @@ def save_weights_to_file(weights: dict, filename: str):
         weights = {}
 
     dirpath = os.path.dirname(filename)
-    print(f"path to save weights: {dirpath}")
     if dirpath and not os.path.exists(dirpath):
         os.makedirs(dirpath, exist_ok=True)
 
@@ -195,14 +194,14 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
         await send_training_signal_and_wait_for_clients_training(federated_manager, session_data.id)
         # Aggregate
         federated_manager.log_event(session_data.id, f"Performing aggregation.")
-        before_global_weights = federated_manager.get_latest_global_weights(session_data.id)
-        save_weights_to_file(before_global_weights, "logs/before_weights.json")
+        # before_global_weights = federated_manager.get_latest_global_weights(session_data.id)
+        # save_weights_to_file(before_global_weights, "logs/before_weights.json")
         
         federated_manager.aggregate_weights_fedAvg_Neural(session_data.id, i)
         
         federated_manager.log_event(session_data.id, f"Aggregation is done")
-        after_global_weights = federated_manager.get_latest_global_weights(session_data.id)
-        save_weights_to_file(after_global_weights, "logs/after_weights.json")
+        # after_global_weights = federated_manager.get_latest_global_weights(session_data.id)
+        # save_weights_to_file(after_global_weights, "logs/after_weights.json")
         
         with Session(engine) as db:
             federated_session = db.query(FederatedSession).filter_by(id=session_data.id).first()
@@ -263,7 +262,7 @@ async def wait_for_client_confirmation(
     federated_manager: FederatedLearning,
     session_id: int,
     db: Session,
-    timeout: int = 30
+    timeout: int = 60   # 60 second timeout here
 ):
     """
     Waits for a fixed timeout period for clients to confirm participation.

@@ -212,7 +212,6 @@ class FederatedLearning:
             if global_weight:
                 global_weight.weights = aggregated_sums
                 global_weight.updated_at = datetime.now()  # Add this field if not present already
-                print(f"Updated existing global weight for session {session_id}")
             else:
                 global_weight = GlobalModelWeights(
                     session_id=session_id,

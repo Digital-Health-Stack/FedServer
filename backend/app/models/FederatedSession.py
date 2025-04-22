@@ -54,8 +54,7 @@ class FederatedSession(TimestampMixin, Base):
     federated_info = Column(JSON, nullable=False)
     admin_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     curr_round = Column(Integer, default=1, nullable=False)
-    max_round = Column(Integer, default=3, nullable=False)
-    # global_parameters = Column(JSON, default='[]', nullable=False)
+    max_round = Column(Integer, default=5, nullable=False)
     session_price = Column(Float, default= 0, nullable=True)
     # 1 for server waiting for admin to price, 2 for server waiting for all clients and 3 for training starts, 4 for completed
     # -1 if training fails
