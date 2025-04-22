@@ -45,8 +45,8 @@ class Test:
             raise ValueError("Model not built yet...")
         print("Testing model...")
 
-        weights_filename = os.path.join("logs", f"weights_round_{self.round}.json")
-        save_weights_to_file(updated_weights, weights_filename)
+        # weights_filename = os.path.join("logs", f"weights_round_{self.round}.json")
+        # save_weights_to_file(updated_weights, weights_filename)
         
         self.model.update_parameters(updated_weights)
             
