@@ -1,6 +1,6 @@
 from datetime import datetime
 from operator import or_
-from typing import Dict, List
+from typing import Dict, List,  Optional, Literal
 from schema import FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select
 from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, FederatedSessionLog
@@ -10,11 +10,114 @@ from sqlalchemy.orm import Session, joinedload
 from utility.db import engine
 import json
 from fastapi import HTTPException
+import multiprocessing
+from typing import Dict
+import time
 
 
 class FederatedLearning:
     def __init__(self):
         self.federated_sessions = {}
+        self.processes: Dict[int, multiprocessing.Process] = {}
+        self.process_start_times: Dict[int, float] = {}
+        
+    def add_process(self, session_id: int, process: multiprocessing.Process):
+        """
+        Add a process to the process manager for a specific session.
+        
+        Args:
+            session_id (int): The ID of the federated session
+            process (multiprocessing.Process): The process to manage
+        """
+        self.processes[session_id] = process
+        self.process_start_times[session_id] = time.time()
+        self.log_event(session_id, f"Added process {process.pid} for session")
+        
+    
+    def get_process(self, session_id: int) -> multiprocessing.Process:
+        """
+        Get the process for a specific session.
+        
+        Args:
+            session_id (int): The ID of the federated session
+            
+        Returns:
+            multiprocessing.Process: The process for the session
+        """
+        return self.processes.get(session_id)
+    
+    def get_process_status(self, session_id: int) -> Dict:
+        """
+        Get status of a federated learning process using only stdlib
+        
+        Returns:
+            Dict: {
+                "exists": bool,
+                "alive": bool,
+                "pid": Optional[int],
+                "status": Literal["running", "stopped", "unknown"],
+                "start_time": Optional[str],
+                "exit_code": Optional[int],
+                "duration_seconds": Optional[float]
+            }
+        """
+        process = self.get_process(session_id)
+        if not process:
+            return {"exists": False}
+        
+        is_alive = process.is_alive()
+        status_info = {
+            "exists": True,
+            "pid": process.pid,
+            "alive": is_alive,
+            "status": "running" if is_alive else "stopped",
+            "start_time": datetime.fromtimestamp(
+                self.process_start_times.get(session_id, time.time())
+            ).isoformat(),
+            "exit_code": None if is_alive else process.exitcode,
+            "duration_seconds": round(time.time() - self.process_start_times.get(session_id, time.time()), 2)
+        }
+        return status_info
+    
+    def get_combined_session_status(self, session_id: int, db: Session) -> Dict:
+        """
+        Get complete status including both session and process info
+        
+        Args:
+            session_id: ID of the federated session
+            db: Database session
+            
+        Returns:
+            Dict: Combined status information
+        """
+        session = self.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get basic session info
+        session_status = {
+            "session_id": session_id,
+            "training_status": session.training_status,
+            "current_round": session.curr_round,
+            "max_rounds": session.max_round,
+            "created_at": session.createdAt.isoformat(),
+            "updated_at": session.updatedAt.isoformat() if session.updatedAt else None
+        }
+        
+        # Add process info
+        session_status["process"] = self.get_process_status(session_id)
+        
+        # Add recent logs (last 5)
+        logs = db.query(FederatedSessionLog)\
+                .filter(FederatedSessionLog.session_id == session_id)\
+                .order_by(FederatedSessionLog.createdAt.desc())\
+                .limit(5)\
+                .all()
+        
+        session_status["recent_logs"] = [log.message for log in logs]
+        
+        return session_status
+    
     
     # Every session has a session_id also in future we can add a token and id
     def create_federated_session(self, user: UserModel, federated_info: FederatedLearningInfo, ip, db:Session) :

@@ -20,6 +20,7 @@ from constant.message_type import MessageType
 import random
 from utility.test import Test
 from helpers.federated_services import process_parquet_and_save_xy
+import shutil
 
 def save_weights_to_file(weights: dict, filename: str):
     """Save the given weights dictionary to a JSON file."""
@@ -215,9 +216,14 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
             federated_manager.log_event(session_data.id, f"Global test results: {results}")
             
             # Reset client_parameters to an empty JSON object
+            federated_manager.clear_client_parameters(session_data.id, i)
             
             federated_manager.log_event(session_data.id, f"Client parameters reset after Round {i}.")
             db.commit()  # Save the reset to the database
+    
+    # Deleted data folder after training is complete
+    local_dir = os.path.join(os.getcwd(), "data")
+    shutil.rmtree(local_dir)
 
     with Session(engine) as db:
         # Update the training status of the session
@@ -300,52 +306,6 @@ async def wait_for_client_confirmation(
             'success': False,
             'message': str(e)
         }
-
-# async def send_model_configs_and_wait_for_confirmation(federated_manager: FederatedLearning, session_id: int):
-#     session_data = federated_manager.get_session(session_id)
-#     federated_manager.log_event(session_data.id, "Preparing to send model configurations")
-    
-#     interested_clients = [client.user_id for client in session_data.clients if client.status == 2]
-    
-#     model_config = session_data.federated_info
-    
-#     message = {
-#         "type": MessageType.GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS,
-#         "data": model_config,
-#         "session_id": session_data.id
-#     }
-
-#     with Session(engine) as db:
-#         federated_manager.log_event(session_data.id, f"Sending model configs to {len(interested_clients)} clients")
-#         add_notifications_for(db, message, interested_clients)
-
-#     # Wait for all clients to confirm they have started their background process
-#     await wait_for_clients_initiate_model(session_data)
-#     federated_manager.log_event(session_data.id, "All clients confirmed model config receipt")
-    
-
-# Need to rethink
-# async def wait_for_clients_initiate_model(session_data: FederatedSession):
-#     # Implement the logic to wait for all clients to confirm that they have started background process
-#     with Session(engine) as db:
-#         federated_manager.log_event(session_data.id, "Checking for client local model IDs")
-#         while True:
-#             # Expire all objects in the session to force reloading
-#             db.expire_all()
-            
-#             interested_clients = db.query(FederatedSessionClient).filter_by(session_id = session_data.id).all()
-#             all_clients_ready = True
-#             for client in interested_clients:
-#                 if client.local_model_id == None:
-#                     all_clients_ready = False
-#                     break
-
-#             if all_clients_ready:
-#                 federated_manager.log_event(session_data.id, "All clients provided local model IDs")
-#                 break
-#             else:
-#                 federated_manager.log_event(session_data.id, "Waiting for clients to provide local model IDs...")
-#                 await asyncio.sleep(5)
 
 async def send_model_configs_and_wait_for_confirmation(
     federated_manager: FederatedLearning, 
@@ -451,52 +411,12 @@ async def send_training_signal_and_wait_for_clients_training(federated_manager: 
             "session_id": session_data.id
         }
         add_notifications_for(db, message, interested_clients)
-        federated_manager.log_event(session_data.id, f"Round {curr_round}: Notification:START_TRAINING is sent to all users.")
-        federated_manager.log_event(session_data.id, f"Round {curr_round}: Waiting for clients to complete local training")
+    federated_manager.log_event(session_data.id, f"Round {curr_round}: Notification:START_TRAINING is sent to all users.")
+    federated_manager.log_event(session_data.id, f"Round {curr_round}: Waiting for clients to complete local training")
     
-        # Run the wait_for_all_clients_to_local_training task in the background
-        await wait_for_all_clients_to_local_training(federated_manager, session_id)
-        federated_manager.log_event(session_data.id, f"Round {curr_round}:All clients completed local training")
-
-# async def wait_for_all_clients_to_local_training(federated_manager: FederatedLearning, session_id: str):
-#     with Session(engine) as db:
-#         session = db.query(FederatedSession).filter(FederatedSession.id == session_data.id).first()
-        
-#         if not session:
-#             federated_manager.log_event(session_data.id, f"Session {session_data.id} not found")
-#             raise ValueError(f"FederatedSession with ID {session.id} not found.")
-        
-#         num_interested_clients = len(session.clients)
-#         federated_manager.log_event(session_data.id, f"Total interested clients: {num_interested_clients}")
-        
-#         while True:
-#             # Expire all objects in the session to force reloading
-#             db.expire_all()
-#             session = db.query(FederatedSession).filter(FederatedSession.id == session_data.id).first()
-#             if not session:
-#                 federated_manager.log_event(session_data.id, f"Session {session_data.id} not found (possibly deleted)")
-#                 raise ValueError(f"FederatedSession with ID {session_data.id} not found (possibly deleted).")
-
-            
-#             # Deserialize client_parameters from JSON to Python dict
-#             client_parameters = json.loads(session.client_parameters) if session.client_parameters else {}
-
-
-#             # Count clients with local model parameters submitted
-#             num_clients_with_local_models = len([
-#                 client_id for client_id, params in client_parameters.items()
-#             ])
-            
-            
-#             federated_manager.log_event(session_data.id, f"Training progress: {num_clients_with_local_models}/{num_interested_clients} clients ready")
-            
-#             # Check if all interested clients have submitted their parameters
-#             if num_clients_with_local_models >= num_interested_clients:
-#                 federated_manager.log_event(session_data.id, "All clients completed local training")
-#                 break
-#             else:
-#                 federated_manager.log_event(session_data.id, f"Waiting for {num_interested_clients - num_clients_with_local_models} more clients")
-#                 await asyncio.sleep(5)
+    # Run the wait_for_all_clients_to_local_training task in the background
+    await wait_for_all_clients_to_local_training(federated_manager, session_id)
+    federated_manager.log_event(session_data.id, f"Round {curr_round}:All clients completed local training")
 
 
 async def wait_for_all_clients_to_local_training(federated_manager: FederatedLearning, session_id: str,max_retries: int = 30, retry_interval: int = 5):
@@ -541,7 +461,7 @@ async def wait_for_all_clients_to_local_training(federated_manager: FederatedLea
                 # Complete if all clients submitted
                 if submissions_count == num_interested_clients:
                     federated_manager.log_event(session_data.id, f"Round {curr_round}: All clients submitted parameters")
-                    return True
+                    return
                 
                 # Exponential backoff with jitter
                 sleep_time = min(
@@ -554,7 +474,7 @@ async def wait_for_all_clients_to_local_training(federated_manager: FederatedLea
             # Timeout handling
             missing_clients = num_interested_clients - last_submitted_count
             federated_manager.log_event(session_data.id, f"Round {curr_round}: Timeout waiting for {missing_clients} clients to submit parameters")
-            return False
+            return
     except Exception as e:
         with Session(engine) as db:
             session_data = federated_manager.get_session(session_id)
@@ -562,7 +482,7 @@ async def wait_for_all_clients_to_local_training(federated_manager: FederatedLea
                 session_data.id,
                 f"Error waiting for client Local Training submissions: {str(e)}"
             )
-        return False
+        return
             
             
             

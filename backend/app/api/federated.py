@@ -9,6 +9,8 @@ from typing import Any
 from fastapi import Query
 from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, ClientModelWeights
 from models.User import User
+from multiprocessing import Process
+import asyncio
 
 from schemas.user import ClientSessionStatusSchema
 from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModelIdResponse, ClientReceiveParameters
@@ -53,6 +55,24 @@ def get_participated_sessions(current_user: User = Depends(role("client")), db: 
         ))) for session in sessions]
 
 
+@federated_router.get("/session/{session_id}/status")
+async def get_session_status(
+    session_id: int,
+    db: Session = Depends(get_db),
+):
+    """Get complete status of a federated learning session"""
+    # Verify user has access to the session first
+    return federated_manager.get_combined_session_status(session_id, db)
+
+def run_async_in_process(coroutine_func, *args, **kwargs):
+    """Helper function to run async functions in a process"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(coroutine_func(*args, **kwargs))
+    finally:
+        loop.close()
+
 @federated_router.post("/create-federated-session")
 async def create_federated_session(
     federated_details: CreateFederatedLearning,
@@ -74,7 +94,14 @@ async def create_federated_session(
     federated_manager.log_event(session.id, f"Federated session created by admin {current_user.id} from {request.client.host}")
     
     try:
-        background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, db)
+        # background_tasks.add_task(start_federated_learning, federated_manager, current_user, session, db)
+        # background_tasks.add_task(start_federated_learning_wrapper, federated_manager, current_user, session, db)
+        process = Process(
+            target=run_async_in_process,
+            args=(start_federated_learning, federated_manager, current_user, session, db)
+        )
+        process.start()
+        federated_manager.add_process(session.id, process)
         federated_manager.log_event(session.id, "Background task for federated learning started")
     except Exception as e:
         federated_manager.log_event(session.id, f"Error starting background task: {str(e)}")
