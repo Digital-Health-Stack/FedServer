@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, Depends, Request, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_, update
 from utility.db import get_db
@@ -361,3 +362,57 @@ def get_training_result(session_id: int, current_user: User = Depends(get_curren
     if not test_results:
         return {"message": "No test results available for this session yet."}
     return test_results
+
+@federated_router.get('/download-model-parameters/{session_id}')
+def get_model_parameters(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get global model parameters with admin check.
+    If training is complete and user is admin, allows download.
+    """
+    # Get the session first
+    session = db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Verify the current user is the session admin
+    if current_user.id != session.admin_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the session admin can access model parameters"
+        )
+    
+     # Verify training is complete
+    if session.training_status != 5:  # Assuming 5 means complete
+        raise HTTPException(
+            status_code=403,
+            detail="Model parameters are only available after training completion"
+        )
+    
+    
+    # Path to check for global parameters
+    global_params_dir = Path(f"tmp/parameters/{session_id}/global/")
+    global_params_file = global_params_dir / "global_weights.json"
+    
+    # Check if global parameters file exists
+    if not global_params_file.exists():
+        raise HTTPException(status_code=404, detail="Model parameters not found")
+    try:
+        # Return as downloadable file
+        return FileResponse(
+            str(global_params_file),
+            media_type='application/json',
+            filename=f"model_parameters_{session_id}.json"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving model parameters: {str(e)}"
+        )
+    
+
+
+    
