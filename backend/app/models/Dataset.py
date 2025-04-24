@@ -64,6 +64,7 @@ class Task(Base):
             "task_id": self.task_id,
             "dataset_id": self.dataset_id,
             "task_name": self.task_name,
-            "metric": self.metric
+            "metric": self.metric,
+            "benchmark": self.temp_benchmark
         }
 
