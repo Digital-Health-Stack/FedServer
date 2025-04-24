@@ -8,7 +8,6 @@ from api.notification import notifications_router
 from api.user import user_router
 from api.temporary import temporary_router
 from api.confidential import confidential_router
-from api.benchmark import benchmark_router
 from api.task import task_router
 from api.training_data_transfers import qpd_router
 from api.logs import log_router
@@ -34,7 +33,6 @@ app.add_middleware(
 )
 
 app.include_router(dataset_router,tags=["Dataset"])
-app.include_router(benchmark_router,tags=["Benchmark"])
 app.include_router(task_router,tags=["Task"])
 app.include_router(user_router,tags=["User"])
 app.include_router(federated_router,tags=["Federated"])

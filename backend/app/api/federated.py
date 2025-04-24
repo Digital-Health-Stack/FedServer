@@ -7,10 +7,13 @@ from utility.auth import role, get_current_user
 from utility.federated_learning import start_federated_learning
 from typing import Any
 from fastapi import Query
-from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, ClientModelWeights
+from models.FederatedSession import FederatedSession, FederatedSessionClient, FederatedRoundClientSubmission
 from models.User import User
 from multiprocessing import Process
 import asyncio
+from pathlib import Path
+import json
+from datetime import datetime
 
 from schemas.user import ClientSessionStatusSchema
 from schema import CreateFederatedLearning, ClientFederatedResponse, ClientModelIdResponse, ClientReceiveParameters
@@ -259,20 +262,31 @@ def get_model_parameters(session_id: int, db: Session = Depends(get_db)):
     '''
         Client have received the model parameters and waiting for server to start training
     '''
-    global_model_weight = db.query(GlobalModelWeights).filter(GlobalModelWeights.session_id == session_id).first()
+    # Path to check for global parameters
+    global_params_dir = Path(f"tmp/parameters/{session_id}/global/")
+    global_params_file = global_params_dir / "global_weights.json"
     
-    if not global_model_weight or not global_model_weight.weights:
-        # If global_model_weight doesn't exist or weights are empty, set is_first to 1
-        is_first = 1
-        global_parameters = {}  # Or set this to any placeholder or default value
+    # Check if global parameters file exists
+    if global_params_file.exists():
+        try:
+            # Load global parameters from file
+            with open(global_params_file, 'r') as f:
+                global_parameters = json.load(f)
+            is_first = 0
+        except Exception as e:
+            # If file exists but can't be read, treat as first round
+            is_first = 1
+            global_parameters = {}
     else:
-        is_first = 0
-        global_parameters = global_model_weight.weights
+        # No global parameters file exists - first round
+        is_first = 1
+        global_parameters = {}
     
     response_data = {
         "global_parameters": global_parameters,
         "is_first": is_first
     }
+    
     return response_data
 
 @federated_router.post('/receive-client-parameters')
@@ -297,26 +311,42 @@ def receive_client_parameters(request: ClientReceiveParameters,  current_user: U
     if submission:
         federated_manager.log_event(session_id, f"Client parameters for this round {round_number} already submitted.")
         raise HTTPException(status_code=400, detail="Client parameters for this round already submitted.")
-    # Create new submission entry
-    submission = FederatedRoundClientSubmission(
-        session_id=session_id,
-        user_id=current_user.id,
-        round_number=round_number
-    )
-    db.add(submission)
-    db.flush()  # Ensures submission.id is available before committing
     
+     # Create directory structure
+    base_dir = Path(f"tmp/parameters/{session_id}")
+    local_dir = base_dir / "local"
+    local_dir.mkdir(parents=True, exist_ok=True)
     
-    # Create associated client model weights
-    client_model_weight = ClientModelWeights(
-        submission_id=submission.id,
-        weights=client_parameter
-    )
-    db.add(client_model_weight)
-
-    db.commit()
-    
-    return {"message": "Client Parameters Received"}
+    weights_file = local_dir / f"{current_user.id}.json"
+    metadata_file = local_dir / f"{current_user.id}_metadata.json"
+        
+    try:
+        with open(weights_file, 'w') as f:
+            json.dump(client_parameter, f)
+        
+        metadata = {
+            "submission_time": datetime.utcnow().isoformat(),
+            "user_id": current_user.id,
+            "round_number": round_number
+        }
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f)
+        
+        # Create new submission entry
+        submission = FederatedRoundClientSubmission(
+            session_id=session_id,
+            user_id=current_user.id,
+            round_number=round_number
+        )
+        db.add(submission)
+        db.flush()  # Ensures submission.id is available before committing
+        db.commit()
+        federated_manager.log_event(session_id, f"Received client parameters from user {current_user.id} for round {round_number}")
+        return {"message": "Client Parameters Received"}
+    except Exception as e:
+        db.rollback()
+        federated_manager.log_event(session_id, f"Error receiving client parameters: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing client parameters: {str(e)}")
 
     
 @federated_router.get('/training-result/{session_id}')

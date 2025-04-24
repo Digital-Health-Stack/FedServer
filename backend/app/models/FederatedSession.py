@@ -65,7 +65,6 @@ class FederatedSession(TimestampMixin, Base):
     admin = relationship("User", back_populates="federated_sessions")
     clients = relationship('FederatedSessionClient', back_populates='session')
     logs = relationship("FederatedSessionLog", order_by=FederatedSessionLog.createdAt, back_populates="session", cascade="all, delete-orphan")
-    global_model_weights = relationship("GlobalModelWeights", back_populates="session", cascade="all, delete-orphan",order_by="GlobalModelWeights.createdAt")
     test_results = relationship("FederatedTestResults", back_populates="session", 
                                 cascade="all, delete-orphan", order_by="FederatedTestResults.round_number")
     
@@ -115,13 +114,6 @@ class FederatedRoundClientSubmission(TimestampMixin, Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     round_number = Column(Integer, nullable=False)
 
-    model_weights = relationship(
-        "ClientModelWeights",
-        back_populates="submission",
-        cascade="all, delete-orphan",
-        uselist=False
-    )
-
     __table_args__ = (
         UniqueConstraint(
             'session_id',
@@ -138,35 +130,7 @@ class FederatedRoundClientSubmission(TimestampMixin, Base):
             "user_id": self.user_id,
             "round_number": self.round_number,
             "submitted_at": self.createdAt.isoformat() if self.createdAt else None,
-            "model_weights": self.model_weights.weights if self.model_weights else None
         }
-
-    
-
-class ClientModelWeights(TimestampMixin, Base):
-    __tablename__ = 'client_model_weights'
-    
-    id = Column(Integer, primary_key=True)
-    submission_id = Column(Integer, ForeignKey('federated_round_client_submissions.id'), unique=True)
-    weights = Column(JSON, nullable=False)
-
-    submission = relationship("FederatedRoundClientSubmission", back_populates="model_weights")
-
-    def as_dict(self):
-        return {
-            "id": self.id,
-            "submission_id": self.submission_id,
-            "weights": self.weights
-        }
-
-class GlobalModelWeights(TimestampMixin, Base):
-    __tablename__ = 'global_model_weights'
-
-    id = Column(Integer, primary_key=True)
-    session_id = Column(Integer, ForeignKey('federated_sessions.id'), nullable=False)
-    weights = Column(JSON, nullable=True)
-
-    session = relationship("FederatedSession", back_populates="global_model_weights")
   
 
 class FederatedTestResults(TimestampMixin, Base):

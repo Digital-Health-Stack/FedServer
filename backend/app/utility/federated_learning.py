@@ -39,11 +39,11 @@ def get_baseline_stats_from_task(db: Session, task_id: int):
     if not task:
         raise ValueError("Task not found!")
     metric_name = task.metric
-    if not task.temp_benchmark or metric_name not in task.temp_benchmark:
+    if not task.benchmark or metric_name not in task.benchmark:
         raise ValueError(f"No benchmark data found for metric '{metric_name}'")
-    benchmark_data = task.temp_benchmark.get(metric_name)
+    benchmark_data = task.benchmark.get(metric_name)
     if not benchmark_data:
-        raise ValueError(f"Metric '{metric_name}' not found in temp_benchmark")
+        raise ValueError(f"Metric '{metric_name}' not found in benchmark")
     baseline_mean = benchmark_data.get("std_mean")
     baseline_std = benchmark_data.get("std_dev")
     if baseline_mean is None or baseline_std is None:
@@ -195,31 +195,19 @@ async def start_federated_learning(federated_manager: FederatedLearning, user: U
         await send_training_signal_and_wait_for_clients_training(federated_manager, session_data.id)
         # Aggregate
         federated_manager.log_event(session_data.id, f"Performing aggregation.")
-        # before_global_weights = federated_manager.get_latest_global_weights(session_data.id)
-        # save_weights_to_file(before_global_weights, "logs/before_weights.json")
-        
+         
         federated_manager.aggregate_weights_fedAvg_Neural(session_data.id, i)
         
         federated_manager.log_event(session_data.id, f"Aggregation is done")
-        # after_global_weights = federated_manager.get_latest_global_weights(session_data.id)
-        # save_weights_to_file(after_global_weights, "logs/after_weights.json")
         
-        with Session(engine) as db:
-            federated_session = db.query(FederatedSession).filter_by(id=session_data.id).first()
-            if not federated_session:
-                error_msg = f"FederatedSession not found during round {i}."
-                federated_manager.log_event(session_data.id, error_msg)
-                raise ValueError(error_msg)
-
-            ################ Testing start
-            results = test.start_test(federated_manager.get_latest_global_weights(session_data.id))
-            federated_manager.log_event(session_data.id, f"Global test results: {results}")
+        ################ Testing start
+        results = test.start_test(federated_manager.get_latest_global_weights(session_data.id))
+        federated_manager.log_event(session_data.id, f"Global test results: {results}")
             
-            # Reset client_parameters to an empty JSON object
-            federated_manager.clear_client_parameters(session_data.id, i)
+        # Reset client_parameters to an empty JSON object
+        federated_manager.clear_client_parameters(session_data.id, i)
             
-            federated_manager.log_event(session_data.id, f"Client parameters reset after Round {i}.")
-            db.commit()  # Save the reset to the database
+        federated_manager.log_event(session_data.id, f"Client parameters reset after Round {i}.")
     
     # Deleted data folder after training is complete
     local_dir = os.path.join(os.getcwd(), "data")

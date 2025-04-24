@@ -19,18 +19,10 @@ class TaskCreate(BaseModel):
     dataset_id: int
     task_name: str
     metric: str
-    temp_benchmark: Optional[Any] = None
+    benchmark: Optional[Any] = None
 
 class TaskResponse(TaskCreate):
     task_id: int
-
-class BenchmarkCreate(BaseModel):
-    task_id: int
-    metric_value: float
-    training_id: int
-
-class BenchmarkResponse(BenchmarkCreate):
-    benchmark_id: int
 
 class RawDatasetListResponse(BaseModel):
     dataset_id: int

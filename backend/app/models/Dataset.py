@@ -44,12 +44,11 @@ class Task(Base):
     dataset_id = Column(Integer, ForeignKey("datasets.dataset_id", ondelete="CASCADE"), nullable=False, index=True)
     task_name = Column(String(255), nullable=False)
     metric = Column(String(50), nullable=False)
-    temp_benchmark = Column(JSON, nullable=True)   # Temporary field
+    benchmark = Column(JSON, nullable=True)   # Temporary field
     created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
 
     
     dataset = relationship("Dataset", back_populates="tasks")
-    benchmarks = relationship("Benchmark", back_populates="task", cascade="all, delete")
     
     
     __table_args__ = (
@@ -65,6 +64,6 @@ class Task(Base):
             "dataset_id": self.dataset_id,
             "task_name": self.task_name,
             "metric": self.metric,
-            "benchmark": self.temp_benchmark
+            "benchmark": self.benchmark
         }
 

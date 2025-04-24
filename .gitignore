@@ -1,8 +1,8 @@
 __pycache__
 /backend/app/storage/database.db
 /frontend/node_modules
+/backend/app/tmp
 
-backend/app/storage/database.db
 frontend/node_modules
 
 work.md
@@ -11,8 +11,6 @@ global_parameters.txt
 testing_parameters.txt
 aggregated_sums.txt
 venv
-/storage/database.db
-backend/app/storage/database.db
 .env
 testing.py 
 execute.py
