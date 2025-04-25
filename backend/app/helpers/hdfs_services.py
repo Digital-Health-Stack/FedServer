@@ -127,7 +127,23 @@ class HDFSServiceManager:
 
         return self._with_hdfs_client(list_files)
 
+    async def check_file_exists(self, hdfs_path):
+        """
+        Check if a file exists in HDFS.
+        """
+        def check(client):
+            try:
+                return client.status(hdfs_path, strict=False)
+            except Exception as e:
+                print(f"Error checking file existence in HDFS: {e}")
+                return False
 
+        try:
+            return self._with_hdfs_client(check)
+        except Exception as e:
+            print(f"Error checking file existence in HDFS: {e}")
+            raise Exception(f"Error checking file existence in HDFS: {e}")
+        
     async def rename_file_or_folder(self,source_path, destination_path):
         """
         Rename a file in HDFS.

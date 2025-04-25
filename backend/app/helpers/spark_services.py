@@ -350,10 +350,10 @@ class SparkSessionManager:
                 print(f"Merged dataset saved to: {newpath}")
 
                 # Move the merged file to the final directory
-                if hdfs_client.status(hdfs_path, strict=False):
-                    hdfs_client.delete(hdfs_path, recursive=True)
+                if hdfs_client.check_file_exists(hdfs_path):
+                    hdfs_client.delete_file_from_hdfs(HDFS_PROCESSED_DATASETS_DIR, parent_filename)
 
-                hdfs_client.rename(newpath, hdfs_path)
+                hdfs_client.rename_file_or_folder(newpath, hdfs_path)
                 print(f"Moved merged dataset to: {hdfs_path}")
 
                 # e.g. s3a://qpd-data/temp/4934bd27-c155-4303-b386-64b7cd030fe5_health_client.parquet
