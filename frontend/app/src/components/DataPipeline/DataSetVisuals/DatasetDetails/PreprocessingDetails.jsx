@@ -215,9 +215,7 @@ const PreprocessingDetails = ({ columns, filename, directory }) => {
   };
 
   return (
-    // <div className="p-6 space-y-6">
-    //   <h1 className="text-2xl font-bold text-gray-800">Data Preprocessing</h1>
-    <div className="bg-white rounded-xl shadow-sm p-2 mt-4">
+    <div className="bg-white rounded-xl p-2">
       <div className="p-4 border-b flex items-center justify-between bg-blue-50 rounded-t-xl">
         <div className="flex items-center gap-2">
           <Cog6ToothIcon className="w-6 h-6 text-blue-600" />
