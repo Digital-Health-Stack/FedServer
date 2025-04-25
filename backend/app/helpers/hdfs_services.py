@@ -127,7 +127,7 @@ class HDFSServiceManager:
 
         return self._with_hdfs_client(list_files)
 
-    async def check_file_exists(self, hdfs_path):
+    def check_file_exists(self, hdfs_path):
         """
         Check if a file exists in HDFS.
         """

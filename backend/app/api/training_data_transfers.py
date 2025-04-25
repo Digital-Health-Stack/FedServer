@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
 from helpers.spark_services import SparkSessionManager
+from helpers.aws_services import S3Services
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
@@ -28,12 +29,15 @@ from schemas.training_data_transfer import (
 )
 
 from utility.db import get_db
+
 spark_client = SparkSessionManager()
+s3_client = S3Services()
 
 executor = ThreadPoolExecutor(max_workers=os.cpu_count())
 
 qpd_router = APIRouter(tags=["QPD"])
 
+QPD_DATASET_DIR_ON_S3 = os.getenv("QPD_DATASET_DIR_ON_S3")
 
 def handle_error(result):
     #--------------------------------------------------------------------------------------------
@@ -72,6 +76,12 @@ async def merge_s3_file_to_hdfs(transfer_id: int):
         result = approve_transfer(db, transfer_id)
         handle_error(result)
         print("Transfer approved successfully")
+
+        # e.g. s3a://qpd-data/temp/4934bd27-c155-4303-b386-64b7cd030fe5_health_client.parquet
+        s3_filename = result.data_path.split("/")[-1]
+        s3_client.delete_folder(f"{QPD_DATASET_DIR_ON_S3}/{s3_filename}")
+        print(f"file {s3_filename} deleted successfully from S3")
+        
         return {"message": "Approved successfully"}
     except Exception as e:
         print(f"Error during approval process: {e}")
