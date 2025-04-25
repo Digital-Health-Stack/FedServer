@@ -1,38 +1,31 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
 
 const SummaryStats = ({ filename, numRows, numCols }) => {
   return (
-    <div className="p-6 bg-gray-100">
-      <h1 className="text-3xl font-bold mb-6 text-center">Dataset Overview</h1>
-      <div className="space-y-6">
-        {/* Banner-like card for dataset details */}
-        <div className="bg-white shadow-lg rounded-lg p-6 flex items-center justify-between border-l-4 border-blue-500">
-          <div className="space-y-4 w-full">
-            <p className="text-lg text-gray-1000 flex justify-between items-center">
-              <span className="font-bold text-gray-800 text-xl mr-4">
-                File Name:
-              </span>
-              <span className="text-2xl font-bold text-green-800">
-                {filename}
-              </span>
-            </p>
-            <p className="text-lg text-gray-1000 flex justify-between items-center">
-              <span className="font-bold text-gray-800 text-xl mr-4">
-                Number of Rows:
-              </span>
-              <span className="text-5xl font-extrabold text-green-800">
-                {numRows}
-              </span>
-            </p>
-            <p className="text-lg text-gray-600 flex justify-between items-center">
-              <span className="font-bold text-gray-800 text-xl mr-4">
-                Number of Columns:
-              </span>
-              <span className="text-5xl font-extrabold text-green-800">
-                {numCols}
-              </span>
-            </p>
-          </div>
+    <div className="bg-white rounded-xl shadow-sm p-2 mt-4">
+      <div className="p-4 border-b flex items-center justify-between bg-blue-50 rounded-t-xl">
+        <div className="flex items-center gap-2">
+          <InformationCircleIcon className="w-6 h-6 text-blue-600" />
+          <h2 className="text-xl font-semibold text-blue-800">
+            Dataset Overview
+          </h2>
+          {/* <h1 className="text-2xl font-semibold">Dataset Overview</h1> */}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <p className="text-sm text-gray-600 mb-1">Filename</p>
+          <p className="font-mono text-lg font-medium truncate">{filename}</p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <p className="text-sm text-gray-600 mb-1">Rows</p>
+          <p className="text-3xl font-bold text-blue-600">{numRows}</p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <p className="text-sm text-gray-600 mb-1">Columns</p>
+          <p className="text-3xl font-bold text-blue-600">{numCols}</p>
         </div>
       </div>
     </div>
