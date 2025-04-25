@@ -366,6 +366,7 @@ class SparkSessionManager:
 
         except Exception as e:
             print(f"Error Merging S3 dataset: {e}")
+            hdfs_client.delete_file_from_hdfs(MERGE_TEMP_DIRECTORY, parent_filename)
             raise e
             
 
