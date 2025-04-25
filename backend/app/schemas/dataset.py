@@ -19,7 +19,7 @@ class TaskCreate(BaseModel):
     dataset_id: int
     task_name: str
     metric: str
-    benchmark: Optional[Any] = None
+    benchmark: Optional[dict] = None
 
 class TaskResponse(TaskCreate):
     task_id: int

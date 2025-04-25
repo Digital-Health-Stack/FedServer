@@ -4,6 +4,7 @@ __pycache__
 /backend/app/tmp
 
 frontend/node_modules
+frontend/app/.env
 
 work.md
 global_test_data
@@ -23,6 +24,8 @@ backend/app/aggregated_sums.txt
 create_data.py
 ./create_data.py
 /logs
+/.env
+
 
 
 

@@ -433,3 +433,4 @@ statsmodels
 sse-starlette
 pyarrow
 scikit-learn
+boto3

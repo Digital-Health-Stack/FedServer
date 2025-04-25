@@ -1,9 +1,10 @@
 from pyspark.sql import SparkSession
 from dotenv import load_dotenv
-from pyspark.sql.functions import col, count, mean, stddev, min, max, approx_count_distinct, lit, rank, when
+from pyspark.sql.functions import col, count, mean, stddev, min, max, rand, lit, rank, when
 from pyspark.sql.types import NumericType, StringType
 from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
-# from helpers.hdfs_services import HDFSServiceManager  # not needed for now
+from helpers.hdfs_services import HDFSServiceManager  
+from helpers.aws_services import S3Services
 import threading
 import time
 import os
@@ -12,7 +13,8 @@ import json
 import uuid
 
 load_dotenv()
-# hdfs_client = HDFSServiceManager()
+hdfs_client = HDFSServiceManager()
+s3_client = S3Services()
 
 HADOOP_USER_NAME = os.getenv("HADOOP_USER_NAME")
 HDFS_NAME_NODE_URL = os.getenv("HDFS_NAME_NODE_URL")
@@ -20,7 +22,9 @@ HDFS_RAW_DATASETS_DIR = os.getenv("HDFS_RAW_DATASETS_DIR")
 HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR")
 HDFS_FILE_READ_URL = f"hdfs://{HDFS_NAME_NODE_URL}/user/{HADOOP_USER_NAME}"
 RECENTLY_UPLOADED_DATASETS_DIR = os.getenv("RECENTLY_UPLOADED_DATASETS_DIR")
+MERGE_TEMP_DIRECTORY = os.getenv("MERGE_TEMP_DIRECTORY")
 SPARK_MASTER_URL = os.getenv("SPARK_MASTER_URL")
+QPD_DATASET_DIR_ON_S3 = os.getenv("QPD_DATASET_DIR_ON_S3")
 
 class SparkSessionManager:
     """
@@ -310,8 +314,8 @@ class SparkSessionManager:
                 # Load the dataset from HDFS
                 hdfs_path = f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{parent_filename}"
                 s3_path = s3_path
-                newfilename = f"{parent_filename.replace('.parquet','')}_merged_{session_id}.parquet"
-                newpath = f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename}"
+                # newfilename = f"{parent_filename.replace('.parquet','')}_merged_{session_id}.parquet"
+                newpath = f"{HDFS_FILE_READ_URL}/{MERGE_TEMP_DIRECTORY}/{parent_filename}"
 
                 # reading the files from HDFS and S3
                 print(f"Reading from hdfs path: {hdfs_path}")
@@ -330,24 +334,34 @@ class SparkSessionManager:
                 # have to ensure they're compatible for merging, otherwise inconsistencies will be there in DB and hdfs 
                 # currently this will union correctly even for reordered cols, and missing cols in either df
                 ####-------------------------------------------------
-                
+
+                # print(f"individual size- hdfs: {hdfs_df.count()}, s3: {s3_df.count()}")
                 hdfs_df = hdfs_df.unionByName(s3_df, allowMissingColumns=True)
+                # print(f"size after union- merged: {hdfs_df.count()}")
+
+                print("Shuffling merged data...")
+                hdfs_df = hdfs_df.orderBy(rand())
 
                 # Write the merged DataFrame back to HDFS
-                # overwriting may give error in multithreading environment, in the spark 
+                # overwriting may give error in multithreading environment, in the spark so using temp directory
                 # https://stackoverflow.com/questions/52826890/spark-leaseexpiredexception-while-writing-large-dataframe-to-parquet-files
-                # hdfs_df.write.mode("overwrite").parquet(hdfs_path)
 
                 hdfs_df.write.parquet(newpath)
-                print(f"Merged dataset saved to: merged_{session_id}_{hdfs_path}")
+                print(f"Merged dataset saved to: {newpath}")
 
-                # i have to merge s3 file into hdfs file
-                print(f"Merged {s3_path} into {hdfs_path}")
+                # Move the merged file to the final directory
+                if hdfs_client.status(hdfs_path, strict=False):
+                    hdfs_client.delete(hdfs_path, recursive=True)
 
-                # Update the code to Delete the S3 file after merging
+                hdfs_client.rename(newpath, hdfs_path)
+                print(f"Moved merged dataset to: {hdfs_path}")
+
+                # e.g. s3a://qpd-data/temp/4934bd27-c155-4303-b386-64b7cd030fe5_health_client.parquet
+                s3_filename = s3_path.split("/")[-1]
+                s3_client.delete_folder(f"{QPD_DATASET_DIR_ON_S3}/{s3_filename}")
 
                 overview = self._get_overview(hdfs_df)
-                overview["filename"] = newfilename
+                overview["filename"] = parent_filename
                 return overview
 
         except Exception as e:

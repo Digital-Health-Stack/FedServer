@@ -104,17 +104,17 @@ async def merge_s3_file_to_hdfs(transfer_id: int, db: Session = Depends(get_db))
         # Merge S3 file with parent file on HDFS and delete the file on S3
         overview = await spark_client.merge_s3_file_to_hdfs(result.data_path, result.parent_filename, result.federated_session_id)
         
-        new_dataset = DatasetCreate(
-            filename=overview["filename"],
-            description=f"Merged {result.parent_filename} with QPD data of {result.federated_session_id}",
-            datastats=overview
-        )
+        # new_dataset = DatasetCreate(
+        #     filename=overview["filename"],
+        #     description=f"Merged {result.parent_filename} with QPD data of {result.federated_session_id}",
+        #     datastats=overview
+        # )
 
         # crud_result = create_dataset(db, dataset=new_dataset)
         # if isinstance(crud_result, dict) and "error" in crud_result:
         #     raise HTTPException(status_code=400, detail=crud_result["error"])
         
-        result = create_dataset(db, dataset=new_dataset)
+        result = update_dataset_stats(db, overview["filename"], overview)
         # result = update_dataset_stats(db, result.parent_filename, overview)
         handle_error(result)
         print("DB updated with merged dataset stats")
