@@ -44,6 +44,40 @@ def handle_error(result):
         raise HTTPException(status_code=400, detail=result["error"])
     return result
 
+async def merge_s3_file_to_hdfs(transfer_id: int):
+    try:
+        db = next(get_db())
+        result = get_transfer_mini_details(db, transfer_id)
+        handle_error(result)
+        print("starting the merging process...")
+
+        # Merge S3 file with parent file on HDFS and delete the file on S3
+        overview = await spark_client.merge_s3_file_to_hdfs(result.data_path, result.parent_filename, result.federated_session_id)
+        
+        # new_dataset = DatasetCreate(
+        #     filename=overview["filename"],
+        #     description=f"Merged {result.parent_filename} with QPD data of {result.federated_session_id}",
+        #     datastats=overview
+        # )
+
+        # crud_result = create_dataset(db, dataset=new_dataset)
+        # if isinstance(crud_result, dict) and "error" in crud_result:
+        #     raise HTTPException(status_code=400, detail=crud_result["error"])
+        
+        result = update_dataset_stats(db, overview["filename"], overview)
+        # result = update_dataset_stats(db, result.parent_filename, overview)
+        handle_error(result)
+        print("DB updated with merged dataset stats")
+        
+        result = approve_transfer(db, transfer_id)
+        handle_error(result)
+        print("Transfer approved successfully")
+        return {"message": "Approved successfully"}
+    except Exception as e:
+        print(f"Error during approval process: {e}")
+        return {"error": str(e)}
+    
+
 @qpd_router.post("/create-transferred-data")
 def create_data_transfer(transfer_data: TransferCreate, db: Session = Depends(get_db)):
     try:
@@ -86,44 +120,14 @@ def delete_transfer_record(transfer_id: int, db: Session = Depends(get_db)):
         return {"error": str(e)}
     
 @qpd_router.post("/approve-transferred-data/{transfer_id}")
-def approve_transfer_record(transfer_id: int, db: Session = Depends(get_db)):
+def approve_transfer_record(transfer_id: int):
     # don't do try/except here as this will run in a separate thread
     executor.submit(
         asyncio.run,
-        merge_s3_file_to_hdfs(transfer_id, db)
+        merge_s3_file_to_hdfs(transfer_id)
     )
     print("Approval process started for transfer ID:", transfer_id)
     return {"message": "Approval process started"}
     
-async def merge_s3_file_to_hdfs(transfer_id: int, db: Session = Depends(get_db)):
-    try:
-        result = get_transfer_mini_details(db, transfer_id)
-        handle_error(result)
-        print("starting the merging process...")
 
-        # Merge S3 file with parent file on HDFS and delete the file on S3
-        overview = await spark_client.merge_s3_file_to_hdfs(result.data_path, result.parent_filename, result.federated_session_id)
-        
-        # new_dataset = DatasetCreate(
-        #     filename=overview["filename"],
-        #     description=f"Merged {result.parent_filename} with QPD data of {result.federated_session_id}",
-        #     datastats=overview
-        # )
-
-        # crud_result = create_dataset(db, dataset=new_dataset)
-        # if isinstance(crud_result, dict) and "error" in crud_result:
-        #     raise HTTPException(status_code=400, detail=crud_result["error"])
-        
-        result = update_dataset_stats(db, overview["filename"], overview)
-        # result = update_dataset_stats(db, result.parent_filename, overview)
-        handle_error(result)
-        print("DB updated with merged dataset stats")
-        
-        result = approve_transfer(db, transfer_id)
-        handle_error(result)
-        print("Transfer approved successfully")
-        return {"message": "Approved successfully"}
-    except Exception as e:
-        print(f"Error during approval process: {e}")
-        return {"error": str(e)}
     
