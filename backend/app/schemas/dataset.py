@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional,Any
+from typing import Optional,Any, List
 
 class DatasetCreate(BaseModel):
     filename: str
@@ -38,3 +38,22 @@ class DatasetListResponse(BaseModel):
 class Operation(BaseModel):
     column: str
     operation: str
+
+class SessionLeaderboardEntry(BaseModel):
+    session_id: int
+    organisation_name: str
+    model_name: str
+    total_rounds: int
+    metric_value: float
+    meets_benchmark: Optional[bool]
+    # metric_name: str
+    # all_metrics: Dict[str, float]
+    created_at: Optional[str]
+    admin_username: str
+
+class LeaderboardResponse(BaseModel):
+    task_name: str
+    metric: str
+    benchmark: Optional[float]
+    created_at: Optional[str]
+    sessions: List[SessionLeaderboardEntry]

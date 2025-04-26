@@ -52,7 +52,7 @@ class Task(Base):
     
     
     __table_args__ = (
-        CheckConstraint("metric IN ('MSE', 'MAE', 'Accuracy', 'MSLE', 'R2', 'LogLoss', 'AUC', 'F1', 'Precision', 'Recall')"),
+        CheckConstraint("metric IN ('mse', 'mae', 'accuracy', 'msle', 'r2', 'logloss', 'auc', 'f1', 'precision', 'recall')"),
     )
 
     Index("idx_tasks_dataset", dataset_id)
@@ -64,6 +64,7 @@ class Task(Base):
             "dataset_id": self.dataset_id,
             "task_name": self.task_name,
             "metric": self.metric,
-            "benchmark": self.benchmark
+            "benchmark": self.benchmark,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

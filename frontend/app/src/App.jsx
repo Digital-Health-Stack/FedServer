@@ -23,6 +23,7 @@ import Benchmarks from "./components/DataPipeline/DataSetVisuals/DatasetDetails/
 import BenchmarkTraining from "./components/DataPipeline/DataSetVisuals/DatasetDetails/BenchmarkTraining.jsx";
 import Trainings from "./Pages/Trainings.jsx";
 import TrainingDetails from "./Pages/TrainingDetails.jsx";
+import Leaderboard from "./Pages/Leaderboard.jsx";
 
 export default function App() {
   const [clientToken, setClientToken] = useState("");
@@ -73,8 +74,8 @@ export default function App() {
             <Route path="/preprocessing-docs" element={<PreprocessingDocs />} />
 
             <Route path="/tasks/:task_id/benchmarks" element={<Benchmarks />} />
-
-
+            
+            <Route path="/history/:task_id" element={<Leaderboard />} />
             <Route
               path="/assess-data-quality"
               element={
