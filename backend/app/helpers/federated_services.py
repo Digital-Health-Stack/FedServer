@@ -67,7 +67,7 @@ def process_parquet_and_save_xy(filename: str, session_id: str, output_column: l
 
     
     def reshape_image(img_array):
-        stacked = np.stack(img_array, axis=0)  # shape: (224, 224, 1)
+        stacked = np.stack(img_array, axis=0)
         stacked = np.expand_dims(stacked, axis=-1)
         return stacked.astype(np.float32)
 

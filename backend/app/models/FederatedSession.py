@@ -111,7 +111,8 @@ class FederatedRoundClientSubmission(TimestampMixin, Base):
     session_id = Column(Integer, ForeignKey('federated_sessions.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     round_number = Column(Integer, nullable=False)
-
+    training_history = Column(JSON)
+    
     __table_args__ = (
         UniqueConstraint(
             'session_id',
@@ -127,6 +128,7 @@ class FederatedRoundClientSubmission(TimestampMixin, Base):
             "session_id": self.session_id,
             "user_id": self.user_id,
             "round_number": self.round_number,
+            "training_history": self.training_history,
             "submitted_at": self.createdAt.isoformat() if self.createdAt else None,
         }
   

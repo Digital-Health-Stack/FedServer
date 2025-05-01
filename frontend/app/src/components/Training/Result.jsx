@@ -19,16 +19,24 @@ import {
 } from "recharts";
 
 const Result = ({ sessionId }) => {
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState({
+    server_results: {},
+    client_results: {},
+    test_metrics: []
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("chart");
-  const [selectedMetrics, setSelectedMetrics] = useState([]);
+  const [selectedMetric, setSelectedMetric] = useState(""); // Now single metric selection
   const { api } = useAuth();
 
   const fetchResultsData = async () => {
     if (!sessionId) {
-      setResults([]);
+      setResults({
+        server_results: {},
+        client_results: {},
+        test_metrics: []
+      });
       setLoading(false);
       return;
     }
@@ -39,9 +47,9 @@ const Result = ({ sessionId }) => {
       const response = await getTrainingResults(api, sessionId);
       setResults(response.data);
       
-      // Initialize selected metrics with all available metrics
-      if (response.data.length > 0) {
-        setSelectedMetrics(Object.keys(response.data[0].metrics));
+      // Set first metric as default selection if available
+      if (response.data.test_metrics?.length > 0) {
+        setSelectedMetric(response.data.test_metrics[0]);
       }
     } catch (err) {
       console.error("Error fetching training results:", err);
@@ -55,31 +63,32 @@ const Result = ({ sessionId }) => {
     fetchResultsData();
   }, [sessionId]);
 
-  const formatMetricValue = (value, isPercentage = false) => {
-    if (isPercentage) {
-      return `${(value * 100).toFixed(2)}%`;
-    }
-    return value.toFixed(4);
+  const formatMetricValue = (value) => {
+    return typeof value === 'number' ? value.toFixed(4) : value;
   };
 
-  // Prepare data for charts
-  const chartData = results.map((result) => ({
-    round: `Round ${result.round_number}`,
-    ...Object.entries(result.metrics).reduce((acc, [key, value]) => {
-      acc[key] = key === "accuracy" ? value * 100 : value;
-      return acc;
-    }, {}),
-  }));
+  // Prepare data for charts for the selected metric
+  const prepareChartData = () => {
+    if (!selectedMetric) return [];
+    
+    const chartData = [];
+    const rounds = Object.keys(results.server_results[selectedMetric] || {});
 
-  const metricKeys = results.length > 0 ? Object.keys(results[0].metrics) : [];
+    rounds.forEach(round => {
+      const roundNumber = parseInt(round.split('_')[1]);
+      const roundData = { 
+        round: `Round ${roundNumber}`,
+        [`server_${selectedMetric}`]: results.server_results[selectedMetric]?.[round],
+        [`client_${selectedMetric}`]: results.client_results[selectedMetric]?.[round]
+      };
 
-  const toggleMetric = (metric) => {
-    setSelectedMetrics(prev =>
-      prev.includes(metric)
-        ? prev.filter(m => m !== metric)
-        : [...prev, metric]
-    );
+      chartData.push(roundData);
+    });
+
+    return chartData;
   };
+
+  const chartData = prepareChartData();
 
   return (
     <div className="w-full space-y-6">
@@ -120,6 +129,21 @@ const Result = ({ sessionId }) => {
         <div className="p-4">
           {activeTab === "table" ? (
             <div className="overflow-hidden">
+              <div className="flex flex-wrap gap-2 mb-4">
+                {results.test_metrics.map((metric) => (
+                  <button
+                    key={metric}
+                    onClick={() => setSelectedMetric(metric)}
+                    className={`px-3 py-1 text-sm rounded-md capitalize ${
+                      selectedMetric === metric
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {metric}
+                  </button>
+                ))}
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -128,14 +152,17 @@ const Result = ({ sessionId }) => {
                         Round
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Metrics
+                        Server {selectedMetric?.toUpperCase()}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Your {selectedMetric?.toUpperCase()}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {loading ? (
                       <tr>
-                        <td colSpan="2" className="px-6 py-4 text-center">
+                        <td colSpan={3} className="px-6 py-4 text-center">
                           <div className="flex justify-center items-center text-gray-500">
                             <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
                             Loading results...
@@ -144,16 +171,16 @@ const Result = ({ sessionId }) => {
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan="2" className="px-6 py-4 text-center">
+                        <td colSpan={3} className="px-6 py-4 text-center">
                           <div className="flex justify-center items-center text-red-500">
                             <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
                             {error}
                           </div>
                         </td>
                       </tr>
-                    ) : results.length === 0 ? (
+                    ) : !selectedMetric || Object.keys(results.server_results).length === 0 ? (
                       <tr>
-                        <td colSpan="2" className="px-6 py-4 text-center">
+                        <td colSpan={3} className="px-6 py-4 text-center">
                           <div className="flex justify-center items-center text-gray-500">
                             <InformationCircleIcon className="h-5 w-5 mr-2" />
                             {sessionId
@@ -163,27 +190,24 @@ const Result = ({ sessionId }) => {
                         </td>
                       </tr>
                     ) : (
-                      results.map((result) => (
-                        <tr key={result.round_number} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Round {result.round_number}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            <div className="space-y-1">
-                              {Object.entries(result.metrics).map(([key, value]) => (
-                                <div key={key} className="flex">
-                                  <span className="font-medium text-gray-700 w-24 capitalize">
-                                    {key}:
-                                  </span>
-                                  <span>
-                                    {formatMetricValue(value, key === "accuracy")}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                      Object.keys(results.server_results[selectedMetric] || {}).map(round => {
+                        const roundNumber = round.split('_')[1];
+                        return (
+                          <tr key={round} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              Round {roundNumber}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatMetricValue(results.server_results[selectedMetric]?.[round])}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {results.client_results[selectedMetric]?.[round] 
+                                ? formatMetricValue(results.client_results[selectedMetric][round])
+                                : "-"}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -191,6 +215,22 @@ const Result = ({ sessionId }) => {
             </div>
           ) : (
             <div className="space-y-6">
+              <div className="flex flex-wrap gap-2 mb-4">
+                {results.test_metrics.map((metric) => (
+                  <button
+                    key={metric}
+                    onClick={() => setSelectedMetric(metric)}
+                    className={`px-3 py-1 text-sm rounded-md capitalize ${
+                      selectedMetric === metric
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {metric}
+                  </button>
+                ))}
+              </div>
+
               {loading ? (
                 <div className="flex justify-center items-center h-64 text-gray-500">
                   <ArrowPathIcon className="h-8 w-8 mr-2 animate-spin" />
@@ -201,7 +241,7 @@ const Result = ({ sessionId }) => {
                   <ExclamationTriangleIcon className="h-8 w-8 mr-2" />
                   {error}
                 </div>
-              ) : results.length === 0 ? (
+              ) : !selectedMetric || Object.keys(results.server_results).length === 0 ? (
                 <div className="flex justify-center items-center h-64 text-gray-500">
                   <InformationCircleIcon className="h-8 w-8 mr-2" />
                   {sessionId
@@ -209,62 +249,47 @@ const Result = ({ sessionId }) => {
                     : "Select a session to view charts"}
                 </div>
               ) : (
-                <>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {metricKeys.map((metric) => (
-                      <button
-                        key={metric}
-                        onClick={() => toggleMetric(metric)}
-                        className={`px-3 py-1 text-sm rounded-md capitalize ${
-                          selectedMetrics.includes(metric)
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {metric}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="h-80">
-                    <h4 className="text-md font-medium text-gray-700 mb-2">
-                      Metrics Progression
-                    </h4>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={chartData}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="round" />
-                        <YAxis />
-                        <Tooltip
-                          formatter={(value, name) => [
-                            name === "accuracy" ? `${value}%` : value,
-                            name,
-                          ]}
+                <div className="h-80">
+                  <h4 className="text-md font-medium text-gray-700 mb-2">
+                    {selectedMetric.toUpperCase()} Progression
+                  </h4>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="round" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [formatMetricValue(value)]} />
+                      <Legend />
+                      <Line
+                        name={`Server ${selectedMetric.toUpperCase()}`}
+                        type="monotone"
+                        dataKey={`server_${selectedMetric}`}
+                        stroke="#3b82f6" // Blue
+                        activeDot={{ r: 8 }}
+                      />
+                      {Object.keys(results.client_results[selectedMetric] || {}).length > 0 && (
+                        <Line
+                          name={`Your ${selectedMetric.toUpperCase()}`}
+                          type="monotone"
+                          dataKey={`client_${selectedMetric}`}
+                          stroke="#10b981" // Green
+                          activeDot={{ r: 8 }}
+                          strokeDasharray="5 5"
                         />
-                        <Legend />
-                        {selectedMetrics.map((metric) => (
-                          <Line
-                            key={metric}
-                            type="monotone"
-                            dataKey={metric}
-                            stroke={`#${((1 << 24) * Math.random() | 0).toString(16).padStart(6, "0")}`}
-                            activeDot={{ r: 8 }}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </>
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
           )}
         </div>
 
         <div className="px-6 py-3 bg-gray-50 text-right text-xs text-gray-500 border-t border-gray-200">
-          {sessionId && `Session ID #${sessionId}`}
+          {sessionId && `Session ID #${sessionId} | Current Round: ${results.current_round || 'N/A'}`}
         </div>
       </div>
     </div>

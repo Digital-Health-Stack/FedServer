@@ -294,6 +294,7 @@ def get_model_parameters(session_id: int, db: Session = Depends(get_db)):
 def receive_client_parameters(request: ClientReceiveParameters,  current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     session_id = request.session_id
     client_parameter = request.client_parameter
+    training_history = request.training_history
     
     session_data = db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
     
@@ -337,7 +338,8 @@ def receive_client_parameters(request: ClientReceiveParameters,  current_user: U
         submission = FederatedRoundClientSubmission(
             session_id=session_id,
             user_id=current_user.id,
-            round_number=round_number
+            round_number=round_number,
+            training_history=training_history
         )
         db.add(submission)
         db.flush()  # Ensures submission.id is available before committing
@@ -358,10 +360,48 @@ def get_training_result(session_id: int, current_user: User = Depends(get_curren
     session = db.query(FederatedSession).filter_by(id=session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Federated session not found.")
-    test_results = session.as_dict().get("test_results", [])
-    if not test_results:
-        return {"message": "No test results available for this session yet."}
-    return test_results
+    
+    # Get test metrics from federated_info
+    federated_info = session.federated_info or {}
+    model_info = federated_info.get('model_info', {})
+    test_metrics = model_info.get('test_metrics', [])
+    
+    # Get Server Round Results
+    server_results = {}
+    raw_server_results = session.as_dict().get("test_results", [])
+    
+    for metric in test_metrics:
+        server_results[metric] = {
+            f"round_{res['round_number']}": res['metrics'].get(metric)
+            for res in raw_server_results
+            if metric in res['metrics']
+        }
+    
+    # Restructure client results
+    client_results = {}
+    if current_user:
+        submissions = db.query(FederatedRoundClientSubmission).filter_by(
+            session_id=session_id,
+            user_id=current_user.id
+        ).order_by(FederatedRoundClientSubmission.round_number).all()
+        
+        for metric in test_metrics:
+            client_results[metric] = {}
+            for sub in submissions:
+                round_key = f"round_{sub.round_number}"
+                if sub.training_history and metric in sub.training_history:
+                    # Get the last epoch's value for this metric
+                    client_results[metric][round_key] = sub.training_history[metric][-1]
+    
+    response = {
+        "session_id": session_id,
+        "current_round": session.curr_round,
+        "test_metrics": test_metrics,
+        "server_results": server_results,
+        "client_results": client_results if client_results else None
+    }
+
+    return response
 
 @federated_router.get('/download-model-parameters/{session_id}')
 def get_model_parameters(
