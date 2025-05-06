@@ -254,7 +254,7 @@ const PreprocessingDetails = ({ columns, filename, directory }) => {
       )}
 
       {/* Submit Button */}
-      {operations.length > 0 && (
+      {(
         <div className="border-t pt-4">
           <button
             onClick={handleSubmit}
