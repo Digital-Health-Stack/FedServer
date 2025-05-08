@@ -1,11 +1,51 @@
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
+from tensorflow.keras import models, layers, regularizers, optimizers
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import (Input, Dense, Flatten, Conv2D, Reshape, 
+                                    MaxPooling2D, AveragePooling2D, BatchNormalization,
+                                    Dropout)
 import numpy as np
 import ast
+from tensorflow.keras import metrics
 
+class BinaryF1Score(metrics.Metric):
+    def __init__(self, name='f1_score', threshold=0.5, **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.threshold = threshold
+        self.precision = metrics.Precision(thresholds=threshold)
+        self.recall = metrics.Recall(thresholds=threshold)
 
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        self.precision.update_state(y_true, y_pred)
+        self.recall.update_state(y_true, y_pred)
 
+    def result(self):
+        p = self.precision.result()
+        r = self.recall.result()
+        return 2 * ((p * r) / (p + r + tf.keras.backend.epsilon()))
+
+    def reset_state(self):
+        self.precision.reset_state()
+        self.recall.reset_state()
+        
+def get_metric_mapping():
+    """Returns all available metrics without validation"""
+    return {
+        # Universal metrics (work for any task)
+        'mae': 'mae',
+        'mse': 'mse',
+        'accuracy': 'accuracy',
+        
+        # Classification metrics
+        'precision': metrics.Precision(name='precision'),
+        'recall': metrics.Recall(name='recall'),
+        'f1_score': BinaryF1Score(name='f1_score'),   
+    }
+
+def resolve_metrics(metric_names):
+    """Simple metric name to implementation mapping"""
+    mapping = get_metric_mapping()
+    return [mapping[name] for name in metric_names if name in mapping]
 
 def handle_error(error):
     error_message = f"An error occurred: {error}"
@@ -14,11 +54,6 @@ def handle_error(error):
 
 class CustomCNN:
     def __init__(self, config):
-        from tensorflow.keras import regularizers, optimizers   
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import (Input, Dense, Flatten, Conv2D, Reshape, 
-                                    MaxPooling2D, AveragePooling2D, BatchNormalization,
-                                    Dropout)
         self.config = config
         self.model = Sequential()
         try:
@@ -97,13 +132,7 @@ class CustomCNN:
             else:
                 optimizer = optimizer_config['type']  # assume it's a string like 'adam'
                 
-            metrics_config = config.get('metrics', {})
-            metrics = [m for m, enabled in metrics_config.items() if enabled] if isinstance(metrics_config, dict) else (
-                [metrics_config] if isinstance(metrics_config, str) else metrics_config
-            )
-            if not metrics:  # Default if empty
-                metrics = ['mae']
-                
+            metrics = resolve_metrics(config.get("test_metrics", [])) 
             self.model.compile(
                 loss=config.get('loss', 'mean_squared_error'),
                 optimizer=optimizer,
@@ -159,3 +188,17 @@ class CustomCNN:
                 layer.set_weights([np.array(w) for w in layer_params])
         except Exception as e:
             handle_error(e)
+    
+    def evaluate(self, x_test, y_test, batch_size=32):
+        try:
+            if x_test is None or y_test is None:
+                print("Error: x_test and y_test cannot be None")
+                return None
+            
+            results = self.model.evaluate(x_test, y_test, batch_size=batch_size)
+            # Return a dictionary of metric names and their values
+            metrics = ['loss'] + self.config.get('test_metrics', [])
+            return dict(zip(metrics, results))
+        except Exception as e:
+            error_message = f"An error occurred in Evaluate Function: {e}"
+            print(error_message) 

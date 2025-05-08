@@ -54,7 +54,7 @@ class FederatedSession(TimestampMixin, Base):
     federated_info = Column(JSON, nullable=False)
     admin_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     curr_round = Column(Integer, default=1, nullable=False)
-    max_round = Column(Integer, default=10, nullable=False)
+    max_round = Column(Integer, default=5, nullable=False)
     session_price = Column(Float, default= 0, nullable=True)
     training_status = Column(Integer, default=1, nullable=False)  
     # Wait Time
@@ -63,7 +63,7 @@ class FederatedSession(TimestampMixin, Base):
     admin = relationship("User", back_populates="federated_sessions")
     clients = relationship('FederatedSessionClient', back_populates='session')
     logs = relationship("FederatedSessionLog", order_by=FederatedSessionLog.createdAt, back_populates="session", cascade="all, delete-orphan")
-    test_results = relationship("FederatedTestResults", back_populates="session", 
+    results = relationship("FederatedTestResults", back_populates="session", 
                                 cascade="all, delete-orphan", order_by="FederatedTestResults.round_number")
     
     def as_dict(self):  
@@ -77,7 +77,7 @@ class FederatedSession(TimestampMixin, Base):
             "wait_till": self.wait_till.isoformat() if self.wait_till else None,  # Convert DateTime to ISO format
             "admin": self.admin.as_dict() if self.admin else None,               # Call as_dict on the related User
             "clients": [client.as_dict() for client in self.clients],            
-            "test_results": [result.as_dict() for result in self.test_results],
+            "results": [result.as_dict() for result in self.results],
             "created_at": self.createdAt.isoformat() if self.createdAt else None
         }
 
@@ -111,7 +111,7 @@ class FederatedRoundClientSubmission(TimestampMixin, Base):
     session_id = Column(Integer, ForeignKey('federated_sessions.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     round_number = Column(Integer, nullable=False)
-    training_history = Column(JSON)
+    metrics_report = Column(JSON)
     
     __table_args__ = (
         UniqueConstraint(
@@ -128,7 +128,7 @@ class FederatedRoundClientSubmission(TimestampMixin, Base):
             "session_id": self.session_id,
             "user_id": self.user_id,
             "round_number": self.round_number,
-            "training_history": self.training_history,
+            "metrics_report": self.metrics_report,
             "submitted_at": self.createdAt.isoformat() if self.createdAt else None,
         }
   
@@ -139,16 +139,16 @@ class FederatedTestResults(TimestampMixin, Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey('federated_sessions.id'), nullable=False)
     round_number = Column(Integer, nullable=False)
-    metrics = Column(JSON, nullable=False)
+    metrics_report = Column(JSON, nullable=False)
 
-    session = relationship("FederatedSession", back_populates="test_results")
+    session = relationship("FederatedSession", back_populates="results")
     
     def as_dict(self):
         return {
             "id": self.id,
             "session_id": self.session_id,
             "round_number": self.round_number,
-            "metrics": self.metrics,
+            "metrics_report": self.metrics_report,
             "created_at": self.createdAt.isoformat() if self.createdAt else None,
             "updated_at": self.updatedAt.isoformat() if self.updatedAt else None
         }

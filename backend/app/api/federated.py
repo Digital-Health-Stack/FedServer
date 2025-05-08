@@ -294,7 +294,7 @@ def get_model_parameters(session_id: int, db: Session = Depends(get_db)):
 def receive_client_parameters(request: ClientReceiveParameters,  current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     session_id = request.session_id
     client_parameter = request.client_parameter
-    training_history = request.training_history
+    metrics_report = request.metrics_report
     
     session_data = db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
     
@@ -339,7 +339,7 @@ def receive_client_parameters(request: ClientReceiveParameters,  current_user: U
             session_id=session_id,
             user_id=current_user.id,
             round_number=round_number,
-            training_history=training_history
+            metrics_report=metrics_report
         )
         db.add(submission)
         db.flush()  # Ensures submission.id is available before committing
@@ -368,14 +368,16 @@ def get_training_result(session_id: int, current_user: User = Depends(get_curren
     
     # Get Server Round Results
     server_results = {}
-    raw_server_results = session.as_dict().get("test_results", [])
+    raw_server_results = session.as_dict().get("results", [])
     
-    for metric in test_metrics:
-        server_results[metric] = {
-            f"round_{res['round_number']}": res['metrics'].get(metric)
-            for res in raw_server_results
-            if metric in res['metrics']
-        }
+    for result in raw_server_results:
+        round_number = result.get("round_number")
+        metrics = result.get("metrics_report", {})
+        
+        for metric, value in metrics.items():
+            if metric not in server_results:
+                server_results[metric] = {}
+            server_results[metric][f"round_{round_number}"] = value
     
     # Restructure client results
     client_results = {}
@@ -385,20 +387,22 @@ def get_training_result(session_id: int, current_user: User = Depends(get_curren
             user_id=current_user.id
         ).order_by(FederatedRoundClientSubmission.round_number).all()
         
-        for metric in test_metrics:
-            client_results[metric] = {}
-            for sub in submissions:
-                round_key = f"round_{sub.round_number}"
-                if sub.training_history and metric in sub.training_history:
-                    # Get the last epoch's value for this metric
-                    client_results[metric][round_key] = sub.training_history[metric][-1]
+        for submission in submissions:
+            data = submission.as_dict()
+            round_number = data.get("round_number")
+            metrics = data.get("metrics_report", {})
+
+            for metric, value in metrics.items():
+                if metric not in client_results:
+                    client_results[metric] = {}
+                client_results[metric][f"round_{round_number}"] = value
     
     response = {
         "session_id": session_id,
         "current_round": session.curr_round,
         "test_metrics": test_metrics,
         "server_results": server_results,
-        "client_results": client_results if client_results else None
+        "client_results": client_results
     }
 
     return response

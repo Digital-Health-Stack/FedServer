@@ -256,7 +256,7 @@ async def wait_for_client_confirmation(
     federated_manager: FederatedLearning,
     session_id: int,
     db: Session,
-    timeout: int = 180   # 60 second timeout here
+    timeout: int = 60   # 60 second timeout here
 ):
     """
     Waits for a fixed timeout period for clients to confirm participation.

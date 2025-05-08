@@ -37,6 +37,6 @@ class ClientModelIdResponse(BaseModel):
 class ClientReceiveParameters(BaseModel):
     session_id: int
     client_parameter: dict
-    training_history: dict
+    metrics_report: dict
 
     
