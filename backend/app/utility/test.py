@@ -30,7 +30,6 @@ class Test:
             self.model_config = session_data.federated_info  
         self.metrics = self.model_config['model_info']['test_metrics'] # metrics to calculate in test
         self.round = 1
-        self.test_results = {}
         self.build_model()
 
     def build_model(self):
