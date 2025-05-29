@@ -12,8 +12,9 @@ import SummaryStats from "./DatasetDetails/SummaryStats";
 import ColumnDetails from "./DatasetDetails/ColumnDetails";
 import Tasks from "./DatasetDetails/TaskCard";
 import PreprocessingDetails from "./DatasetDetails/PreprocessingDetails";
+import { getDatasetDetails } from "../../../services/privateService";
 
-const PROCESSED_DATASET_URL = process.env.REACT_APP_PROCESSED_OVERVIEW_PATH;
+// const PROCESSED_DATASET_URL = process.env.REACT_APP_PROCESSED_OVERVIEW_PATH;
 
 const ProcessedDataSetOverview = () => {
   const { filename } = useParams();
@@ -47,9 +48,7 @@ const ProcessedDataSetOverview = () => {
   useEffect(() => {
     const fetchDataset = async () => {
       try {
-        const response = await axios.get(
-          `${PROCESSED_DATASET_URL}/${filename}`
-        );
+        const response = await getDatasetDetails(filename);
         setDataset(response.data);
       } catch (err) {
         setError(err.message);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 
-const TRAINING_URL = process.env.REACT_APP_GET_TRAINING_WITH_BENCHMARK_ID;
+// const TRAINING_URL = process.env.REACT_APP_GET_TRAINING_WITH_BENCHMARK_ID;
 
 const BenchmarkTraining = () => {
   const { benchmark_id } = useParams();
@@ -11,7 +11,7 @@ const BenchmarkTraining = () => {
 
   useEffect(() => {
     const fetchTraining = async () => {
-      const response = await axios.get(`${TRAINING_URL}/${benchmark_id}`);
+      const response = await getTrainingWithBenchmark(benchmark_id);
       setTraining(response.data);
       setLoading(false);
     };

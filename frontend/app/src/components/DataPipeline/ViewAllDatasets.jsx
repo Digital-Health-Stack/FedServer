@@ -23,13 +23,13 @@ const ViewAllDatasets = () => {
   const PAGE_SIZE = 20; // Number of datasets per page
   const endpoints = {
     raw: {
-      fetch: process.env.REACT_APP_RAW_DATASETS_ENDPOINT,
-      delete: process.env.REACT_APP_DELETE_RAW_ENDPOINT,
+      fetch: `${process.env.REACT_APP_SERVER_BASE_URL}/list-raw-datasets`,
+      delete: `${process.env.REACT_APP_SERVER_BASE_URL}/delete-raw-dataset-file`,
       overview: "/raw-dataset-overview",
     },
     processed: {
-      fetch: process.env.REACT_APP_PROCESSED_DATASETS_ENDPOINT,
-      delete: process.env.REACT_APP_DELETE_PROCESSED_ENDPOINT,
+      fetch: `${process.env.REACT_APP_SERVER_BASE_URL}/list-datasets`,
+      delete: `${process.env.REACT_APP_SERVER_BASE_URL}/delete-dataset-file`,
       overview: "/processed-dataset-overview",
     },
   };
