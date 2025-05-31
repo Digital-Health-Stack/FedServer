@@ -17,26 +17,6 @@ def reshape_image(img_array):
             # If already RGB or multi-channel, no reshaping needed
             return img_array.astype(np.float32)
         
-def load_parquet_with_arrays(df, expected_shape=(224, 224, 3), expected_dtype='float32'):
-    """Load Parquet file and reconstruct numpy arrays from serialized bytes."""
-    for col in df.columns:
-        # Check if column contains serialized arrays (bytes)
-        sample = df[col].iloc[0]
-        if isinstance(sample, bytes):  # Proceed if it's bytes
-            try:
-                # Validate byte size to match expected shape and dtype
-                expected_size = np.prod(expected_shape) * np.dtype(expected_dtype).itemsize
-                if len(sample) == expected_size:
-                    # Convert bytes to numpy array of the expected dtype and shape
-                    df[col] = df[col].apply(
-                        lambda x: np.frombuffer(x, dtype=expected_dtype).reshape(expected_shape)
-                    )
-                else:
-                    print(f"Warning: Sample size mismatch for column '{col}'")
-            except Exception as e:
-                print(f"Error processing column '{col}': {e}")
-    
-    return df
 
 def reshape_image(img_array):
     img_array = np.stack([np.stack(row, axis=0) for row in img_array], axis=0)
@@ -90,7 +70,6 @@ def process_parquet_and_save_xy(filename: str, session_id: str, output_column: l
     if not parquet_files:
         raise Exception("No parquet files found in the downloaded folder")
 
-    combined_df = load_parquet_with_arrays(combined_df)
     
     print(f"Combined DataFrame Shape: {combined_df.shape}")
     print(f"DataFrame Column Labels: {combined_df.columns.tolist()}")
