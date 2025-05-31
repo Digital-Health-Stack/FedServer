@@ -201,7 +201,7 @@ const Leaderboard = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                               <Link
-                                to={`http://13.202.101.168:5173/trainings/${session.session_id}`}
+                                to={`/trainings/${session.session_id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center px-2 py-1 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"

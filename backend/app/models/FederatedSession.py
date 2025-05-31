@@ -54,7 +54,7 @@ class FederatedSession(TimestampMixin, Base):
     federated_info = Column(JSON, nullable=False)
     admin_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     curr_round = Column(Integer, default=1, nullable=False)
-    max_round = Column(Integer, default=50, nullable=False)
+    max_round = Column(Integer, default=5, nullable=False)
     session_price = Column(Float, default= 0, nullable=True)
     training_status = Column(Integer, default=1, nullable=False)  
     # Wait Time

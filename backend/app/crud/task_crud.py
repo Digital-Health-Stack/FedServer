@@ -170,17 +170,22 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
             .filter(func.json_extract(FederatedSession.federated_info, '$.dataset_info.task_id') == task_id)\
             .options(joinedload(FederatedSession.results))\
             .all()
-
+        print(f"Total sessions fetched: {len(sessions)}")
         leaderboard = []
         
         for session in sessions:
-            # Get last round result
+            # # Get last round result
             last_round_result = next(
                 (r for r in session.results if r.round_number == session.max_round),
                 None
             )
-            if not last_round_result:
+            
+            if not last_round_result or not last_round_result.metrics_report:
                 continue
+            if last_round_result:
+                print(f">>> Selected Last Round Result: Round {last_round_result.round_number} | Metrics: {last_round_result.metrics_report}")
+            else:
+                print(">>> No result found for the max round.")
                 
             metric_value = last_round_result.metrics_report.get(task.metric)
             if metric_value is None:

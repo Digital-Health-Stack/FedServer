@@ -38,6 +38,10 @@ def load_parquet_with_arrays(df, expected_shape=(224, 224, 3), expected_dtype='f
     
     return df
 
+def reshape_image(img_array):
+    img_array = np.stack([np.stack(row, axis=0) for row in img_array], axis=0)
+    return img_array.astype(np.float32)
+
 def process_parquet_and_save_xy(filename: str, session_id: str, output_column: list):
     """
     Download and combine multiple parquet files from HDFS,
@@ -97,13 +101,16 @@ def process_parquet_and_save_xy(filename: str, session_id: str, output_column: l
     if missing_cols:
         raise Exception(f"Output column(s) not found in the DataFrame: {missing_cols}")
 
-    X = np.array([reshape_image(img) for img in combined_df['image']])
-    print(f"X shape: {X.shape}")
+    print(combined_df.dtypes)
+    print("Check head", combined_df.head())
     
+    X = np.array([reshape_image(img) for img in combined_df['image']])
     Y = combined_df[output_column].values
-    if len(Y.shape) == 1:
-        Y = Y.reshape(-1, 1)  # Ensure 2D shape
+    
+    print(f"X shape: {X.shape}")
     print(f"Y shape: {Y.shape}")
+    print(type(Y[0]),type(Y[0][0]))
+    print("Head Data Y: ", Y[:5])
 
     # Save to local_dir
     X_filename = os.path.join(local_dir, f"X_{session_id}.npy")
