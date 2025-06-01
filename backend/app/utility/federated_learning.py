@@ -407,7 +407,7 @@ async def send_training_signal_and_wait_for_clients_training(federated_manager: 
     federated_manager.log_event(session_data.id, f"Round {curr_round}:All clients completed local training")
 
 
-async def wait_for_all_clients_to_local_training(federated_manager: FederatedLearning, session_id: str,max_retries: int = 30, retry_interval: int = 5):
+async def wait_for_all_clients_to_local_training(federated_manager: FederatedLearning, session_id: str,max_retries: int = 720, retry_interval: int = 20):
     """
     Wait for all clients to submit their local training parameters.
     Returns True if all clients submitted, False if timed out.

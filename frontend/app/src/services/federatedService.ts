@@ -14,3 +14,7 @@ export const getLogsSession = (api: AxiosInstance, session_id) => {
 export const getTrainingResults = (api: AxiosInstance, session_id) => {
   return api.get(`training-result/${session_id}`);
 };
+
+export const getLeaderboardByTaskId = (api: AxiosInstance, task_id: number) => {
+  return api.get(`/leaderboard/${task_id}`);
+};

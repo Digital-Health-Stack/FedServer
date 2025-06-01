@@ -30,7 +30,6 @@ class Test:
             self.model_config = session_data.federated_info  
         self.metrics = self.model_config['model_info']['test_metrics'] # metrics to calculate in test
         self.round = 1
-        self.test_results = {}
         self.build_model()
 
     def build_model(self):
@@ -57,17 +56,16 @@ class Test:
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
-        Y_pred = self.model.predict(X_test)
         # calculate metrics from calculate_metrics function in metrics.py
-        round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
-        
+        # round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
+        metrics_report = self.model.evaluate(X_test, Y_test)
         with Session(engine) as db:
             test_result = FederatedTestResults(
                 session_id=self.session_id,
                 round_number=self.round,
-                metrics=round_results
+                metrics_report=metrics_report
             )
             db.add(test_result)
             db.commit()
         self.round += 1
-        return round_results
+        return metrics_report

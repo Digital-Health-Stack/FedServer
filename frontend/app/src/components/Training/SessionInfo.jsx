@@ -92,12 +92,12 @@ const SessionInfo = ({ data }) => {
             icon={<CpuChipIcon className="h-5 w-5 text-gray-400" />}
           />
           <InfoItem 
-            label="Standard Mean" 
+            label="Expected Value" 
             value={data?.federated_info?.expected_results?.std_mean} 
             icon={<ScaleIcon className="h-5 w-5 text-gray-400" />}
           />
           <InfoItem 
-            label="Standard Deviation" 
+            label="Expected Deviation" 
             value={data?.federated_info?.expected_results?.std_deviation} 
             icon={<ArrowPathIcon className="h-5 w-5 text-gray-400" />}
           />
