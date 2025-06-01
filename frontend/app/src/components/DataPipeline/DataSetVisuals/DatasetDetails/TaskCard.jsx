@@ -6,8 +6,14 @@ import {
   ScaleIcon,
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
+import { FolderPlusIcon, TrashIcon, XCircleIcon } from "@heroicons/react/24/solid";
 import { motion } from "framer-motion";
-import { listTasksFromDatasetId } from "../../../../services/privateService";
+import {
+  listTasksFromDatasetId,
+  createNewTask,
+  deleteTask,
+} from "../../../../services/privateService";
+import { toast } from "react-toastify";
 
 // Color palette for different tasks
 const TASK_COLORS = [
@@ -18,9 +24,36 @@ const TASK_COLORS = [
   "bg-pink-100 text-pink-800",
 ];
 
+const METRIC_OPTIONS = [
+  "Accuracy",
+  "F1 Score",
+  "Mean Absolute Error",
+  "Mean Squared Error",
+  "Precision",
+  "Recall",
+];
+
+const METRIC_MAP = {
+  "Accuracy": "accuracy",
+  "F1 Score": "f1",
+  "Mean Absolute Error": "mae",
+  "Mean Squared Error": "mse",
+  "Precision": "precision",
+  "Recall": "recall",
+};
+
 const Tasks = ({ datasetId }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    dataset_id: datasetId || "",
+    task_name: "",
+    metric: METRIC_OPTIONS[0],
+    std_mean: "",
+    std_dev: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -34,11 +67,204 @@ const Tasks = ({ datasetId }) => {
     fetchTasks();
   }, [datasetId]);
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleToggleForm = () => {
+    setShowForm((prev) => !prev);
+    if (!showForm) {
+      setForm({
+        dataset_id: datasetId || "",
+        task_name: "",
+        metric: METRIC_OPTIONS[0],
+        std_mean: "",
+        std_dev: "",
+      });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // Validation
+    if (!form.dataset_id || !form.task_name || !form.metric) {
+      toast.error("Please fill all required fields.");
+      return;
+    }
+    const stdMean = parseFloat(form.std_mean);
+    const stdDev = parseFloat(form.std_dev);
+    if (isNaN(stdMean) || isNaN(stdDev)) {
+      toast.error("std_mean and std_dev must be valid numbers.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const backendMetric = METRIC_MAP[form.metric];
+      const body = {
+        dataset_id: form.dataset_id,
+        task_name: form.task_name,
+        metric: backendMetric,
+        benchmark: {
+          [backendMetric]: {
+            std_mean: stdMean,
+            std_dev: stdDev,
+          },
+        },
+      };
+      await createNewTask(body);
+      toast.success("Task created successfully!");
+      setShowForm(false);
+      setForm({
+        dataset_id: datasetId || "",
+        task_name: "",
+        metric: METRIC_OPTIONS[0],
+        std_mean: "",
+        std_dev: "",
+      });
+      setLoading(true);
+      const response = await listTasksFromDatasetId(datasetId);
+      setTasks(response.data);
+    } catch (err) {
+      toast.error("Failed to create task.");
+    } finally {
+      setLoading(false);
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (task_id) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    setLoading(true);
+    try {
+      await deleteTask(task_id);
+      toast.success("Task deleted successfully!");
+      // Refresh the task list
+      const response = await listTasksFromDatasetId(datasetId);
+      setTasks(response.data);
+    } catch (err) {
+      toast.error("Failed to delete task.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-6 justify-between">
         <span className="text-2xl font-semibold">Associated Tasks</span>
+        <button
+          onClick={handleToggleForm}
+          className="bg-indigo-500 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-600 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+          type="button"
+        >
+          {showForm ? (
+            <XCircleIcon className="w-4 h-4" />
+          ) : (
+            <FolderPlusIcon className="w-4 h-4" />
+          )}
+          {showForm ? "Close" : "Add Task"}
+        </button>
       </div>
+
+      {showForm && (
+        <div className="mb-6 bg-gray-50 border border-indigo-500 rounded-lg p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Dataset ID
+                </label>
+                <input
+                  type="text"
+                  name="dataset_id"
+                  value={form.dataset_id}
+                  onChange={handleInputChange}
+                  className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Task Name
+                </label>
+                <input
+                  type="text"
+                  name="task_name"
+                  value={form.task_name}
+                  onChange={handleInputChange}
+                  className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  required
+                />
+              </div>
+              <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Metric
+                  </label>
+                  <select
+                    name="metric"
+                    value={form.metric}
+                    onChange={handleInputChange}
+                    className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    required
+                  >
+                    {METRIC_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Standard Mean
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="std_mean"
+                    value={form.std_mean}
+                    onChange={handleInputChange}
+                    className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 "
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Standard Deviation
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="std_dev"
+                    value={form.std_dev}
+                    onChange={handleInputChange}
+                    className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
+                disabled={submitting}
+              >
+                {submitting ? "Submitting..." : "Create Task"}
+              </button>
+              <button
+                type="button"
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-all"
+                onClick={handleToggleForm}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {loading ? (
         <div className="animate-pulse space-y-4">
@@ -90,14 +316,23 @@ const Tasks = ({ datasetId }) => {
                       </span>
                     </div>
                   </div>
-
-                  <Link
-                    to={`/history/${task.task_id}`}
-                    className={`text-sm flex items-center gap-1 px-4 py-2 rounded-lg ${TASK_COLORS[colorIndex]} hover:opacity-80`}
-                  >
-                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                    History
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/history/${task.task_id}`}
+                      className={`text-sm flex items-center gap-1 px-4 py-2 rounded-lg ${TASK_COLORS[colorIndex]} hover:opacity-80`}
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      History
+                    </Link>
+                    <button
+                      type="button"
+                      className={`text-sm flex items-center gap-1 px-4 py-2 rounded-lg bg-red-700 text-red-100 hover:opacity-80 cursor-pointer`}
+                      onClick={() => handleDelete(task.task_id)}
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Delete Task
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             );

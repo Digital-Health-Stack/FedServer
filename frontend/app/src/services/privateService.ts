@@ -43,6 +43,24 @@ export const createNewDataset = (data: {
   return HTTPService.post("/create-new-dataset", data);
 }
 
+export const createNewTask = (data: {
+  dataset_id: number;
+  task_name: string;
+  metric: string;
+  benchmark: {
+    [key: string]: {
+      std_mean: number;
+      std_dev: number;
+    };
+  };
+}) => {
+  return HTTPService.post("/create-task", data);
+}
+
+export const deleteTask = (task_id: number) => {
+  return HTTPService.delete(`/delete-task/${task_id}`);
+}
+
 export const preprocessDataset = (data: any) => {
   return HTTPService.post("/preprocess-dataset", data);
 }
