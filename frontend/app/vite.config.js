@@ -23,6 +23,7 @@ const environmentVariables = [
   "REACT_APP_GET_TRAINING_WITH_BENCHMARK_ID",
   "REACT_APP_TRAINING_DETAILS_URL",
   "REACT_APP_PRIVATE_SERVER_URL",
+  "REACT_APP_DELETE_DATAFILE_URL",
 ];
 
 export default defineConfig(({ mode }) => {
