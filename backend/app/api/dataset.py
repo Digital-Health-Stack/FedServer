@@ -360,6 +360,24 @@ async def preprocess_dataset_endpoint(request: Request):
     )
     return {"message": "Preprocessing initiated"}
 
+
+
+# Recent Uploads Management
 @dataset_router.get("/list-recent-uploads")   
 async def list_recent_uploads():
     return await hdfs_client.list_recent_uploads()
+
+@dataset_router.delete("/delete-recent-uploaded-file")
+async def delete_raw_dataset_file(
+    directory: str = Query(...),
+    filename: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    if not directory or not filename:
+        raise HTTPException(status_code=400, detail="Invalid Delete Request")
+    try:
+        await hdfs_client.delete_file_from_hdfs(directory, filename)
+        return {"message": "File deleted successfully"}
+    except Exception as e:
+        print("Error in deleting recent upload: ", str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
