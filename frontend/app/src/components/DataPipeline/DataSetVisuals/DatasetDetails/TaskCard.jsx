@@ -34,12 +34,12 @@ const METRIC_OPTIONS = [
 ];
 
 const METRIC_MAP = {
-  Accuracy: "Accuracy",
-  "F1 Score": "F1",
-  "Mean Absolute Error": "MAE",
-  "Mean Squared Error": "MSE",
-  Precision: "Precision",
-  Recall: "Recall",
+  "Accuracy": "accuracy",
+  "F1 Score": "f1",
+  "Mean Absolute Error": "mae",
+  "Mean Squared Error": "mse",
+  "Precision": "precision",
+  "Recall": "recall",
 };
 
 const Tasks = ({ datasetId }) => {
