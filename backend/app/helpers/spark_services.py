@@ -1,7 +1,9 @@
 from pyspark.sql import SparkSession
 from dotenv import load_dotenv
-from pyspark.sql.functions import col, count, mean, stddev, min, max, rand, lit, rank, when
-from pyspark.sql.types import NumericType, StringType
+from pyspark.sql.functions import col, size, count, expr, mean, stddev, min, max, rand, lit, rank, when
+from pyspark.sql.types import NumericType, StringType, ArrayType
+import numpy as np
+
 from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
 from helpers.hdfs_services import HDFSServiceManager  
 from helpers.aws_services import S3Services
@@ -92,6 +94,104 @@ class SparkSessionManager:
             self._session.stop()
             self._session = None
 
+    # def _get_overview(self, df):
+    #     """
+    #     Get an overview of the dataset given pyspark dataframe.
+    #     """
+    #     if not df:
+    #         return {"message": "Dataset not found."}
+        
+    #     overview = None
+    #     column_stats = []
+    #     for column in df.columns:
+    #         try:
+    #             column_expr = col(f"`{column}`") #useful if col name contains special characters or spaces
+    #             column_type = df.schema[column].dataType
+    #             stats = {"name": column, "type": str(column_type), "entries": df.select(column_expr).count()}
+                
+    #             # Common statistics for all columns 
+    #             stats["nullCount"] = df.filter(column_expr.isNull()).count()
+                
+    #             # Column specific statistics
+    #             NumberTypes = ["IntegerType()", "DoubleType()", "FloatType()", "LongType()"]
+    #             if str(column_type) in NumberTypes:
+    #                 summary = df.select(
+    #                     mean(column_expr).alias("mean"),
+    #                     stddev(column_expr).alias("stddev"),
+    #                     min(column_expr).alias("min"),
+    #                     max(column_expr).alias("max")
+    #                 ).first()
+    #                 stats.update({
+    #                     "mean": summary["mean"],
+    #                     "stddev": summary["stddev"],
+    #                     "min": summary["min"],
+    #                     "max": summary["max"],
+    #                     "uniqueCount": df.select(column_expr).distinct().count()
+    #                 })
+                    
+    #                 # Quartile calculation
+    #                 quantiles = df.approxQuantile(column, [0.25, 0.5, 0.75], 0.05)
+    #                 stats["quartiles"] = {
+    #                     "Q1": quantiles[0],
+    #                     "median": quantiles[1],
+    #                     "Q3": quantiles[2],
+    #                     "IQR": quantiles[2] - quantiles[0]
+    #                 }
+                    
+    #                 # Histogram binning
+    #                 min_val = summary["min"]
+    #                 max_val = summary["max"]
+    #                 bin_width = (max_val - min_val) / 10
+    #                 bins = [min_val + i * bin_width for i in range(11)]
+    #                 histogram = (
+    #                     df.select(column_expr)
+    #                     .rdd.flatMap(lambda x: x)
+    #                     .histogram(bins)
+    #                 )
+    #                 stats["histogram"] = {
+    #                     "bins": histogram[0],
+    #                     "counts": histogram[1]
+    #                 }
+
+    #             # String columns
+    #             elif "StringType" in str(column_type):
+    #                 stats["uniqueCount"] = df.select(column_expr).distinct().count()
+                    
+    #                 # Frequency distribution for top 10 categories
+    #                 top_categories = (
+    #                     df.groupBy(column_expr)
+    #                     .count()
+    #                     .orderBy(col("count").desc())
+    #                     .limit(10)
+    #                     .collect()
+    #                 )
+
+    #                 stats["topCategories"] = [
+    #                     {   "value": row[column][:50] + "..." if isinstance(row[column], str) and len(row[column]) > 50 else row[column],
+    #                         "count": row["count"]
+    #                     }
+    #                     for row in top_categories
+    #                 ]
+    #             elif "ArrayType" in str(column_type):
+                    
+    #                 pass
+
+    #             # Add the column stats to the list
+    #             column_stats.append(stats)
+    #         except Exception as e:
+    #             print(f"Error processing column {column}: {e}")
+    #             continue
+
+    #     # Dataset overview Dict
+    #     overview = {
+    #         "numRows": df.count(),
+    #         "numColumns": len(df.columns),
+    #         "columnStats": column_stats
+    #     }
+
+    #     return overview
+
+
     def _get_overview(self, df):
         """
         Get an overview of the dataset given pyspark dataframe.
@@ -103,9 +203,10 @@ class SparkSessionManager:
         column_stats = []
         for column in df.columns:
             try:
-                column_expr = col(f"`{column}`")
+                column_expr = col(f"`{column}`") #useful if col name contains special characters or spaces
                 column_type = df.schema[column].dataType
-                stats = {"name": column, "type": str(column_type), "entries": df.select(column_expr).count()}
+                num_rows = df.select(column_expr).count()
+                stats = {"name": column, "type": str(column_type), "entries": num_rows}
                 
                 # Common statistics for all columns 
                 stats["nullCount"] = df.filter(column_expr.isNull()).count()
@@ -170,6 +271,74 @@ class SparkSessionManager:
                         }
                         for row in top_categories
                     ]
+                
+                elif "ArrayType" in str(column_type):
+                    # Get first non-null entry
+                    row = df.select(column_expr).filter(col(column).isNotNull()).limit(1).first()
+                    arr = row[column] if row else None
+                
+                    # Infer shape
+                    shape = []
+                    temp = arr
+                    while isinstance(temp, list):
+                        shape.append(len(temp))
+                        if len(temp) == 0:
+                            break
+                        temp = temp[0] if isinstance(temp[0], list) else None
+                    stats["Shape"] = tuple(shape) if shape else None
+                    
+                
+                    # Length Distribution (top level)
+                    length_stats = df.select(size(col(column)).alias("len")) \
+                        .summary("count", "min", "max", "mean", "stddev") \
+                        .toPandas().set_index("summary").to_dict()["len"]
+                
+                    stats["LengthStats"] = {
+                        "min": int(length_stats.get("min", 0)),
+                        "max": int(length_stats.get("max", 0)),
+                        "mean": float(length_stats.get("mean", 0)),
+                        "std": float(length_stats.get("stddev", 0))
+                    }
+                
+                    # Check if inner elements are numeric — if so, calculate value statistics
+                    def flatten_all(x):
+                        """Recursively flatten list to 1D"""
+                        if isinstance(x, list):
+                            for i in x:
+                                yield from flatten_all(i)
+                        else:
+                            yield x
+                
+                    if row and isinstance(row[column], list):
+                        flat_sample = list(flatten_all(row[column]))
+                        if flat_sample and isinstance(flat_sample[0], (int, float)):
+                            # Only compute value-level stats if numeric
+                            # Use RDD for optimized distributed stat collection
+                            rdd = df.select(column_expr).rdd \
+                                .filter(lambda row: row[column] is not None) \
+                                .flatMap(lambda row: flatten_all(row[column]) if row[column] else [])
+                
+                            try:
+                                num_samples = int(np.minimum(num_rows * 0.2, 100000))
+                                stats["sampleSize"] = f"{int(np.minimum(num_rows * 0.2, 100000))} samples"
+                                sampled = rdd.take(num_samples)  # Safe sample
+                                
+                                if sampled:
+                                    arr_np = np.array(sampled)
+                                    stats["valueStats"] = {
+                                        "min": float(np.min(arr_np)),
+                                        "max": float(np.max(arr_np)),
+                                        "mean": float(np.mean(arr_np)),
+                                        "std": float(np.std(arr_np)),
+                                        "median": float(np.median(arr_np)),
+                                        "sparsity": float(np.mean(arr_np == 0))  # Fraction of zeros
+                                    }
+                            except Exception as e:
+                                stats["valueStats"] = None
+                        else:
+                            stats["valueStats"] = "Not numeric"
+                    else:
+                        stats["valueStats"] = "Not detected"
 
                 # Add the column stats to the list
                 column_stats.append(stats)
@@ -186,6 +355,7 @@ class SparkSessionManager:
 
         return overview
 
+
     async def create_new_dataset(self, filename, filetype):
         """
         Move the newly uploaded dataset to the HDFS raw datasets directory.
@@ -200,7 +370,7 @@ class SparkSessionManager:
                 if filetype == "csv":
                     print(f"Reading CSV file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}")
                     df = spark.read.csv(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}",header=True,inferSchema=True)
-                    write_filename = write_filename = filename.replace(".csv__PROCESSING__", ".parquet")
+                    write_filename = filename.replace(".csv__PROCESSING__", ".parquet")
                     # if you write without parquet extension, it will create a directory with the filename and store the data in it
                     df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}")
                     print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{write_filename}")

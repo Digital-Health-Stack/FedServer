@@ -9,15 +9,12 @@ import {
 } from "@heroicons/react/24/outline";
 import NumericColumn from "../ColumnComponents/NumericColumn";
 import StringColumn from "../ColumnComponents/StringColumn";
+import ArrayColumn from "../ColumnComponents/ArrayColumn";
 
 const columnComponents = {
-  "IntegerType()": NumericColumn,
-  "DoubleType()": NumericColumn,
-  "FloatType()": NumericColumn,
-  "LongType()": NumericColumn,
-  "StringType()": StringColumn,
-  // "DateType()": DateColumn,
-  // "BooleanType()": BooleanColumn,
+  Numeric: NumericColumn,
+  String: StringColumn,
+  Array: ArrayColumn,
 };
 
 const ColumnDetails = ({ columnStats }) => {
@@ -43,19 +40,27 @@ const ColumnDetails = ({ columnStats }) => {
   };
 
   if (columnStats.length === 0) return null;
-
   const currentColumn = columnStats[currentIndex];
-  const ColumnComponent = columnComponents[currentColumn.type];
+  let col_type = "Unknown";
+
+  if (currentColumn.type.includes("ArrayType")) {
+    col_type = "Array";
+  } else if (currentColumn.type.includes("StringType")) {
+    col_type = "String";
+  } else if (
+    currentColumn.type.includes("IntegerType") ||
+    currentColumn.type.includes("DoubleType") ||
+    currentColumn.type.includes("FloatType") ||
+    currentColumn.type.includes("LongType") ||
+    currentColumn.type.includes("ShortType")
+  ) {
+    col_type = "Numeric";
+  }
+
+  const ColumnComponent = columnComponents[col_type];
   const isPinned = pinnedColumns.some((col) => col.name === currentColumn.name);
 
   return (
-    // <div className="bg-white rounded-xl shadow-sm p-6">
-    //   <div className="flex items-center gap-2">
-    //     <InformationCircleIcon className="w-6 h-6 text-blue-600" />
-    //     <h2 className="text-xl font-semibold text-blue-800">Column Analysis</h2>
-    //     {/* <h1 className="text-2xl font-semibold">Dataset Overview</h1> */}
-    //   </div>
-
     <div className="bg-white rounded-xl shadow-sm p-2">
       <div className="p-4 border-b flex items-center justify-between bg-blue-50 rounded-t-xl">
         <div className="flex items-center gap-2">

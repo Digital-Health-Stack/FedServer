@@ -61,7 +61,8 @@ async def process_create_dataset(filename: str, filetype: str):
         dataset_overview = await spark_client.create_new_dataset(f"{filename}__PROCESSING__", filetype)
         description = f"Raw dataset created from {filename}"
 
-        dataset_obj = DatasetCreate(filename=filename, description=description, datastats=dataset_overview)
+        # newfilename = dataset_overview.get("filename", filename) 
+        dataset_obj = DatasetCreate(filename=dataset_overview['filename'], description=description, datastats=dataset_overview)
 
         # Create raw dataset entry
         crud_result = create_raw_dataset(db, dataset_obj)
