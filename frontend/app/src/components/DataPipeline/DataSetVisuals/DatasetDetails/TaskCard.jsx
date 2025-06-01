@@ -7,6 +7,7 @@ import {
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
+import { listTasksFromDatasetId } from "../../../../services/privateService";
 
 // Color palette for different tasks
 const TASK_COLORS = [
@@ -24,9 +25,7 @@ const Tasks = ({ datasetId }) => {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await axios.get(
-          `${process.env.REACT_APP_GET_TASKS_WITH_DATASET_ID}/${datasetId}`
-        );
+        const response = await listTasksFromDatasetId(datasetId);
         setTasks(response.data);
       } finally {
         setLoading(false);
