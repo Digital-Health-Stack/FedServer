@@ -54,3 +54,12 @@ export const listTasksFromDatasetId = (datasetId: number) => {
 export const getTrainingWithBenchmark = (benchmarkId: number) => {
   return HTTPService.get(`/get-training-with-benchmarkid/${benchmarkId}`);
 }
+
+export const deleteRecentUpload = (data: {
+  directory: string;
+  filename: string;
+}) => {
+  return HTTPService.delete("/delete-recent-uploaded-file", {
+    params: data,
+  });
+};
