@@ -1,12 +1,13 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 class FederatedSessionLogResponse(BaseModel):
     id: int
-    session_id: int
+    session_id: int  
     message: str
-    timestamp: datetime
-
-    # orm_mode was giving warning 
+    created_at: Optional[datetime]  
+    
     class Config:
-        from_attributes = True
+        orm_mode = True
+        allow_population_by_field_name = True

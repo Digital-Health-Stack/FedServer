@@ -67,19 +67,52 @@ class HDFSServiceManager:
                     return f"{size_in_bytes:.2f} {unit}"
                 size_in_bytes /= 1024.0
             return f"{size_in_bytes:.2f} PB"
+        
+        def get_directory_size(client, path):
+            total_size = 0
+            try:
+                entries = client.list(path, status=True)
+                for name, meta in entries:
+                    full_path = f"{path}/{name}"
+                    if meta['type'] == 'FILE':
+                        total_size += meta['length']
+                    elif meta['type'] == 'DIRECTORY':
+                        total_size += get_directory_size(client, full_path)
+            except Exception as e:
+                print(f"Error accessing path {path}: {e}")
+            return total_size
 
         def list_files(client):
             result = {'contents': {}, 'error': None}
             try:
-                files = client.list(f"/user/{HADOOP_USER_NAME}/{RECENTLY_UPLOADED_DATASETS_DIR}", status=True)
-                files = [{"filename": entry[0], "size": human_readable_size(entry[1]["length"])} for entry in files if entry[1]["type"] == "FILE"]
-                result['contents'] = {RECENTLY_UPLOADED_DATASETS_DIR: files}
+                base_path = f"/user/{HADOOP_USER_NAME}/{RECENTLY_UPLOADED_DATASETS_DIR}"
+                files = client.list(base_path, status=True)
+
+                formatted = []
+                for entry in files:
+                    filename = entry[0]
+                    meta = entry[1]
+                    full_path = f"{base_path}/{filename}"
+
+                    if meta["type"] == "FILE":
+                        size = meta["length"]
+                    elif meta["type"] == "DIRECTORY":
+                        size = get_directory_size(client, full_path)
+                    else:
+                        continue
+
+                    formatted.append({
+                        "filename": filename,
+                        "size": human_readable_size(size),
+                        "type": meta["type"]
+                    })
+
+                result['contents'] = {RECENTLY_UPLOADED_DATASETS_DIR: formatted}
                 return result
+
             except Exception as e:
                 print(f"Error listing files in HDFS: {e}")
                 raise Exception(f"Error listing files in HDFS: {e}")
-            
-
         return self._with_hdfs_client(list_files)
     
     async def testing_list_all_datasets(self):
@@ -94,7 +127,23 @@ class HDFSServiceManager:
 
         return self._with_hdfs_client(list_files)
 
+    def check_file_exists(self, hdfs_path):
+        """
+        Check if a file exists in HDFS.
+        """
+        def check(client):
+            try:
+                return client.status(hdfs_path, strict=False)
+            except Exception as e:
+                print(f"Error checking file existence in HDFS: {e}")
+                return False
 
+        try:
+            return self._with_hdfs_client(check)
+        except Exception as e:
+            print(f"Error checking file existence in HDFS: {e}")
+            raise Exception(f"Error checking file existence in HDFS: {e}")
+        
     async def rename_file_or_folder(self,source_path, destination_path):
         """
         Rename a file in HDFS.
@@ -109,6 +158,39 @@ class HDFSServiceManager:
         except Exception as e:
             print(f"Error renaming file in HDFS: {e}")
             raise Exception(f"Error renaming file in HDFS: {e}")
+    def download_folder_from_hdfs(self, hdfs_folder_path, local_destination_path):
+        """
+        Download a folder from HDFS to local filesystem
+        
+        Args:
+            hdfs_folder_path: Full path to the folder in HDFS
+            local_destination_path: Local path where folder should be downloaded
+        """
+        def download(client):
+            if not os.path.exists(local_destination_path):
+                os.makedirs(local_destination_path)
+                
+            # List all files in the HDFS folder
+            files = client.list(hdfs_folder_path, status=True)
+            
+            for file_entry in files:
+                hdfs_file_path = os.path.join(hdfs_folder_path, file_entry[0])
+                local_file_path = os.path.join(local_destination_path, file_entry[0])
+                
+                if file_entry[1]["type"] == "FILE":
+                    # Download the file
+                    client.download(hdfs_file_path, local_file_path)
+                    print(f"Downloaded {hdfs_file_path} to {local_file_path}")
+                else:
+                    # If it's a directory, create it locally and recurse
+                    os.makedirs(local_file_path, exist_ok=True)
+                    self.download_folder_from_hdfs(hdfs_file_path, local_file_path)
+        
+        try:
+            return self._with_hdfs_client(download)
+        except Exception as e:
+            print(f"Error downloading folder from HDFS: {e}")
+            raise Exception(f"Error downloading folder from HDFS: {e}")
 
     ########## Don't delete ################
     # this method is never used in the current implementation of FedData

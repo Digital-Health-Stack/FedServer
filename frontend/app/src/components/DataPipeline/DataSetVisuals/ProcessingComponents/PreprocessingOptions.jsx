@@ -56,12 +56,24 @@ const PreprocessingOptions = ({
     ],
   };
 
-  const currentOptions =
-    columnType === "all_columns"
-      ? options.all_columns
-      : ["IntegerType()", "FloatType()", "DoubleType()"].includes(columnType)
-      ? options.numeric
-      : options.string;
+  // 1) Map the column type to a category:
+  const typeToCategory = {
+    all_columns: "all_columns",
+    "IntegerType()": "numeric",
+    "FloatType()": "numeric",
+    "DoubleType()": "numeric",
+    "StringType()": "string",
+    // later add other types here...
+  };
+
+  // 2) Pick the right bucket or default to []:
+  const category = typeToCategory[columnType];
+  const currentOptions = category ? options[category] : [];
+
+  // 3) (Optional) warn if it’s truly unknown:
+  if (!category) {
+    console.warn(`No operations defined for columnType "${columnType}"`);
+  }
 
   const [selectedOperation, setSelectedOperation] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

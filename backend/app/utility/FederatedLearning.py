@@ -1,19 +1,124 @@
 from datetime import datetime
 from operator import or_
-from typing import Dict, List
+from typing import Dict, List,  Optional, Literal
 from schema import FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select
-from models.FederatedSession import FederatedSession, FederatedSessionClient, GlobalModelWeights, FederatedRoundClientSubmission, FederatedSessionLog
+from models.FederatedSession import FederatedSession, FederatedSessionClient, FederatedRoundClientSubmission, FederatedSessionLog
 import numpy as np
 from models import User as UserModel
 from sqlalchemy.orm import Session, joinedload
 from utility.db import engine
 import json
+from fastapi import HTTPException
+import multiprocessing
+from typing import Dict
+import time
+from pathlib import Path
+import shutil
 
 
 class FederatedLearning:
     def __init__(self):
-        self.federated_sessions = {}
+        self.processes: Dict[int, multiprocessing.Process] = {}
+        self.process_start_times: Dict[int, float] = {}
+        
+    def add_process(self, session_id: int, process: multiprocessing.Process):
+        """
+        Add a process to the process manager for a specific session.
+        
+        Args:
+            session_id (int): The ID of the federated session
+            process (multiprocessing.Process): The process to manage
+        """
+        self.processes[session_id] = process
+        self.process_start_times[session_id] = time.time()
+        self.log_event(session_id, f"Added process {process.pid} for session")
+        
+    
+    def get_process(self, session_id: int) -> multiprocessing.Process:
+        """
+        Get the process for a specific session.
+        
+        Args:
+            session_id (int): The ID of the federated session
+            
+        Returns:
+            multiprocessing.Process: The process for the session
+        """
+        return self.processes.get(session_id)
+    
+    def get_process_status(self, session_id: int) -> Dict:
+        """
+        Get status of a federated learning process using only stdlib
+        
+        Returns:
+            Dict: {
+                "exists": bool,
+                "alive": bool,
+                "pid": Optional[int],
+                "status": Literal["running", "stopped", "unknown"],
+                "start_time": Optional[str],
+                "exit_code": Optional[int],
+                "duration_seconds": Optional[float]
+            }
+        """
+        process = self.get_process(session_id)
+        if not process:
+            return {"exists": False}
+        
+        is_alive = process.is_alive()
+        status_info = {
+            "exists": True,
+            "pid": process.pid,
+            "alive": is_alive,
+            "status": "running" if is_alive else "stopped",
+            "start_time": datetime.fromtimestamp(
+                self.process_start_times.get(session_id, time.time())
+            ).isoformat(),
+            "exit_code": None if is_alive else process.exitcode,
+            "duration_seconds": round(time.time() - self.process_start_times.get(session_id, time.time()), 2)
+        }
+        return status_info
+    
+    def get_combined_session_status(self, session_id: int, db: Session) -> Dict:
+        """
+        Get complete status including both session and process info
+        
+        Args:
+            session_id: ID of the federated session
+            db: Database session
+            
+        Returns:
+            Dict: Combined status information
+        """
+        session = self.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get basic session info
+        session_status = {
+            "session_id": session_id,
+            "training_status": session.training_status,
+            "current_round": session.curr_round,
+            "max_rounds": session.max_round,
+            "created_at": session.createdAt.isoformat(),
+            "updated_at": session.updatedAt.isoformat() if session.updatedAt else None
+        }
+        
+        # Add process info
+        session_status["process"] = self.get_process_status(session_id)
+        
+        # Add recent logs (last 5)
+        logs = db.query(FederatedSessionLog)\
+                .filter(FederatedSessionLog.session_id == session_id)\
+                .order_by(FederatedSessionLog.createdAt.desc())\
+                .limit(5)\
+                .all()
+        
+        session_status["recent_logs"] = [log.message for log in logs]
+        
+        return session_status
+    
     
     # Every session has a session_id also in future we can add a token and id
     def create_federated_session(self, user: UserModel, federated_info: FederatedLearningInfo, ip, db:Session) :
@@ -35,14 +140,18 @@ class FederatedLearning:
                           Status values: 1 (not responded), 2 (accepted), 3 (rejected)
         - training_status: 1 (server waiting for all clients), 2 (training starts)
         """
+        
         federated_session = FederatedSession(
             federated_info=federated_info.__dict__,
             admin_id = user.id,
         )
-            
-        db.add(federated_session)
-        db.commit()
-        db.refresh(federated_session)
+        try:
+            db.add(federated_session)
+            db.commit()
+            db.refresh(federated_session)
+        except Exception as e:
+            db.rollback()  # Rollback in case of any error
+            raise HTTPException(status_code=500, detail=f"Failed to create federated session: {str(e)}")    
             
         federated_session_client = FederatedSessionClient(
             user_id = user.id,
@@ -51,14 +160,6 @@ class FederatedLearning:
             ip = ip
         )
         db.add(federated_session_client)
-        db.commit()
-        # Create the global model weight for the session
-        global_model_weight = GlobalModelWeights(
-            session_id=federated_session.id,
-            weights={},  # You can initialize this as an empty dictionary or with some default weights
-            created_at=datetime.now()
-        )
-        db.add(global_model_weight)
         db.commit()
         return federated_session
 
@@ -73,7 +174,6 @@ class FederatedLearning:
         Returns:
         - FederatedLearningInfo: Information about the federated learning session.
         """
-        # return self.federated_sessions[session_id]["federated_info"]
         
         with Session(engine) as db:
             stmt = select(FederatedSession, FederatedSession.clients).where(FederatedSession.id == federated_session_id).options(joinedload(FederatedSession.clients))
@@ -90,7 +190,8 @@ class FederatedLearning:
             stmt = select(
                 FederatedSession.id,
                 FederatedSession.training_status,
-                FederatedSession.federated_info
+                FederatedSession.federated_info,
+                FederatedSession.createdAt
             ).order_by(desc(FederatedSession.createdAt))
         
             federated_sessions = db.execute(stmt).all()
@@ -122,23 +223,19 @@ class FederatedLearning:
         Clears client parameters for a specific session and round
         by deleting related FederatedRoundClientSubmission and ClientModelWeight entries.
         """
-        with Session(engine) as db:
-            # Fetch all submissions for the current round
-            submissions = db.query(FederatedRoundClientSubmission).filter_by(
-                session_id=session_id,
-                round_number=round_number
-            ).all()
-
-            if not submissions:
-                print(f"No client submissions found for session {session_id} and round {round_number}. Nothing to clear.")
-                return
-
-            # Delete all fetched submissions (weights will cascade delete)
-            for submission in submissions:
-                db.delete(submission)
-
-            db.commit()
-            print(f"Cleared all client parameters for session {session_id} and round {round_number}.")
+        # First clear filesystem parameters
+        local_dir = Path(f"tmp/parameters/{session_id}/local")
+        if local_dir.exists():
+            try:
+                shutil.rmtree(local_dir)
+                print(f"Successfully deleted all local parameters for session {session_id}")
+                return True
+            except Exception as e:
+                print(f"Failed to delete {local_dir}: {str(e)}")
+                return False
+        else:
+            print(f"Local directory {local_dir} doesn't exist - nothing to delete")
+            return False
 
     def aggregate_weights_fedAvg_Neural(self, session_id: str, round_number: int):
         """
@@ -154,84 +251,108 @@ class FederatedLearning:
         # }
         # ========================================================================================================
         """
-        # Retrieve client parameters
-        with Session(engine) as db:
-            # Fetch all client submissions for this round
-            submissions = db.query(FederatedRoundClientSubmission).filter_by(
-                session_id=session_id,
-                round_number=round_number
-            ).all()
-            if not submissions:
-                raise ValueError("No client submissions found for this round.")
-            
-            # Initialize a dictionary to hold the aggregated sums of parameters
-            num_clients = len(submissions)
-            aggregated_sums = {}
-
-            def initialize_aggregated_sums(param):
-                if isinstance(param, list):
-                    return [initialize_aggregated_sums(p) for p in param]
-                else:
-                    return np.zeros_like(param)
-
-            def sum_parameters(aggregated, param):
-                if isinstance(param, list):
-                    for i in range(len(param)):
-                        aggregated[i] = sum_parameters(aggregated[i], param[i])
-                    return aggregated
-                else:
-                    return aggregated + np.array(param)
-
-            def average_parameters(aggregated, count):
-                if isinstance(aggregated, list):
-                    return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
-                else:
-                    return (aggregated / count).tolist()
-
-            for submission in submissions:
-                weights = submission.model_weights.weights
-                if not aggregated_sums:
-                    for key in weights:
-                        aggregated_sums[key] = initialize_aggregated_sums(weights[key])
-
-                for key in weights:
-                    aggregated_sums[key] = sum_parameters(aggregated_sums[key], weights[key])
-
-            # Average the aggregated sums
-            for key in aggregated_sums:
-                aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
-
-            print("Aggregated Parameters after FedAvg:",
-                  {k: (type(v), len(v) if isinstance(v, list) else 'N/A') for k, v in aggregated_sums.items()})
-
-            # Replace the old GlobalModelWeights if it exists
-            global_weight = db.query(GlobalModelWeights).filter_by(session_id=session_id).first()
-            if global_weight:
-                global_weight.weights = aggregated_sums
-                global_weight.updated_at = datetime.now()  # Add this field if not present already
-                print(f"Updated existing global weight for session {session_id}")
+        
+        
+        # Define paths
+        base_dir = Path(f"tmp/parameters/{session_id}")
+        local_dir = base_dir / "local"
+        global_dir = base_dir / "global"
+        global_weights_file = global_dir / "global_weights.json"
+        # Create global directory if it doesn't exist
+        global_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Get all client parameter files for this round
+        client_files = list(local_dir.glob("*.json"))
+        client_files = [f for f in client_files if not f.name.endswith("_metadata.json")]
+        
+        if not client_files:
+            print("No client submissions found for this round.")
+            return
+        
+        # Initialize aggregated sums
+        aggregated_sums = None
+        num_clients = 0
+        
+        
+        def initialize_aggregated_sums(param):
+            if isinstance(param, list):
+                return [initialize_aggregated_sums(p) for p in param]
             else:
-                global_weight = GlobalModelWeights(
-                    session_id=session_id,
-                    weights=aggregated_sums
-                )
-                db.add(global_weight)
-                print(f"Created new global weight for session {session_id}")
-            db.commit()
+                return np.zeros_like(param)
 
-            # Save aggregated_sums dictionary into a text file with appending
-            file_path = "aggregated_sums.txt"  # Specify the desired file path and name
+        def sum_parameters(aggregated, param):
+            if isinstance(param, list):
+                for i in range(len(param)):
+                    aggregated[i] = sum_parameters(aggregated[i], param[i])
+                return aggregated
+            else:
+                return aggregated + np.array(param)
 
-            # Convert the dictionary to a JSON string
-            aggregated_sums_str = json.dumps(aggregated_sums, indent=4)  # Format with indent for better readability
+        def average_parameters(aggregated, count):
+            if isinstance(aggregated, list):
+                return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
+            else:
+                return (aggregated / count).tolist()
 
-            # Append aggregated_sums to the file with a separator       
-            with open(file_path, "a") as file:  # Use "a" mode to append
-                file.write("\n---\n")  # Add a separator before each new entry
-                file.write(aggregated_sums_str)  # Append the formatted JSON string
-                file.write("\n")  # Add a newline after the entry for readability
+        # for submission in submissions:
+        #     weights = submission.model_weights.weights
+        #     if not aggregated_sums:
+        #         for key in weights:
+        #             aggregated_sums[key] = initialize_aggregated_sums(weights[key])
 
-            print(f"Aggregated sums have been appended to {file_path} with a separator.")
+        #     for key in weights:
+        #         aggregated_sums[key] = sum_parameters(aggregated_sums[key], weights[key])
+        
+        
+        # Process each client's parameters
+        for client_file in client_files:
+            # Read client parameters
+            with open(client_file, 'r') as f:
+                client_weights = json.load(f)
+            
+            # Read metadata to verify round number
+            metadata_file = local_dir / f"{client_file.stem}_metadata.json"
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+            
+            if metadata.get('round_number') != round_number:
+                continue  # Skip if not for current round
+            
+            num_clients += 1
+            
+            # Initialize aggregated_sums structure on first client
+            if aggregated_sums is None:
+                aggregated_sums = {}
+                for key in client_weights:
+                    aggregated_sums[key] = initialize_aggregated_sums(client_weights[key])
+            
+            # Sum the parameters
+            for key in client_weights:
+                aggregated_sums[key] = sum_parameters(aggregated_sums[key], client_weights[key])
+        
+        if num_clients == 0:
+            print("No valid client submissions found for this round.")
+            return
+        # Average the parameters
+        for key in aggregated_sums:
+            aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
+        
+        # Save global weights to file
+        with open(global_weights_file, 'w') as f:
+            json.dump(aggregated_sums, f)
+        
+        # Optionally, save metadata about the aggregation
+        aggregation_metadata = {
+            "session_id": session_id,
+            "round_number": round_number,
+            "num_clients": num_clients,
+            "aggregated_at": datetime.utcnow().isoformat()
+        }
+        
+        with open(global_dir / "aggregation_metadata.json", 'w') as f:
+            json.dump(aggregation_metadata, f)
+        return
+
 
     def log_event(self, session_id: int,message: str):
         with Session(engine) as db:
@@ -251,17 +372,15 @@ class FederatedLearning:
         Returns:
             dict or None: The latest global weights as a dictionary, or None if not found.
         """
-        # Retrieve client parameters
-        with Session(engine) as db:
-            weights_entry = (
-                db.query(GlobalModelWeights)
-                .filter(GlobalModelWeights.session_id == session_id)
-                .order_by(GlobalModelWeights.created_at.desc())
-                .first()
-            )
-
-            if weights_entry and weights_entry.weights:
-                return weights_entry.weights
-        return None
-
+        global_weights_path = Path(f"tmp/parameters/{session_id}/global/global_weights.json")
+        if not global_weights_path.exists():
+            print("File Federated Learning: Global Weights not found!!")
+            return None
+        try:
+            with open(global_weights_path, 'r') as f:
+                weights = json.load(f)
+            return weights
+        except (IOError, json.JSONDecodeError) as e:
+            print(f"Error reading global weights: {str(e)}")
+            return None
 

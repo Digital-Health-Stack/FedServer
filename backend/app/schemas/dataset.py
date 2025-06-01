@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional,Any
+from typing import Optional,Any, List
 
 class DatasetCreate(BaseModel):
     filename: str
@@ -19,18 +19,10 @@ class TaskCreate(BaseModel):
     dataset_id: int
     task_name: str
     metric: str
-    temp_benchmark: Optional[Any] = None
+    benchmark: Optional[dict] = None
 
 class TaskResponse(TaskCreate):
     task_id: int
-
-class BenchmarkCreate(BaseModel):
-    task_id: int
-    metric_value: float
-    training_id: int
-
-class BenchmarkResponse(BenchmarkCreate):
-    benchmark_id: int
 
 class RawDatasetListResponse(BaseModel):
     dataset_id: int
@@ -46,3 +38,22 @@ class DatasetListResponse(BaseModel):
 class Operation(BaseModel):
     column: str
     operation: str
+
+class SessionLeaderboardEntry(BaseModel):
+    session_id: int
+    organisation_name: str
+    model_name: str
+    total_rounds: int
+    metric_value: float
+    meets_benchmark: Optional[bool]
+    # metric_name: str
+    # all_metrics: Dict[str, float]
+    created_at: Optional[str]
+    admin_username: str
+
+class LeaderboardResponse(BaseModel):
+    task_name: str
+    metric: str
+    benchmark: Optional[float]
+    created_at: Optional[str]
+    sessions: List[SessionLeaderboardEntry]

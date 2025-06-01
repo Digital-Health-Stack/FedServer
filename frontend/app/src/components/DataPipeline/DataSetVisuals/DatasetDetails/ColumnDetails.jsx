@@ -1,62 +1,43 @@
-// import React from "react";
-// import NumericColumn from "../ColumnComponents/NumericColumn.jsx";
-// import StringColumn from "../ColumnComponents/StringColumn.jsx";
-
-// const ColumnDetails = ({ columnStats }) => {
-//   return (
-//     <div className="p-6 bg-gray-100 min-h-screen">
-//       <h1 className="text-3xl font-bold mb-6">Column Details</h1>
-//       <div className="space-y-6">
-//         {columnStats.map((col, index) => (
-//           <div
-//             key={col.name}
-//             className="border rounded-lg shadow-md bg-white p-4"
-//           >
-//             {/* Column Banner */}
-//             <div className="flex justify-between items-center mb-4">
-//               <div>
-//                 <h3 className="font-bold text-xl text-gray-800">
-//                   Column {index + 1}: {col.name}
-//                 </h3>
-//                 <p className="text-sm text-gray-600">Type: {col.type}</p>
-//               </div>
-//             </div>
-
-//             {/* Render Numeric or String Column Details */}
-//             {["IntegerType", "DoubleType", "FloatType", "LongType"].includes(
-//               col.type
-//             ) && <NumericColumn column={col} />}
-//             {col.type === "StringType" && <StringColumn column={col} />}
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ColumnDetails;
-
 import React, { useState } from "react";
-import NumericColumn from "../ColumnComponents/NumericColumn.jsx";
-import StringColumn from "../ColumnComponents/StringColumn.jsx";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  BookmarkIcon,
+  BookmarkSlashIcon,
+  ChartBarIcon,
+  ArrowsPointingInIcon,
+} from "@heroicons/react/24/outline";
+import NumericColumn from "../ColumnComponents/NumericColumn";
+import StringColumn from "../ColumnComponents/StringColumn";
+
+const columnComponents = {
+  "IntegerType()": NumericColumn,
+  "DoubleType()": NumericColumn,
+  "FloatType()": NumericColumn,
+  "LongType()": NumericColumn,
+  "StringType()": StringColumn,
+  // "DateType()": DateColumn,
+  // "BooleanType()": BooleanColumn,
+};
 
 const ColumnDetails = ({ columnStats }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pinnedColumns, setPinnedColumns] = useState([]);
+  const [isExpanded, setIsExpanded] = useState(true);
 
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % columnStats.length);
-  };
-
-  const handlePrev = () => {
+  const handleNavigation = (direction) => {
     setCurrentIndex(
-      (prev) => (prev - 1 + columnStats.length) % columnStats.length
+      (prev) => (prev + direction + columnStats.length) % columnStats.length
     );
   };
 
   const handlePin = () => {
     const currentColumn = columnStats[currentIndex];
-    if (!pinnedColumns.some((col) => col.name === currentColumn.name)) {
+    if (pinnedColumns.some((col) => col.name === currentColumn.name)) {
+      setPinnedColumns(
+        pinnedColumns.filter((col) => col.name !== currentColumn.name)
+      );
+    } else {
       setPinnedColumns([...pinnedColumns, currentColumn]);
     }
   };
@@ -64,127 +45,145 @@ const ColumnDetails = ({ columnStats }) => {
   if (columnStats.length === 0) return null;
 
   const currentColumn = columnStats[currentIndex];
+  const ColumnComponent = columnComponents[currentColumn.type];
+  const isPinned = pinnedColumns.some((col) => col.name === currentColumn.name);
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Column Details</h1>
+    // <div className="bg-white rounded-xl shadow-sm p-6">
+    //   <div className="flex items-center gap-2">
+    //     <InformationCircleIcon className="w-6 h-6 text-blue-600" />
+    //     <h2 className="text-xl font-semibold text-blue-800">Column Analysis</h2>
+    //     {/* <h1 className="text-2xl font-semibold">Dataset Overview</h1> */}
+    //   </div>
 
-      {/* Carousel Section */}
-      <div className="relative mb-8">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={handlePrev}
-            className="p-2 hover:bg-gray-200 rounded-full"
-          >
-            <svg
-              className="w-8 h-8"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="bg-white rounded-xl shadow-sm p-2">
+      <div className="p-4 border-b flex items-center justify-between bg-blue-50 rounded-t-xl">
+        <div className="flex items-center gap-2">
+          <ChartBarIcon className="w-6 h-6 text-blue-600" />
+          <h2 className="text-xl font-semibold text-blue-800">
+            Column Analysis
+          </h2>
+        </div>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-1 hover:bg-blue-100 rounded-full"
+        >
+          <ArrowsPointingInIcon className="w-5 h-5 text-blue-600" />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => handleNavigation(-1)}
+              className="p-2 hover:bg-gray-100 rounded-full"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
+              <ChevronLeftIcon className="w-6 h-6 text-gray-600" />
+            </button>
 
-          <div className="flex-1 mx-4">
-            <div className="border rounded-lg shadow-md bg-white p-4">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="font-bold text-xl text-gray-800">
-                    Column {currentIndex + 1}: {currentColumn.name}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Type: {currentColumn.type}
-                  </p>
-                </div>
-                <button
-                  onClick={handlePin}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                  title="Pin column"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    />
-                  </svg>
-                </button>
+            <select
+              value={currentColumn.name}
+              onChange={(e) => {
+                const index = columnStats.findIndex(
+                  (col) => col.name === e.target.value
+                );
+                setCurrentIndex(index);
+              }}
+              className="flex-1 p-2 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {columnStats.map((col, index) => (
+                <option key={col.name} value={col.name}>
+                  {`${index + 1}. ${col.name} (${col.type.replace(
+                    "Type()",
+                    ""
+                  )})`}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => handleNavigation(1)}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <ChevronRightIcon className="w-6 h-6 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="bg-gray-50 rounded-xl p-4 mb-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="font-medium text-gray-900 text-lg">
+                  {currentColumn.name}
+                </h3>
+                <p className="text-sm text-gray-500">{currentColumn.type}</p>
               </div>
+              <button
+                onClick={handlePin}
+                className={`p-1 rounded-full ${
+                  isPinned ? "text-blue-600" : "text-gray-400"
+                }`}
+              >
+                {isPinned ? (
+                  <BookmarkSlashIcon className="w-6 h-6 fill-current" />
+                ) : (
+                  <BookmarkIcon className="w-6 h-6" />
+                )}
+              </button>
+            </div>
 
-              {[
-                "IntegerType()",
-                "DoubleType()",
-                "FloatType()",
-                "LongType()",
-              ].includes(currentColumn.type) && (
-                <NumericColumn column={currentColumn} />
-              )}
-              {currentColumn.type === "StringType()" && (
-                <StringColumn column={currentColumn} />
+            <div className="border-t pt-4">
+              {ColumnComponent ? (
+                <ColumnComponent column={currentColumn} />
+              ) : (
+                <div className="text-gray-500 text-sm p-2">
+                  No visualization component available for {currentColumn.type}
+                </div>
               )}
             </div>
           </div>
 
-          <button
-            onClick={handleNext}
-            className="p-2 hover:bg-gray-200 rounded-full"
-          >
-            <svg
-              className="w-8 h-8"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Pinned Columns Section */}
-      {pinnedColumns.length > 0 && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold mb-4">Pinned Columns</h2>
-          {pinnedColumns.map((col, index) => (
-            <div
-              key={col.name}
-              className="border rounded-lg shadow-md bg-white p-4"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="font-bold text-xl text-gray-800">
-                    Pinned Column {index + 1}: {col.name}
-                  </h3>
-                  <p className="text-sm text-gray-600">Type: {col.type}</p>
-                </div>
-              </div>
-
-              {[
-                "IntegerType()",
-                "DoubleType()",
-                "FloatType()",
-                "LongType()",
-              ].includes(col.type) && <NumericColumn column={col} />}
-              {col.type === "StringType()" && <StringColumn column={col} />}
+          {pinnedColumns.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-700">
+                Pinned Columns
+              </h3>
+              {pinnedColumns.map((col) => {
+                const PinnedComponent = columnComponents[col.type];
+                return (
+                  <div key={col.name} className="bg-gray-50 rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <div>
+                        <h4 className="font-medium text-gray-900">
+                          {col.name}
+                        </h4>
+                        <p className="text-sm text-gray-500">{col.type}</p>
+                      </div>
+                      <button
+                        onClick={() =>
+                          setPinnedColumns(
+                            pinnedColumns.filter((c) => c.name !== col.name)
+                          )
+                        }
+                        className="text-red-400 hover:text-red-600"
+                      >
+                        <BookmarkSlashIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="border-t pt-4">
+                      {PinnedComponent ? (
+                        <PinnedComponent column={col} />
+                      ) : (
+                        <div className="text-gray-500 text-sm p-2">
+                          No visualization component available for {col.type}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

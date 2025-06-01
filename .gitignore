@@ -1,9 +1,10 @@
 __pycache__
 /backend/app/storage/database.db
 /frontend/node_modules
+/backend/app/tmp
 
-backend/app/storage/database.db
 frontend/node_modules
+frontend/app/.env
 
 work.md
 global_test_data
@@ -11,8 +12,6 @@ global_parameters.txt
 testing_parameters.txt
 aggregated_sums.txt
 venv
-/storage/database.db
-backend/app/storage/database.db
 .env
 testing.py 
 execute.py
@@ -25,6 +24,8 @@ backend/app/aggregated_sums.txt
 create_data.py
 ./create_data.py
 /logs
+/.env
+
 
 
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from schemas.dataset import TaskCreate
 from utility.db import get_db
-from schemas.dataset import (TaskCreate,TaskResponse,)
+from schemas.dataset import (TaskCreate,TaskResponse,LeaderboardResponse)
 
 from crud.task_crud import (
     create_task,
@@ -11,6 +11,7 @@ from crud.task_crud import (
     get_tasks_by_dataset_name,
     get_task_by_id,
     update_task_by_id,
+    get_leaderboard_by_task_id
 )
 
 from dotenv import load_dotenv
@@ -82,3 +83,23 @@ def update_existing_task(task_id: int, task: TaskCreate, db: Session = Depends(g
     except Exception as e:
         print(f"Error updating task: {e}")
         return {"error": str(e)}
+  
+# , response_model=LeaderboardResponse  
+@task_router.get("/leaderboard/{task_id}")
+def get_task_leaderboard(
+    task_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get leaderboard for a specific task including benchmark comparison
+    
+    Returns:
+    - task_name: Name of the task
+    - metric: Primary metric for evaluation
+    - benchmark: Benchmark value for the metric
+    - sessions: List of sessions with their performance data
+    """
+    result = get_leaderboard_by_task_id(db, task_id)
+    # if "error" in result:
+    #     raise HTTPException(status_code=404, detail=result["error"])
+    return result

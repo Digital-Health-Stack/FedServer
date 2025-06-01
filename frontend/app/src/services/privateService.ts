@@ -14,3 +14,13 @@ export const getTransferredDataOverview = (transferId: number) => {
 export const approveDataTransfer = (transferId: number) => {
   return HTTPService.post(`/approve-transferred-data/${transferId}`);
 };
+
+export const getRawDatasets = (skip = 0, limit = 5) => {
+  return HTTPService.get(
+    `/list-raw-datasets?skip=${skip}&limit=${limit}`
+  );
+};
+
+export const getProcessedDatasets = (skip = 0, limit = 5) => {
+  return HTTPService.get(`/list-datasets?skip=${skip}&limit=${limit}`);
+};

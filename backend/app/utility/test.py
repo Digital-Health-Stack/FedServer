@@ -14,6 +14,7 @@ def save_weights_to_file(weights: dict, filename: str):
 
     with open(filename, 'a') as f:
         json.dump(weights, f, indent=4)
+        f.write("\n\n")  # optional: separate rounds visually
         
 class Test:
     def __init__(self, session_id):
@@ -29,7 +30,6 @@ class Test:
             self.model_config = session_data.federated_info  
         self.metrics = self.model_config['model_info']['test_metrics'] # metrics to calculate in test
         self.round = 1
-        self.test_results = {}
         self.build_model()
 
     def build_model(self):
@@ -44,29 +44,28 @@ class Test:
             raise ValueError("Model not built yet...")
         print("Testing model...")
 
-        weights_filename = os.path.join("logs", f"weights_round_{self.round}.json")
-        save_weights_to_file(updated_weights, weights_filename)
+        # weights_filename = os.path.join("logs", f"weights_round_{self.round}.json")
+        # save_weights_to_file(updated_weights, weights_filename)
         
         self.model.update_parameters(updated_weights)
             
         # read data from file
         try:
-            X_test = np.load(os.path.join("data", "X_1.npy"))
-            Y_test = np.load(os.path.join("data", "Y_1.npy"))
+            X_test = np.load(os.path.join("data", f"X_{self.session_id}.npy"))
+            Y_test = np.load(os.path.join("data", f"Y_{self.session_id}.npy"))
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
-        Y_pred = self.model.predict(X_test)
         # calculate metrics from calculate_metrics function in metrics.py
-        round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
-        
+        # round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
+        metrics_report = self.model.evaluate(X_test, Y_test)
         with Session(engine) as db:
             test_result = FederatedTestResults(
                 session_id=self.session_id,
                 round_number=self.round,
-                metrics=round_results
+                metrics_report=metrics_report
             )
             db.add(test_result)
             db.commit()
         self.round += 1
-        return round_results
+        return metrics_report

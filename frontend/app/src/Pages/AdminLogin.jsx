@@ -36,7 +36,6 @@ const LoginForm = () => {
         username: formData.clientName,
         password: formData.password,
       };
-
       const { data } = await login(credentials);
       console.log("tokens retunred from login", data);
       authLogin({

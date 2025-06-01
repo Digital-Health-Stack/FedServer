@@ -37,6 +37,7 @@ const ViewAllDatasets = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      console.log("Checkpoint 1: ")
       const response = await axios.get(endpoints[selectedFolder].fetch, {
         params: { skip: (currentPage - 1) * PAGE_SIZE, limit: PAGE_SIZE },
       });

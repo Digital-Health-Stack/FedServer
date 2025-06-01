@@ -7,6 +7,7 @@ load_dotenv()
 
 # Get the database path from the environment
 DATABASE_URL = os.getenv("DB_URL")
+print("DATABASE_URL: ", DATABASE_URL)
 
 if not DATABASE_URL:
     raise ValueError("DB_URL is not set. Check .env file.")

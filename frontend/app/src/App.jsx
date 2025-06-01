@@ -21,6 +21,9 @@ import ProcessedDataSetOverview from "./components/DataPipeline/DataSetVisuals/P
 import PreprocessingDocs from "./components/DataPipeline/DataSetVisuals/ProcessingComponents/PreprocessingDocs.jsx";
 import Benchmarks from "./components/DataPipeline/DataSetVisuals/DatasetDetails/BenchmarkList.jsx";
 import BenchmarkTraining from "./components/DataPipeline/DataSetVisuals/DatasetDetails/BenchmarkTraining.jsx";
+import Trainings from "./Pages/Trainings.jsx";
+import TrainingDetails from "./Pages/TrainingDetails.jsx";
+import Leaderboard from "./Pages/Leaderboard.jsx";
 
 export default function App() {
   const [clientToken, setClientToken] = useState("");
@@ -71,12 +74,8 @@ export default function App() {
             <Route path="/preprocessing-docs" element={<PreprocessingDocs />} />
 
             <Route path="/tasks/:task_id/benchmarks" element={<Benchmarks />} />
-
-            <Route
-              path="/benchmarks/:benchmark_id/training"
-              element={<BenchmarkTraining />}
-            />
-
+            
+            <Route path="/history/:task_id" element={<Leaderboard />} />
             <Route
               path="/assess-data-quality"
               element={
@@ -85,6 +84,11 @@ export default function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/trainings"
+              element={<Trainings />}
+            />
+            <Route path="/trainings/:sessionId" element={<TrainingDetails />} />
             <Route path="/*" element={<Error />} />
           </Routes>
         </AuthProvider>

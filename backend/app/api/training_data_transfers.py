@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
 from helpers.spark_services import SparkSessionManager
+from helpers.aws_services import S3Services
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
@@ -28,12 +29,15 @@ from schemas.training_data_transfer import (
 )
 
 from utility.db import get_db
+
 spark_client = SparkSessionManager()
+s3_client = S3Services()
 
 executor = ThreadPoolExecutor(max_workers=os.cpu_count())
 
 qpd_router = APIRouter(tags=["QPD"])
 
+QPD_DATASET_DIR_ON_S3 = os.getenv("QPD_DATASET_DIR_ON_S3")
 
 def handle_error(result):
     #--------------------------------------------------------------------------------------------
@@ -43,6 +47,46 @@ def handle_error(result):
     if isinstance(result, dict) and "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+async def merge_s3_file_to_hdfs(transfer_id: int):
+    try:
+        db = next(get_db())
+        result = get_transfer_mini_details(db, transfer_id)
+        handle_error(result)
+        print("starting the merging process...")
+
+        # Merge S3 file with parent file on HDFS and delete the file on S3
+        overview = await spark_client.merge_s3_file_to_hdfs(result.data_path, result.parent_filename, result.federated_session_id)
+        
+        # new_dataset = DatasetCreate(
+        #     filename=overview["filename"],
+        #     description=f"Merged {result.parent_filename} with QPD data of {result.federated_session_id}",
+        #     datastats=overview
+        # )
+
+        # crud_result = create_dataset(db, dataset=new_dataset)
+        # if isinstance(crud_result, dict) and "error" in crud_result:
+        #     raise HTTPException(status_code=400, detail=crud_result["error"])
+        
+        result = update_dataset_stats(db, overview["filename"], overview)
+        # result = update_dataset_stats(db, result.parent_filename, overview)
+        handle_error(result)
+        print("DB updated with merged dataset stats")
+        
+        result = approve_transfer(db, transfer_id)
+        handle_error(result)
+        print("Transfer approved successfully")
+
+        # e.g. s3a://qpd-data/temp/4934bd27-c155-4303-b386-64b7cd030fe5_health_client.parquet
+        s3_filename = result.data_path.split("/")[-1]
+        s3_client.delete_folder(f"{QPD_DATASET_DIR_ON_S3}/{s3_filename}")
+        print(f"file {s3_filename} deleted successfully from S3")
+        
+        return {"message": "Approved successfully"}
+    except Exception as e:
+        print(f"Error during approval process: {e}")
+        return {"error": str(e)}
+    
 
 @qpd_router.post("/create-transferred-data")
 def create_data_transfer(transfer_data: TransferCreate, db: Session = Depends(get_db)):
@@ -86,44 +130,14 @@ def delete_transfer_record(transfer_id: int, db: Session = Depends(get_db)):
         return {"error": str(e)}
     
 @qpd_router.post("/approve-transferred-data/{transfer_id}")
-def approve_transfer_record(transfer_id: int, db: Session = Depends(get_db)):
+def approve_transfer_record(transfer_id: int):
     # don't do try/except here as this will run in a separate thread
     executor.submit(
         asyncio.run,
-        merge_s3_file_to_hdfs(transfer_id, db)
+        merge_s3_file_to_hdfs(transfer_id)
     )
     print("Approval process started for transfer ID:", transfer_id)
     return {"message": "Approval process started"}
     
-async def merge_s3_file_to_hdfs(transfer_id: int, db: Session = Depends(get_db)):
-    try:
-        result = get_transfer_mini_details(db, transfer_id)
-        handle_error(result)
-        print("starting the merging process...")
 
-        # Merge S3 file with parent file on HDFS and delete the file on S3
-        overview = await spark_client.merge_s3_file_to_hdfs(result.data_path, result.parent_filename, result.federated_session_id)
-        
-        new_dataset = DatasetCreate(
-            filename=overview["filename"],
-            description=f"Merged {result.parent_filename} with QPD data of {result.federated_session_id}",
-            datastats=overview
-        )
-
-        # crud_result = create_dataset(db, dataset=new_dataset)
-        # if isinstance(crud_result, dict) and "error" in crud_result:
-        #     raise HTTPException(status_code=400, detail=crud_result["error"])
-        
-        result = create_dataset(db, dataset=new_dataset)
-        # result = update_dataset_stats(db, result.parent_filename, overview)
-        handle_error(result)
-        print("DB updated with merged dataset stats")
-        
-        result = approve_transfer(db, transfer_id)
-        handle_error(result)
-        print("Transfer approved successfully")
-        return {"message": "Approved successfully"}
-    except Exception as e:
-        print(f"Error during approval process: {e}")
-        return {"error": str(e)}
     

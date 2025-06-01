@@ -60,9 +60,8 @@ async def process_create_dataset(filename: str, filetype: str):
         await hdfs_client.rename_file_or_folder(source_path, processing_path)
         dataset_overview = await spark_client.create_new_dataset(f"{filename}__PROCESSING__", filetype)
         description = f"Raw dataset created from {filename}"
-        print(f"Overview of dataset: {dataset_overview['numRows']} rows, {dataset_overview['numColumns']} columns")
 
-        dataset_obj = DatasetCreate(filename=dataset_overview['filename'], description=description, datastats=dataset_overview)
+        dataset_obj = DatasetCreate(filename=filename, description=description, datastats=dataset_overview)
 
         # Create raw dataset entry
         crud_result = create_raw_dataset(db, dataset_obj)
