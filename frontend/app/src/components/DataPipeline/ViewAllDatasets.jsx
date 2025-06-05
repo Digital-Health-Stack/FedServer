@@ -12,7 +12,7 @@ import FileCard from "./ViewAllFiles/FileCard";
 
 const ViewAllDatasets = () => {
   // Environment variables and navigation setup
-  const [selectedFolder, setSelectedFolder] = useState("processed");
+  const [selectedFolder, setSelectedFolder] = useState("raw");
   const [datasets, setDatasets] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
