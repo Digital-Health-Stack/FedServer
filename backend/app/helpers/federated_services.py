@@ -6,16 +6,6 @@ import numpy as np
 
 
 HDFS_PROCESSED_DATASETS_DIR = os.getenv('HDFS_PROCESSED_DATASETS_DIR')
-
-def reshape_image(img_array):
-        if len(img_array.shape) == 1:  # Grayscale image (height, width)
-            # Add a channel dimension and expand it
-            stacked = np.stack(img_array, axis=0)
-            stacked = np.expand_dims(stacked, axis=-1)
-            return stacked.astype(np.float32)
-        else:
-            # If already RGB or multi-channel, no reshaping needed
-            return img_array.astype(np.float32)
         
 
 def reshape_image(img_array):
