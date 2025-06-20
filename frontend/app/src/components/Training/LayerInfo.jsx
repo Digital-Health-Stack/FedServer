@@ -1,7 +1,9 @@
 const LayerInfo = ({ layer, index }) => (
   <div className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow mt-4">
     <h4 className="font-bold text-indigo-600 mb-2">
-      {index + 1}. {layer.layer_type.charAt(0).toUpperCase() + layer.layer_type.slice(1).replace('_', ' ')}
+      {index + 1}.{" "}
+      {layer.layer_type.charAt(0).toUpperCase() +
+        layer.layer_type.slice(1).replace("_", " ")}
     </h4>
     <ul className="space-y-2">
       {/* Convolution Layer */}

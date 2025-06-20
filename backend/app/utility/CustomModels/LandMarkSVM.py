@@ -16,21 +16,24 @@ import ast
 (vi) landmarks should be num_landmarks datapoints from the input data, if not given random points will be selected from the input data.
 """
 
-def transform_by_landmarks(X, kernel, gamma=None, degree=None, coef0=None, landmarks=None, num_landmarks=15):
+
+def transform_by_landmarks(
+    X, kernel, gamma=None, degree=None, coef0=None, landmarks=None, num_landmarks=15
+):
     if landmarks is None:
         landmarks = X[np.random.choice(X.shape[0], num_landmarks, replace=True)]
 
-    if kernel == 'rbf':
+    if kernel == "rbf":
         dist_matrix = np.linalg.norm(X[:, np.newaxis] - landmarks, axis=2)
-        transformed_X = np.exp(-gamma * (dist_matrix ** 2))
+        transformed_X = np.exp(-gamma * (dist_matrix**2))
 
-    elif kernel == 'linear':
+    elif kernel == "linear":
         transformed_X = X @ landmarks.T
 
-    elif kernel == 'polynomial':
+    elif kernel == "polynomial":
         transformed_X = (X @ landmarks.T + coef0) ** degree
 
-    elif kernel == 'sigmoid':
+    elif kernel == "sigmoid":
         transformed_X = np.tanh(gamma * (X @ landmarks.T) + coef0)
 
     else:
@@ -43,19 +46,19 @@ class LandMarkSVM:
     def __init__(self, config):
         try:
             # Extract and convert parameters from the config dictionary
-            self.C = float(config.get('C', 1.0))
-            self.gamma = config.get('gamma', 'auto')
-            self.degree = int(config.get('degree', 3))
-            self.coef0 = float(config.get('coef0', 0.0))
-            self.lr = float(config.get('lr', 0.01))
-            self.n_iters = int(config.get('n_iters', 100))
-            self.is_binary = config.get('is_binary', 'false').lower() == 'true'
-            self.kernel = config.get('kernel', 'rbf')
-            self.landmarks = config.get('landmarks', None)
-            self.num_landmarks = int(config.get('num_landmarks', 15))
-            
+            self.C = float(config.get("C", 1.0))
+            self.gamma = config.get("gamma", "auto")
+            self.degree = int(config.get("degree", 3))
+            self.coef0 = float(config.get("coef0", 0.0))
+            self.lr = float(config.get("lr", 0.01))
+            self.n_iters = int(config.get("n_iters", 100))
+            self.is_binary = config.get("is_binary", "false").lower() == "true"
+            self.kernel = config.get("kernel", "rbf")
+            self.landmarks = config.get("landmarks", None)
+            self.num_landmarks = int(config.get("num_landmarks", 15))
+
             # Handle weights_shape safely
-            weights_shape_str = config.get('weights_shape', None)
+            weights_shape_str = config.get("weights_shape", None)
             if weights_shape_str is not None:
                 self.weights_shape = ast.literal_eval(weights_shape_str)
                 self.weights = np.zeros(self.weights_shape)
@@ -64,7 +67,7 @@ class LandMarkSVM:
                 self.weights_shape = None
                 self.weights = None
                 self.biases = None
-                
+
         except Exception as e:
             print(f"Error creating model instance: {e}")
             self.weights = None
@@ -94,7 +97,15 @@ class LandMarkSVM:
         #     print("weight before fit:", self.get_weights().tolist())
         # else:
         #     print("weight before fit: None")
-        X = transform_by_landmarks(X, self.kernel, self.gamma, self.degree, self.coef0, self.landmarks, self.num_landmarks)
+        X = transform_by_landmarks(
+            X,
+            self.kernel,
+            self.gamma,
+            self.degree,
+            self.coef0,
+            self.landmarks,
+            self.num_landmarks,
+        )
 
         n_samples, n_features = X.shape
         classes = np.unique(y)
@@ -130,7 +141,15 @@ class LandMarkSVM:
         if self.weights is None or self.biases is None:
             warnings.warn("Model has not been trained yet...NONE weights and biases.")
             return np.array([0])
-        X = transform_by_landmarks(X, self.kernel, self.gamma, self.degree, self.coef0, self.landmarks, self.num_landmarks)
+        X = transform_by_landmarks(
+            X,
+            self.kernel,
+            self.gamma,
+            self.degree,
+            self.coef0,
+            self.landmarks,
+            self.num_landmarks,
+        )
         decision_values = np.dot(X, self.weights.T) + self.biases
 
         if self.is_binary:
@@ -138,15 +157,15 @@ class LandMarkSVM:
         return np.argmax(decision_values, axis=1)
 
     def update_parameters(self, parameters):
-        """ parameters should be a dictionary with keys 'weights' and 'biases' where values are lists """
-        self.weights = np.array(parameters['weights'])
-        self.biases = np.array(parameters['biases'])
+        """parameters should be a dictionary with keys 'weights' and 'biases' where values are lists"""
+        self.weights = np.array(parameters["weights"])
+        self.biases = np.array(parameters["biases"])
 
     def get_parameters(self):
         if self.weights is None and self.biases is None:
             raise ValueError("Parameters are None")
-        local_parameter = {'weights': self.weights.tolist(), 'biases': self.biases.tolist()}
+        local_parameter = {
+            "weights": self.weights.tolist(),
+            "biases": self.biases.tolist(),
+        }
         return local_parameter
-    
-
-

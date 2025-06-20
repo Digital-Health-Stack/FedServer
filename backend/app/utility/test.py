@@ -7,15 +7,17 @@ from utility.db import engine
 from sqlalchemy.orm import Session
 from models.FederatedSession import FederatedSession, FederatedTestResults
 
+
 def save_weights_to_file(weights: dict, filename: str):
     """Save the given weights dictionary to a JSON file."""
     if weights is None:
         weights = {}
 
-    with open(filename, 'a') as f:
+    with open(filename, "a") as f:
         json.dump(weights, f, indent=4)
         f.write("\n\n")  # optional: separate rounds visually
-        
+
+
 class Test:
     def __init__(self, session_id):
         self.model = None
@@ -25,10 +27,12 @@ class Test:
             session_data = db.query(FederatedSession).filter_by(id=session_id).first()
             if not session_data:
                 raise ValueError(f"FederatedSession with ID {session_id} not found")
-            
+
             # Access the clients relationship within the session
-            self.model_config = session_data.federated_info  
-        self.metrics = self.model_config['model_info']['test_metrics'] # metrics to calculate in test
+            self.model_config = session_data.federated_info
+        self.metrics = self.model_config["model_info"][
+            "test_metrics"
+        ]  # metrics to calculate in test
         self.round = 1
         self.build_model()
 
@@ -46,9 +50,9 @@ class Test:
 
         # weights_filename = os.path.join("logs", f"weights_round_{self.round}.json")
         # save_weights_to_file(updated_weights, weights_filename)
-        
+
         self.model.update_parameters(updated_weights)
-            
+
         # read data from file
         try:
             X_test = np.load(os.path.join("data", f"X_{self.session_id}.npy"))
@@ -63,7 +67,7 @@ class Test:
             test_result = FederatedTestResults(
                 session_id=self.session_id,
                 round_number=self.round,
-                metrics_report=metrics_report
+                metrics_report=metrics_report,
             )
             db.add(test_result)
             db.commit()

@@ -1,12 +1,24 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, JSON, TIMESTAMP, CheckConstraint, Index, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    JSON,
+    TIMESTAMP,
+    CheckConstraint,
+    Index,
+    func,
+)
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime
 from models.Base import Base
 
+
 class RawDataset(Base):
     __tablename__ = "raw_datasets"
     dataset_id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String,nullable=False, index=True)
+    filename = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     datastats = Column(JSON)
 
@@ -15,8 +27,9 @@ class RawDataset(Base):
             "dataset_id": self.dataset_id,
             "filename": self.filename,
             "description": self.description,
-            "datastats": self.datastats
+            "datastats": self.datastats,
         }
+
 
 class Dataset(Base):
     __tablename__ = "datasets"
@@ -33,26 +46,32 @@ class Dataset(Base):
             "dataset_id": self.dataset_id,
             "filename": self.filename,
             "description": self.description,
-            "datastats": self.datastats
+            "datastats": self.datastats,
         }
+
 
 # each dataset will have multiple tasks (decided by server admin), every task will have an associated Metric
 class Task(Base):
     __tablename__ = "tasks"
 
     task_id = Column(Integer, primary_key=True, index=True)
-    dataset_id = Column(Integer, ForeignKey("datasets.dataset_id", ondelete="CASCADE"), nullable=False, index=True)
+    dataset_id = Column(
+        Integer,
+        ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     task_name = Column(String(255), nullable=False)
     metric = Column(String(50), nullable=False)
-    benchmark = Column(JSON, nullable=True)   # Temporary field
+    benchmark = Column(JSON, nullable=True)  # Temporary field
     created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
 
-    
     dataset = relationship("Dataset", back_populates="tasks")
-    
-    
+
     __table_args__ = (
-        CheckConstraint("metric IN ('mse', 'mae', 'accuracy', 'msle', 'r2', 'logloss', 'auc', 'f1', 'precision', 'recall')"),
+        CheckConstraint(
+            "metric IN ('mse', 'mae', 'accuracy', 'msle', 'r2', 'logloss', 'auc', 'f1', 'precision', 'recall')"
+        ),
     )
 
     Index("idx_tasks_dataset", dataset_id)
@@ -67,4 +86,3 @@ class Task(Base):
             "benchmark": self.benchmark,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
-

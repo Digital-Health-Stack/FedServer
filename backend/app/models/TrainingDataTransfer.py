@@ -7,14 +7,18 @@ import os
 
 load_dotenv()
 
+
 class TimestampMixin:
     @declared_attr
     def transferredAt(cls):
-        return Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+        return Column(
+            DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        )
 
     @declared_attr
     def approvedAt(cls):
         return Column(DateTime, nullable=True)  # NULL means not approved
+
 
 # Table for approving data transferred for QPD
 class TrainingDataTransfer(TimestampMixin, Base):
@@ -27,7 +31,9 @@ class TrainingDataTransfer(TimestampMixin, Base):
     # although parent filename will be in the session information, we need to store it here for easy access
     parent_filename = Column(String, nullable=False)  # Filename of the parent dataset
     datastats = Column(JSON, nullable=True)  # Statistics of the dataset
-    federated_session_id = Column(Integer, ForeignKey("federated_sessions.id"), nullable=False, index=True)
+    federated_session_id = Column(
+        Integer, ForeignKey("federated_sessions.id"), nullable=False, index=True
+    )
 
     def as_dict(self):
         return {
@@ -42,6 +48,7 @@ class TrainingDataTransfer(TimestampMixin, Base):
             "datastats": self.datastats,
         }
 
+
 # Fixing soft deletion filtering by applying it on the correct table
 @event.listens_for(Session, "do_orm_execute")
 def filter_soft_deleted(execute_state):
@@ -49,10 +56,8 @@ def filter_soft_deleted(execute_state):
         if not execute_state.execution_options.get("include_approved", False):
             execute_state.statement = execute_state.statement.options(
                 with_loader_criteria(
-                    TrainingDataTransfer, 
+                    TrainingDataTransfer,
                     lambda cls: cls.approvedAt.is_(None),
-                    include_aliases=True
+                    include_aliases=True,
                 )
             )
-
-

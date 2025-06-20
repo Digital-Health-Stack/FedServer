@@ -190,8 +190,8 @@ const StatCard = ({ label, value, icon, warning, highlight }) => (
       warning
         ? "bg-amber-50 border-amber-200"
         : highlight
-        ? "bg-green-50 border-green-200"
-        : "bg-white border-gray-200"
+          ? "bg-green-50 border-green-200"
+          : "bg-white border-gray-200"
     }`}
   >
     <div className="flex items-center gap-2">
@@ -203,8 +203,8 @@ const StatCard = ({ label, value, icon, warning, highlight }) => (
             warning
               ? "text-amber-700"
               : highlight
-              ? "text-green-700"
-              : "text-slate-800"
+                ? "text-green-700"
+                : "text-slate-800"
           }`}
         >
           {value}

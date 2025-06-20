@@ -1,5 +1,5 @@
-import React from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const Card = ({ item, opendetails }) => {
   return (
@@ -9,9 +9,7 @@ const Card = ({ item, opendetails }) => {
           <h3>{item["org_name"]}</h3>
         </div>
         <div className="card-body">
-          <h6 className="card-title">
-            SessionID: {item["session_id"]}
-          </h6>
+          <h6 className="card-title">SessionID: {item["session_id"]}</h6>
           <button
             className="btn btn-dark"
             onClick={() => opendetails(item["session_id"])}

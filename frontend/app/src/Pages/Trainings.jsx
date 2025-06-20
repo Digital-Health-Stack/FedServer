@@ -37,9 +37,9 @@ export default function Trainings() {
       const response = await getAllSessions(
         api,
         pagination.page,
-        pagination.perPage
+        pagination.perPage,
       );
-      console.log("Checkpoint 1: ", response.data, typeof(response.data));
+      console.log("Checkpoint 1: ", response.data, typeof response.data);
       setSessions(response.data.data || []);
       setPagination((prev) => ({
         ...prev,
@@ -183,7 +183,7 @@ export default function Trainings() {
               <span className="font-medium">
                 {Math.min(
                   pagination.page * pagination.perPage,
-                  pagination.total
+                  pagination.total,
                 )}
               </span>{" "}
               of <span className="font-medium">{pagination.total}</span>{" "}
@@ -205,7 +205,7 @@ export default function Trainings() {
                     </h3>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                        session.training_status
+                        session.training_status,
                       )}`}
                     >
                       {TrainingStatuses[session.training_status] || "Unknown"}
@@ -261,7 +261,7 @@ export default function Trainings() {
                   <span className="font-medium">
                     {Math.min(
                       pagination.page * pagination.perPage,
-                      pagination.total
+                      pagination.total,
                     )}
                   </span>{" "}
                   of <span className="font-medium">{pagination.total}</span>{" "}
@@ -308,7 +308,7 @@ export default function Trainings() {
                           {pageNum}
                         </button>
                       );
-                    }
+                    },
                   )}
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}

@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { getLogsSession } from "../../services/federatedService";
-import { ArrowPathIcon, ExclamationTriangleIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
+import {
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+} from "@heroicons/react/24/solid";
 
 const FederatedSessionLogs = ({ sessionId }) => {
   const [logs, setLogs] = useState([]);
@@ -112,7 +116,9 @@ const FederatedSessionLogs = ({ sessionId }) => {
                       <td colSpan="2" className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center text-gray-500">
                           <InformationCircleIcon className="h-5 w-5 mr-2" />
-                          {sessionId ? "No logs available" : "Select a session to view logs"}
+                          {sessionId
+                            ? "No logs available"
+                            : "Select a session to view logs"}
                         </div>
                       </td>
                     </tr>

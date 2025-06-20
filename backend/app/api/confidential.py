@@ -1,5 +1,5 @@
 ############################################################################
-############# This file will not be in production ########################## 
+############# This file will not be in production ##########################
 ############################################################################
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -14,9 +14,10 @@ from crud.datasets_crud import create_dataset, create_raw_dataset
 
 confidential_router = APIRouter()
 
+
 @confidential_router.post("/get-env-vars")
 def get_env_vars():
-    env_vars = dotenv_values(".env")  
+    env_vars = dotenv_values(".env")
     return {"env_variables": env_vars}
 
 
@@ -30,17 +31,19 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         username=user.username,
         data_url=user.data_url,
-        role='admin',
-        hashed_password=get_password_hash(user.password)
+        role="admin",
+        hashed_password=get_password_hash(user.password),
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return {"message": "User created successfully"}
 
+
 @confidential_router.post("/create-dataset", status_code=201)
 def create_dataset_endpoint(dataset: DatasetCreate, db: Session = Depends(get_db)):
     return create_dataset(db, dataset)
+
 
 @confidential_router.post("/create-raw-dataset", status_code=201)
 def create_raw_dataset_endpoint(dataset: DatasetCreate, db: Session = Depends(get_db)):

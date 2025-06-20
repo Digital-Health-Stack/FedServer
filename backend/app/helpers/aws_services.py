@@ -6,15 +6,21 @@ from botocore.exceptions import ClientError
 
 load_dotenv()  # loads AWS_* and BUCKET_NAME from your .env
 
+
 class S3Services:
-    """ If no args are passed, this will use default credentials for QPD bucket"""
-    def __init__(self,
-                 aws_access_key_id: str = None,
-                 aws_secret_access_key: str = None,
-                 region_name: str = None,
-                 bucket_name: str = None):
+    """If no args are passed, this will use default credentials for QPD bucket"""
+
+    def __init__(
+        self,
+        aws_access_key_id: str = None,
+        aws_secret_access_key: str = None,
+        region_name: str = None,
+        bucket_name: str = None,
+    ):
         self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID", "")
-        self.aws_secret_access_key = aws_secret_access_key or os.getenv("AWS_SECRET_ACCESS_KEY", "")
+        self.aws_secret_access_key = aws_secret_access_key or os.getenv(
+            "AWS_SECRET_ACCESS_KEY", ""
+        )
         self.region_name = region_name or os.getenv("AWS_REGION", "")
         self.bucket_name = bucket_name or os.getenv("BUCKET_NAME", "")
 
@@ -22,7 +28,7 @@ class S3Services:
             "s3",
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
-            region_name=self.region_name
+            region_name=self.region_name,
         )
 
     def delete_file(self, key: str) -> None:
@@ -48,9 +54,11 @@ class S3Services:
             batch = keys[i : i + 1000]
             payload = {"Objects": [{"Key": k} for k in batch], "Quiet": False}
             try:
-                resp = self.client.delete_objects(Bucket=self.bucket_name, Delete=payload)
+                resp = self.client.delete_objects(
+                    Bucket=self.bucket_name, Delete=payload
+                )
                 deleted = [d["Key"] for d in resp.get("Deleted", [])]
-                errors  = resp.get("Errors", [])
+                errors = resp.get("Errors", [])
                 if deleted:
                     print("Deleted:", deleted)
                 if errors:

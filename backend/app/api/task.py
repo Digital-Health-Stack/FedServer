@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from schemas.dataset import TaskCreate
 from utility.db import get_db
-from schemas.dataset import (TaskCreate,TaskResponse,LeaderboardResponse)
+from schemas.dataset import TaskCreate, TaskResponse, LeaderboardResponse
 
 from crud.task_crud import (
     create_task,
@@ -11,14 +11,16 @@ from crud.task_crud import (
     get_tasks_by_dataset_name,
     get_task_by_id,
     update_task_by_id,
-    get_leaderboard_by_task_id
+    get_leaderboard_by_task_id,
 )
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 task_router = APIRouter(tags=["Task"])
 ########## Task Management Routes
+
 
 @task_router.post("/create-task", response_model=TaskResponse)
 def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
@@ -31,6 +33,7 @@ def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
         print(f"Error creating task: {e}")
         return {"error": str(e)}
 
+
 @task_router.delete("/delete-task/{task_id}")
 def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
     try:
@@ -42,16 +45,20 @@ def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
         print(f"Error deleting task: {e}")
         return {"error": str(e)}
 
+
 @task_router.get("/list-tasks-with-datasetid/{dataset_id}")
 def read_tasks_by_dataset_id(dataset_id: int, db: Session = Depends(get_db)):
     try:
         tasks = get_tasks_by_dataset_id(db, dataset_id)
         if not tasks:
-            raise HTTPException(status_code=404, detail="No tasks found for this dataset")
+            raise HTTPException(
+                status_code=404, detail="No tasks found for this dataset"
+            )
         return [task.as_dict() for task in tasks]
     except Exception as e:
         print(f"Error retrieving tasks: {e}")
         return {"error": str(e)}
+
 
 @task_router.get("/list-tasks-with-datasetname/{filename}")
 def read_tasks_by_dataset_filename(filename: str, db: Session = Depends(get_db)):
@@ -60,11 +67,14 @@ def read_tasks_by_dataset_filename(filename: str, db: Session = Depends(get_db))
         if tasks is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
         if not tasks:
-            raise HTTPException(status_code=404, detail="No tasks found for this dataset")
+            raise HTTPException(
+                status_code=404, detail="No tasks found for this dataset"
+            )
         return [task.as_dict() for task in tasks]
     except Exception as e:
         print(f"Error retrieving tasks: {e}")
         return {"error": str(e)}
+
 
 @task_router.get("/get-task/{task_id}", response_model=TaskResponse)
 def read_task_by_id(task_id: int, db: Session = Depends(get_db)):
@@ -74,7 +84,8 @@ def read_task_by_id(task_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error retrieving task: {e}")
         return {"error": str(e)}
-    
+
+
 @task_router.put("/update-task/{task_id}", response_model=TaskResponse)
 def update_existing_task(task_id: int, task: TaskCreate, db: Session = Depends(get_db)):
     try:
@@ -83,16 +94,14 @@ def update_existing_task(task_id: int, task: TaskCreate, db: Session = Depends(g
     except Exception as e:
         print(f"Error updating task: {e}")
         return {"error": str(e)}
-  
-# , response_model=LeaderboardResponse  
+
+
+# , response_model=LeaderboardResponse
 @task_router.get("/leaderboard/{task_id}")
-def get_task_leaderboard(
-    task_id: int,
-    db: Session = Depends(get_db)
-):
+def get_task_leaderboard(task_id: int, db: Session = Depends(get_db)):
     """
     Get leaderboard for a specific task including benchmark comparison
-    
+
     Returns:
     - task_name: Name of the task
     - metric: Primary metric for evaluation

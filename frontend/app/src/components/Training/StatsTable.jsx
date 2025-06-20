@@ -15,7 +15,7 @@ const StatsTable = ({ stats }) => {
             <td className="px-2 py-1 text-gray-600 font-medium">Columns</td>
             <td className="px-2 py-1 text-gray-800">{stats.numColumns}</td>
           </tr>
-          
+
           {stats.columnStats?.map((col, idx) => (
             <React.Fragment key={idx}>
               <tr className="bg-gray-100">
@@ -34,7 +34,9 @@ const StatsTable = ({ stats }) => {
               {col.mean !== undefined && (
                 <tr>
                   <td className="px-2 py-1 text-gray-600">Mean</td>
-                  <td className="px-2 py-1 text-gray-800">{col.mean.toFixed(4)}</td>
+                  <td className="px-2 py-1 text-gray-800">
+                    {col.mean.toFixed(4)}
+                  </td>
                 </tr>
               )}
               {col.min !== undefined && (
@@ -53,11 +55,15 @@ const StatsTable = ({ stats }) => {
                 <>
                   <tr>
                     <td className="px-2 py-1 text-gray-600">Median</td>
-                    <td className="px-2 py-1 text-gray-800">{col.quartiles.median}</td>
+                    <td className="px-2 py-1 text-gray-800">
+                      {col.quartiles.median}
+                    </td>
                   </tr>
                   <tr>
                     <td className="px-2 py-1 text-gray-600">IQR</td>
-                    <td className="px-2 py-1 text-gray-800">{col.quartiles.IQR}</td>
+                    <td className="px-2 py-1 text-gray-800">
+                      {col.quartiles.IQR}
+                    </td>
                   </tr>
                 </>
               )}

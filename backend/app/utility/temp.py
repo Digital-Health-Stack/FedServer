@@ -15,7 +15,9 @@ print(f"Database URL: {DATABASE_URL}")
 db = next(get_db())
 
 # Get a list of table names
-tables = db.execute(text("SELECT name FROM sqlite_master WHERE type='table';")).fetchall()
+tables = db.execute(
+    text("SELECT name FROM sqlite_master WHERE type='table';")
+).fetchall()
 
 # Print table names
 print("Tables in the database:")
@@ -23,4 +25,3 @@ for table in tables:
     print(table[0])
 
 db.close()
-

@@ -11,8 +11,9 @@ model_classes = {
     "SVM": CustomSVM,
     "LandMarkSVM": LandMarkSVM,
     "multiLayerPerceptron": MultiLayerPerceptron,
-    "CNN": CustomCNN
+    "CNN": CustomCNN,
 }
+
 
 def model_instance_from_config(modelConfig):
     try:

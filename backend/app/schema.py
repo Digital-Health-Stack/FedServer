@@ -18,9 +18,11 @@ class FederatedLearningInfo(BaseModel):
     model_info: dict
     dataset_info: dict
     expected_results: dict
+
     # to resolve warning of protected namespace model_ for model_name and model_info
     class Config:
         protected_namespaces = ()
+
 
 class CreateFederatedLearning(BaseModel):
     fed_info: FederatedLearningInfo
@@ -30,13 +32,13 @@ class CreateFederatedLearning(BaseModel):
 class ClientFederatedResponse(BaseModel):
     session_id: int
     decision: int
-    
+
+
 class ClientModelIdResponse(BaseModel):
     session_id: int
+
 
 class ClientReceiveParameters(BaseModel):
     session_id: int
     client_parameter: dict
     metrics_report: dict
-
-    

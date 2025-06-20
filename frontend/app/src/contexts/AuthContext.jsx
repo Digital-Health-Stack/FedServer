@@ -189,7 +189,7 @@ export const AuthProvider = ({ children }) => {
       }
       return config;
     },
-    (error) => Promise.reject(error)
+    (error) => Promise.reject(error),
   );
 
   api.interceptors.response.use(
@@ -243,7 +243,7 @@ export const AuthProvider = ({ children }) => {
         });
       }
       return Promise.reject(error); // Optionally, you can also return a custom error message here
-    }
+    },
   );
 
   // const sseApi = axios.create({

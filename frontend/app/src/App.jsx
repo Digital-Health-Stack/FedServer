@@ -74,7 +74,7 @@ export default function App() {
             <Route path="/preprocessing-docs" element={<PreprocessingDocs />} />
 
             <Route path="/tasks/:task_id/benchmarks" element={<Benchmarks />} />
-            
+
             <Route path="/history/:task_id" element={<Leaderboard />} />
             <Route
               path="/assess-data-quality"
@@ -84,10 +84,7 @@ export default function App() {
                 </PrivateRoute>
               }
             />
-            <Route
-              path="/trainings"
-              element={<Trainings />}
-            />
+            <Route path="/trainings" element={<Trainings />} />
             <Route path="/trainings/:sessionId" element={<TrainingDetails />} />
             <Route path="/*" element={<Error />} />
           </Routes>

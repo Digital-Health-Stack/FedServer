@@ -22,7 +22,7 @@ const Result = ({ sessionId }) => {
   const [results, setResults] = useState({
     server_results: {},
     client_results: {},
-    current_round: 0
+    current_round: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -35,7 +35,7 @@ const Result = ({ sessionId }) => {
       setResults({
         server_results: {},
         client_results: {},
-        current_round: 0
+        current_round: 0,
       });
       setLoading(false);
       return;
@@ -46,7 +46,7 @@ const Result = ({ sessionId }) => {
     try {
       const response = await getTrainingResults(api, sessionId);
       setResults(response.data);
-      
+
       // Set first available metric as default selection
       const metrics = Object.keys(response.data.server_results);
       if (metrics.length > 0) {
@@ -65,22 +65,24 @@ const Result = ({ sessionId }) => {
   }, [sessionId]);
 
   const formatMetricValue = (value) => {
-    return typeof value === 'number' ? value.toFixed(4) : value;
+    return typeof value === "number" ? value.toFixed(4) : value;
   };
 
   // Prepare data for charts for the selected metric
   const prepareChartData = () => {
     if (!selectedMetric || !results.server_results[selectedMetric]) return [];
-    
+
     const chartData = [];
     const rounds = Object.keys(results.server_results[selectedMetric]);
 
-    rounds.forEach(round => {
-      const roundNumber = parseInt(round.split('_')[1]);
-      const roundData = { 
+    rounds.forEach((round) => {
+      const roundNumber = parseInt(round.split("_")[1]);
+      const roundData = {
         round: `Round ${roundNumber}`,
-        [`server_${selectedMetric}`]: results.server_results[selectedMetric][round],
-        [`client_${selectedMetric}`]: results.client_results[selectedMetric]?.[round]
+        [`server_${selectedMetric}`]:
+          results.server_results[selectedMetric][round],
+        [`client_${selectedMetric}`]:
+          results.client_results[selectedMetric]?.[round],
       };
 
       chartData.push(roundData);
@@ -103,7 +105,7 @@ const Result = ({ sessionId }) => {
               <ArrowPathIcon className="h-5 w-5 ml-2 text-blue-500 animate-spin" />
             )}
           </h3>
-          
+
           <div className="flex space-x-2">
             <button
               onClick={() => setActiveTab("chart")}
@@ -142,7 +144,7 @@ const Result = ({ sessionId }) => {
                         : "bg-gray-100 text-gray-600"
                     }`}
                   >
-                    {metric.replace(/_/g, ' ')}
+                    {metric.replace(/_/g, " ")}
                   </button>
                 ))}
               </div>
@@ -154,10 +156,11 @@ const Result = ({ sessionId }) => {
                         Round
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Server {selectedMetric?.toUpperCase().replace(/_/g, ' ')}
+                        Server{" "}
+                        {selectedMetric?.toUpperCase().replace(/_/g, " ")}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Your {selectedMetric?.toUpperCase().replace(/_/g, ' ')}
+                        Your {selectedMetric?.toUpperCase().replace(/_/g, " ")}
                       </th>
                     </tr>
                   </thead>
@@ -180,7 +183,8 @@ const Result = ({ sessionId }) => {
                           </div>
                         </td>
                       </tr>
-                    ) : !selectedMetric || Object.keys(results.server_results).length === 0 ? (
+                    ) : !selectedMetric ||
+                      Object.keys(results.server_results).length === 0 ? (
                       <tr>
                         <td colSpan={3} className="px-6 py-4 text-center">
                           <div className="flex justify-center items-center text-gray-500">
@@ -192,19 +196,27 @@ const Result = ({ sessionId }) => {
                         </td>
                       </tr>
                     ) : (
-                      Object.keys(results.server_results[selectedMetric] || {}).map(round => {
-                        const roundNumber = round.split('_')[1];
+                      Object.keys(
+                        results.server_results[selectedMetric] || {},
+                      ).map((round) => {
+                        const roundNumber = round.split("_")[1];
                         return (
                           <tr key={round} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               Round {roundNumber}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatMetricValue(results.server_results[selectedMetric][round])}
+                              {formatMetricValue(
+                                results.server_results[selectedMetric][round],
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {results.client_results[selectedMetric]?.[round] 
-                                ? formatMetricValue(results.client_results[selectedMetric][round])
+                              {results.client_results[selectedMetric]?.[round]
+                                ? formatMetricValue(
+                                    results.client_results[selectedMetric][
+                                      round
+                                    ],
+                                  )
                                 : "-"}
                             </td>
                           </tr>
@@ -228,7 +240,7 @@ const Result = ({ sessionId }) => {
                         : "bg-gray-100 text-gray-600"
                     }`}
                   >
-                    {metric.replace(/_/g, ' ')}
+                    {metric.replace(/_/g, " ")}
                   </button>
                 ))}
               </div>
@@ -243,7 +255,8 @@ const Result = ({ sessionId }) => {
                   <ExclamationTriangleIcon className="h-8 w-8 mr-2" />
                   {error}
                 </div>
-              ) : !selectedMetric || Object.keys(results.server_results).length === 0 ? (
+              ) : !selectedMetric ||
+                Object.keys(results.server_results).length === 0 ? (
                 <div className="flex justify-center items-center h-64 text-gray-500">
                   <InformationCircleIcon className="h-8 w-8 mr-2" />
                   {sessionId
@@ -253,7 +266,8 @@ const Result = ({ sessionId }) => {
               ) : (
                 <div className="h-80">
                   <h4 className="text-md font-medium text-gray-700 mb-2">
-                    {selectedMetric.toUpperCase().replace(/_/g, ' ')} Progression
+                    {selectedMetric.toUpperCase().replace(/_/g, " ")}{" "}
+                    Progression
                   </h4>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
@@ -263,10 +277,12 @@ const Result = ({ sessionId }) => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="round" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [formatMetricValue(value)]} />
+                      <Tooltip
+                        formatter={(value) => [formatMetricValue(value)]}
+                      />
                       <Legend />
                       <Line
-                        name={`Server ${selectedMetric.toUpperCase().replace(/_/g, ' ')}`}
+                        name={`Server ${selectedMetric.toUpperCase().replace(/_/g, " ")}`}
                         type="monotone"
                         dataKey={`server_${selectedMetric}`}
                         stroke="#3b82f6"
@@ -274,7 +290,7 @@ const Result = ({ sessionId }) => {
                       />
                       {results.client_results[selectedMetric] && (
                         <Line
-                          name={`Your ${selectedMetric.toUpperCase().replace(/_/g, ' ')}`}
+                          name={`Your ${selectedMetric.toUpperCase().replace(/_/g, " ")}`}
                           type="monotone"
                           dataKey={`client_${selectedMetric}`}
                           stroke="#10b981"
@@ -291,7 +307,8 @@ const Result = ({ sessionId }) => {
         </div>
 
         <div className="px-6 py-3 bg-gray-50 text-right text-xs text-gray-500 border-t border-gray-200">
-          {sessionId && `Session ID #${sessionId} | Current Round: ${results.current_round || 'N/A'}`}
+          {sessionId &&
+            `Session ID #${sessionId} | Current Round: ${results.current_round || "N/A"}`}
         </div>
       </div>
     </div>

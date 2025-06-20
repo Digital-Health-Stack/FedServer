@@ -23,16 +23,16 @@ import ast
 
 
 class CustomSVM:
-    def __init__(self, config ):
+    def __init__(self, config):
         try:
-            self.C = float(config.get('C', 1.0))
+            self.C = float(config.get("C", 1.0))
             self.weights = None
             self.biases = None
-            self.lr = float(config.get('lr', 0.01))
-            self.n_iters = int(config.get('n_iters', 100))
-            self.weights_shape = ast.literal_eval(config['weights_shape'])
-            #required as each client may have different number of classes (possibly 1)
-            self.is_binary = config['is_binary'].lower() == "true"
+            self.lr = float(config.get("lr", 0.01))
+            self.n_iters = int(config.get("n_iters", 100))
+            self.weights_shape = ast.literal_eval(config["weights_shape"])
+            # required as each client may have different number of classes (possibly 1)
+            self.is_binary = config["is_binary"].lower() == "true"
             # weight shape is required initially for the same reason as above
             if self.weights_shape is not None:
                 self.weights = np.zeros(self.weights_shape)
@@ -72,7 +72,7 @@ class CustomSVM:
             self.weights = np.zeros((n_classes, n_features))
             self.biases = np.zeros(n_classes)
         # print("weights shape", self.weights.shape)
-        for i in classes: #*** 'i' can be float due to numpy
+        for i in classes:  # *** 'i' can be float due to numpy
             i = int(i)
             binary_y = np.where(y == i, 1, -1)
             weights = self.weights[i]
@@ -102,14 +102,15 @@ class CustomSVM:
         return np.argmax(decision_values, axis=1)
 
     def update_parameters(self, parameters):
-        """ parameters should be a dictionary with keys 'weights' and 'biases' where values are lists """
-        self.weights = np.array(parameters['weights'])
-        self.biases = np.array(parameters['biases'])
+        """parameters should be a dictionary with keys 'weights' and 'biases' where values are lists"""
+        self.weights = np.array(parameters["weights"])
+        self.biases = np.array(parameters["biases"])
 
     def get_parameters(self):
         if self.weights is None and self.biases is None:
             raise ValueError("Local Parameters are None")
-        local_parameter = {'weights': self.weights.tolist(), 'biases': self.biases.tolist()}
+        local_parameter = {
+            "weights": self.weights.tolist(),
+            "biases": self.biases.tolist(),
+        }
         return local_parameter
-
-

@@ -37,7 +37,7 @@ const ViewAllDatasets = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      console.log("Checkpoint 1: ")
+      console.log("Checkpoint 1: ");
       const response = await axios.get(endpoints[selectedFolder].fetch, {
         params: { skip: (currentPage - 1) * PAGE_SIZE, limit: PAGE_SIZE },
       });
@@ -134,7 +134,7 @@ const ViewAllDatasets = () => {
                     onDelete={handleDelete}
                     onClick={() =>
                       navigate(
-                        `${endpoints[selectedFolder].overview}/${dataset.filename}`
+                        `${endpoints[selectedFolder].overview}/${dataset.filename}`,
                       )
                     }
                     onEditSuccess={fetchData}

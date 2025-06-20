@@ -11,9 +11,9 @@ const ModelConfig = ({ data }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700">
       <InfoItem label="Input Shape" value={data?.model_info?.input_shape} />
       <InfoItem label="Loss Function" value={data?.model_info?.loss} />
-      <InfoItem 
-        label="Optimizer" 
-        value={`${data?.model_info?.optimizer?.type} (lr: ${data?.model_info?.optimizer?.learning_rate})`} 
+      <InfoItem
+        label="Optimizer"
+        value={`${data?.model_info?.optimizer?.type} (lr: ${data?.model_info?.optimizer?.learning_rate})`}
       />
       <InfoItem
         label="Output Nodes"
@@ -24,21 +24,22 @@ const ModelConfig = ({ data }) => (
         value={data?.model_info?.output_layer?.activation_function}
       />
     </div>
-    
+
     {/* Metrics Section */}
     <div className="mt-4">
       <h4 className="text-sm font-medium text-gray-700 mb-2">Metrics</h4>
       <div className="flex flex-wrap gap-2">
-        {Object.entries(data?.model_info?.metrics || {}).map(([metric, enabled]) => (
-          enabled && (
-            <span 
-              key={metric}
-              className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
-            >
-              {metric.toUpperCase()}
-            </span>
-          )
-        ))}
+        {Object.entries(data?.model_info?.metrics || {}).map(
+          ([metric, enabled]) =>
+            enabled && (
+              <span
+                key={metric}
+                className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
+              >
+                {metric.toUpperCase()}
+              </span>
+            ),
+        )}
       </div>
     </div>
 
@@ -47,8 +48,8 @@ const ModelConfig = ({ data }) => (
       <div className="mt-4">
         <h4 className="text-sm font-medium text-gray-700 mb-2">Test Metrics</h4>
         <div className="flex flex-wrap gap-2">
-          {data.model_info.test_metrics.map(metric => (
-            <span 
+          {data.model_info.test_metrics.map((metric) => (
+            <span
               key={metric}
               className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs"
             >
