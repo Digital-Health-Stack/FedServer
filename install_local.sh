@@ -18,6 +18,8 @@ print_banner() {
   echo -e "${NC}"
 }
 
+sudo apt-get install redis-server -y
+
 # --- Backend Setup ---
 print_banner "$BLUE" "Installing FastAPI backend..."
 cd backend/app

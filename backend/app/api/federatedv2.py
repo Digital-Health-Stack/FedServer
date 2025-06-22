@@ -109,7 +109,7 @@ async def get_federated_session_v2(
 
 
 @federated_router_v2.post("/submit-client-price-acceptance")
-def submit_client_price_response(
+async def submit_client_price_response(
     client_response: ClientFederatedResponse,
     current_user: User = Depends(role("client")),
     db: Session = Depends(get_db),
