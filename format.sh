@@ -33,5 +33,5 @@
 # }
 
 black backend/app
-prettier --write "frontend/app/**/*.{js,ts,jsx,tsx,json,css,html,md}"
+npx prettier --write "frontend/app/**/*.{js,ts,jsx,tsx,json,css,html,md}"
 echo "🍻 All code formatted!"

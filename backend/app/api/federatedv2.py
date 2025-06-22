@@ -132,15 +132,11 @@ def submit_client_price_response(
                 }
 
             if session.training_status == 2:
-                return {
-                    'success': False, 
-                    'message': 'Training has already started'
-                }
+                return {"success": False, "message": "Training has already started"}
 
             federated_session = (
                 db.query(FederatedSession).filter_by(id=session_id).first()
             )
-            
 
             if not federated_session:
                 raise HTTPException(
@@ -157,7 +153,9 @@ def submit_client_price_response(
                 message = (
                     "Thank you for accepting the price. The training will start soon."
                 )
-                await send_notification_for_new_session("New session created with session id: " + str(session_id))
+                await send_notification_for_new_session(
+                    "New session created with session id: " + str(session_id)
+                )
             elif decision == 0:
                 federated_manager.log_event(
                     session_id,
