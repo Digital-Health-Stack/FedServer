@@ -2,6 +2,7 @@ from fastapi import APIRouter, status, Depends, Request, BackgroundTasks, HTTPEx
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_, update
+from utility.Notification import send_notification_for_new_session
 from utility.db import get_db
 from utility.FederatedLearning import FederatedLearning
 from utility.auth import role, get_current_user
@@ -80,7 +81,7 @@ async def get_federated_session_v2(
     return session
 
 @federated_router_v2.post('/submit-client-price-acceptance')
-def submit_client_price_response(client_response: ClientFederatedResponse, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
+async def submit_client_price_response(client_response: ClientFederatedResponse, current_user: User = Depends(role("client")), db: Session = Depends(get_db)):
     '''
         decision : 1 means client accepts the price, -1 means client rejects the price
         training_status = 2 means the training process should start
@@ -93,8 +94,10 @@ def submit_client_price_response(client_response: ClientFederatedResponse, curre
         if(session):
             # Only admin can respond
             if session.admin_id != current_user.id:
-                return {'success': False, 'message': 'Only the admin of this session can respond'}
-            
+                return {'success': False, 'message': 'Unauthorized user. Can only be accepted by the admin of this session'}
+            if session.training_status == 2:
+                return {'success': False, 'message': 'Training has already started'}
+
             federated_session = db.query(FederatedSession).filter_by(id = session_id).first()
             if not federated_session:
                 raise HTTPException(status_code=404, detail="Federated session not found")
@@ -103,6 +106,7 @@ def submit_client_price_response(client_response: ClientFederatedResponse, curre
                 federated_manager.log_event(session_id, f"Admin Accepted the price updating training status = 2")
                 federated_session.training_status = 2  # Update training_status to 2 (start training)
                 message = "Thank you for accepting the price. The training will start soon."
+                await send_notification_for_new_session("New session created with session id: " + str(session_id))
             elif decision == 0:
                 federated_manager.log_event(session_id, f"Admin rejected the price updating training status = -1")
                 federated_session.training_status = -1  # Keep or set to a default status for rejection
