@@ -24,7 +24,7 @@ const ColumnDetails = ({ columnStats }) => {
 
   const handleNavigation = (direction) => {
     setCurrentIndex(
-      (prev) => (prev + direction + columnStats.length) % columnStats.length
+      (prev) => (prev + direction + columnStats.length) % columnStats.length,
     );
   };
 
@@ -32,7 +32,7 @@ const ColumnDetails = ({ columnStats }) => {
     const currentColumn = columnStats[currentIndex];
     if (pinnedColumns.some((col) => col.name === currentColumn.name)) {
       setPinnedColumns(
-        pinnedColumns.filter((col) => col.name !== currentColumn.name)
+        pinnedColumns.filter((col) => col.name !== currentColumn.name),
       );
     } else {
       setPinnedColumns([...pinnedColumns, currentColumn]);
@@ -91,7 +91,7 @@ const ColumnDetails = ({ columnStats }) => {
               value={currentColumn.name}
               onChange={(e) => {
                 const index = columnStats.findIndex(
-                  (col) => col.name === e.target.value
+                  (col) => col.name === e.target.value,
                 );
                 setCurrentIndex(index);
               }}
@@ -101,7 +101,7 @@ const ColumnDetails = ({ columnStats }) => {
                 <option key={col.name} value={col.name}>
                   {`${index + 1}. ${col.name} (${col.type.replace(
                     "Type()",
-                    ""
+                    "",
                   )})`}
                 </option>
               ))}
@@ -167,7 +167,7 @@ const ColumnDetails = ({ columnStats }) => {
                       <button
                         onClick={() =>
                           setPinnedColumns(
-                            pinnedColumns.filter((c) => c.name !== col.name)
+                            pinnedColumns.filter((c) => c.name !== col.name),
                           )
                         }
                         className="text-red-400 hover:text-red-600"

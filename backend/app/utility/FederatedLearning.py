@@ -1,9 +1,14 @@
 from datetime import datetime
 from operator import or_
-from typing import Dict, List,  Optional, Literal
+from typing import Dict, List, Optional, Literal
 from schema import FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select
-from models.FederatedSession import FederatedSession, FederatedSessionClient, FederatedRoundClientSubmission, FederatedSessionLog
+from models.FederatedSession import (
+    FederatedSession,
+    FederatedSessionClient,
+    FederatedRoundClientSubmission,
+    FederatedSessionLog,
+)
 import numpy as np
 from models import User as UserModel
 from sqlalchemy.orm import Session, joinedload
@@ -21,11 +26,11 @@ class FederatedLearning:
     def __init__(self):
         self.processes: Dict[int, multiprocessing.Process] = {}
         self.process_start_times: Dict[int, float] = {}
-        
+
     def add_process(self, session_id: int, process: multiprocessing.Process):
         """
         Add a process to the process manager for a specific session.
-        
+
         Args:
             session_id (int): The ID of the federated session
             process (multiprocessing.Process): The process to manage
@@ -33,24 +38,23 @@ class FederatedLearning:
         self.processes[session_id] = process
         self.process_start_times[session_id] = time.time()
         self.log_event(session_id, f"Added process {process.pid} for session")
-        
-    
+
     def get_process(self, session_id: int) -> multiprocessing.Process:
         """
         Get the process for a specific session.
-        
+
         Args:
             session_id (int): The ID of the federated session
-            
+
         Returns:
             multiprocessing.Process: The process for the session
         """
         return self.processes.get(session_id)
-    
+
     def get_process_status(self, session_id: int) -> Dict:
         """
         Get status of a federated learning process using only stdlib
-        
+
         Returns:
             Dict: {
                 "exists": bool,
@@ -65,7 +69,7 @@ class FederatedLearning:
         process = self.get_process(session_id)
         if not process:
             return {"exists": False}
-        
+
         is_alive = process.is_alive()
         status_info = {
             "exists": True,
@@ -76,25 +80,27 @@ class FederatedLearning:
                 self.process_start_times.get(session_id, time.time())
             ).isoformat(),
             "exit_code": None if is_alive else process.exitcode,
-            "duration_seconds": round(time.time() - self.process_start_times.get(session_id, time.time()), 2)
+            "duration_seconds": round(
+                time.time() - self.process_start_times.get(session_id, time.time()), 2
+            ),
         }
         return status_info
-    
+
     def get_combined_session_status(self, session_id: int, db: Session) -> Dict:
         """
         Get complete status including both session and process info
-        
+
         Args:
             session_id: ID of the federated session
             db: Database session
-            
+
         Returns:
             Dict: Combined status information
         """
         session = self.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        
+
         # Get basic session info
         session_status = {
             "session_id": session_id,
@@ -102,26 +108,29 @@ class FederatedLearning:
             "current_round": session.curr_round,
             "max_rounds": session.max_round,
             "created_at": session.createdAt.isoformat(),
-            "updated_at": session.updatedAt.isoformat() if session.updatedAt else None
+            "updated_at": session.updatedAt.isoformat() if session.updatedAt else None,
         }
-        
+
         # Add process info
         session_status["process"] = self.get_process_status(session_id)
-        
+
         # Add recent logs (last 5)
-        logs = db.query(FederatedSessionLog)\
-                .filter(FederatedSessionLog.session_id == session_id)\
-                .order_by(FederatedSessionLog.createdAt.desc())\
-                .limit(5)\
-                .all()
-        
+        logs = (
+            db.query(FederatedSessionLog)
+            .filter(FederatedSessionLog.session_id == session_id)
+            .order_by(FederatedSessionLog.createdAt.desc())
+            .limit(5)
+            .all()
+        )
+
         session_status["recent_logs"] = [log.message for log in logs]
-        
+
         return session_status
-    
-    
+
     # Every session has a session_id also in future we can add a token and id
-    def create_federated_session(self, user: UserModel, federated_info: FederatedLearningInfo, ip, db:Session) :
+    def create_federated_session(
+        self, user: UserModel, federated_info: FederatedLearningInfo, ip, db: Session
+    ):
         """
         Creates a new federated learning session.
 
@@ -136,14 +145,14 @@ class FederatedLearning:
         - max_round: 5 (maximum number of rounds)
         - interested_clients: Empty dictionary to store IDs of interested clients
         - global_parameters: Empty list to store global parameters
-        - clients_status: Dictionary to track status of all clients. 
+        - clients_status: Dictionary to track status of all clients.
                           Status values: 1 (not responded), 2 (accepted), 3 (rejected)
         - training_status: 1 (server waiting for all clients), 2 (training starts)
         """
-        
+
         federated_session = FederatedSession(
             federated_info=federated_info.__dict__,
-            admin_id = user.id,
+            admin_id=user.id,
         )
         try:
             db.add(federated_session)
@@ -151,19 +160,17 @@ class FederatedLearning:
             db.refresh(federated_session)
         except Exception as e:
             db.rollback()  # Rollback in case of any error
-            raise HTTPException(status_code=500, detail=f"Failed to create federated session: {str(e)}")    
-            
+            raise HTTPException(
+                status_code=500, detail=f"Failed to create federated session: {str(e)}"
+            )
+
         federated_session_client = FederatedSessionClient(
-            user_id = user.id,
-            session_id = federated_session.id,
-            status = 0,
-            ip = ip
+            user_id=user.id, session_id=federated_session.id, status=0, ip=ip
         )
         db.add(federated_session_client)
         db.commit()
         return federated_session
 
-    
     def get_session(self, federated_session_id: int) -> FederatedLearningInfo:
         """
         Retrieves information about a federated learning session.
@@ -174,50 +181,55 @@ class FederatedLearning:
         Returns:
         - FederatedLearningInfo: Information about the federated learning session.
         """
-        
+
         with Session(engine) as db:
-            stmt = select(FederatedSession, FederatedSession.clients).where(FederatedSession.id == federated_session_id).options(joinedload(FederatedSession.clients))
+            stmt = (
+                select(FederatedSession, FederatedSession.clients)
+                .where(FederatedSession.id == federated_session_id)
+                .options(joinedload(FederatedSession.clients))
+            )
             federated_session = db.execute(stmt).scalar()
-            
+
             return federated_session
-        
+
     # def get_session_clients(self, federated_session_id: int):
     #     with Session(engine) as db:
     #         stmt = select(FederatedSessionClient).where(FederatedSession.id == )
-            
+
     def get_all(self):
         with Session(engine) as db:
             stmt = select(
                 FederatedSession.id,
                 FederatedSession.training_status,
                 FederatedSession.federated_info,
-                FederatedSession.createdAt
+                FederatedSession.createdAt,
             ).order_by(desc(FederatedSession.createdAt))
-        
+
             federated_sessions = db.execute(stmt).all()
             return federated_sessions
-    
+
     def get_my_sessions(self, user: UserModel):
         with Session(engine) as db:
-            stmt = select(
-                FederatedSession.id,
-                FederatedSession.training_status,
-                FederatedSession.federated_info
-            ).join(
-                FederatedSession.clients
-            ).order_by(
-                desc(FederatedSession.createdAt)
-            ).where(
-                or_(
-                    FederatedSession.wait_till > datetime.now(),
-                    FederatedSessionClient.user_id == user.id
+            stmt = (
+                select(
+                    FederatedSession.id,
+                    FederatedSession.training_status,
+                    FederatedSession.federated_info,
+                )
+                .join(FederatedSession.clients)
+                .order_by(desc(FederatedSession.createdAt))
+                .where(
+                    or_(
+                        FederatedSession.wait_till > datetime.now(),
+                        FederatedSessionClient.user_id == user.id,
+                    )
                 )
             )
 
             federated_sessions = db.execute(stmt).all()
-            
+
             return federated_sessions
-    
+
     def clear_client_parameters(self, session_id: str, round_number: int):
         """
         Clears client parameters for a specific session and round
@@ -228,7 +240,9 @@ class FederatedLearning:
         if local_dir.exists():
             try:
                 shutil.rmtree(local_dir)
-                print(f"Successfully deleted all local parameters for session {session_id}")
+                print(
+                    f"Successfully deleted all local parameters for session {session_id}"
+                )
                 return True
             except Exception as e:
                 print(f"Failed to delete {local_dir}: {str(e)}")
@@ -251,8 +265,7 @@ class FederatedLearning:
         # }
         # ========================================================================================================
         """
-        
-        
+
         # Define paths
         base_dir = Path(f"tmp/parameters/{session_id}")
         local_dir = base_dir / "local"
@@ -260,20 +273,21 @@ class FederatedLearning:
         global_weights_file = global_dir / "global_weights.json"
         # Create global directory if it doesn't exist
         global_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Get all client parameter files for this round
         client_files = list(local_dir.glob("*.json"))
-        client_files = [f for f in client_files if not f.name.endswith("_metadata.json")]
-        
+        client_files = [
+            f for f in client_files if not f.name.endswith("_metadata.json")
+        ]
+
         if not client_files:
             print("No client submissions found for this round.")
             return
-        
+
         # Initialize aggregated sums
         aggregated_sums = None
         num_clients = 0
-        
-        
+
         def initialize_aggregated_sums(param):
             if isinstance(param, list):
                 return [initialize_aggregated_sums(p) for p in param]
@@ -290,7 +304,10 @@ class FederatedLearning:
 
         def average_parameters(aggregated, count):
             if isinstance(aggregated, list):
-                return [average_parameters(sub_aggregated, count) for sub_aggregated in aggregated]
+                return [
+                    average_parameters(sub_aggregated, count)
+                    for sub_aggregated in aggregated
+                ]
             else:
                 return (aggregated / count).tolist()
 
@@ -302,66 +319,68 @@ class FederatedLearning:
 
         #     for key in weights:
         #         aggregated_sums[key] = sum_parameters(aggregated_sums[key], weights[key])
-        
-        
+
         # Process each client's parameters
         for client_file in client_files:
             # Read client parameters
-            with open(client_file, 'r') as f:
+            with open(client_file, "r") as f:
                 client_weights = json.load(f)
-            
+
             # Read metadata to verify round number
             metadata_file = local_dir / f"{client_file.stem}_metadata.json"
-            with open(metadata_file, 'r') as f:
+            with open(metadata_file, "r") as f:
                 metadata = json.load(f)
-            
-            if metadata.get('round_number') != round_number:
+
+            if metadata.get("round_number") != round_number:
                 continue  # Skip if not for current round
-            
+
             num_clients += 1
-            
+
             # Initialize aggregated_sums structure on first client
             if aggregated_sums is None:
                 aggregated_sums = {}
                 for key in client_weights:
-                    aggregated_sums[key] = initialize_aggregated_sums(client_weights[key])
-            
+                    aggregated_sums[key] = initialize_aggregated_sums(
+                        client_weights[key]
+                    )
+
             # Sum the parameters
             for key in client_weights:
-                aggregated_sums[key] = sum_parameters(aggregated_sums[key], client_weights[key])
-        
+                aggregated_sums[key] = sum_parameters(
+                    aggregated_sums[key], client_weights[key]
+                )
+
         if num_clients == 0:
             print("No valid client submissions found for this round.")
             return
         # Average the parameters
         for key in aggregated_sums:
             aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
-        
+
         # Save global weights to file
-        with open(global_weights_file, 'w') as f:
+        with open(global_weights_file, "w") as f:
             json.dump(aggregated_sums, f)
-        
+
         # Optionally, save metadata about the aggregation
         aggregation_metadata = {
             "session_id": session_id,
             "round_number": round_number,
             "num_clients": num_clients,
-            "aggregated_at": datetime.utcnow().isoformat()
+            "aggregated_at": datetime.utcnow().isoformat(),
         }
-        
-        with open(global_dir / "aggregation_metadata.json", 'w') as f:
+
+        with open(global_dir / "aggregation_metadata.json", "w") as f:
             json.dump(aggregation_metadata, f)
         return
 
-
-    def log_event(self, session_id: int,message: str):
+    def log_event(self, session_id: int, message: str):
         with Session(engine) as db:
             log_entry = FederatedSessionLog(session_id=session_id, message=message)
             db.add(log_entry)
             db.commit()
             print(f"[LOG] Session {session_id}: {message} ")
-    
-    def get_latest_global_weights(self,session_id: int):
+
+    def get_latest_global_weights(self, session_id: int):
         """
         Retrieve the latest global model weights for a given federated session.
 
@@ -372,15 +391,16 @@ class FederatedLearning:
         Returns:
             dict or None: The latest global weights as a dictionary, or None if not found.
         """
-        global_weights_path = Path(f"tmp/parameters/{session_id}/global/global_weights.json")
+        global_weights_path = Path(
+            f"tmp/parameters/{session_id}/global/global_weights.json"
+        )
         if not global_weights_path.exists():
             print("File Federated Learning: Global Weights not found!!")
             return None
         try:
-            with open(global_weights_path, 'r') as f:
+            with open(global_weights_path, "r") as f:
                 weights = json.load(f)
             return weights
         except (IOError, json.JSONDecodeError) as e:
             print(f"Error reading global weights: {str(e)}")
             return None
-

@@ -12,30 +12,30 @@ from models.User import User
 
 notifications_router = APIRouter()
 
+
 @notifications_router.get("/notifications/stream")
 async def notifications_stream(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(role("client"))
+    current_user: User = Depends(role("client")),
 ):
     async def event_generator():
         while True:
             # Check if client has disconnected
             if await request.is_disconnected():
                 break
-        
+
             # Fetch notifications for the current user
-            user_notifications = get_unnotified_notifications(user = current_user, db = db)
-            
-            if(len(user_notifications) > 0):
+            user_notifications = get_unnotified_notifications(user=current_user, db=db)
+
+            if len(user_notifications) > 0:
                 data = [n.message for n in user_notifications]
 
                 # Send the data as an SSE event
                 yield {
-                    "event": "new_notifications",   
+                    "event": "new_notifications",
                     "data": json.dumps(data),
                 }
-                
 
                 for notification in user_notifications:
                     notification.notified_at = datetime.now()

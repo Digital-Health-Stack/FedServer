@@ -1,11 +1,24 @@
 from pyspark.sql import SparkSession
 from dotenv import load_dotenv
-from pyspark.sql.functions import col, size, count, expr, mean, stddev, min, max, rand, lit, rank, when
+from pyspark.sql.functions import (
+    col,
+    size,
+    count,
+    expr,
+    mean,
+    stddev,
+    min,
+    max,
+    rand,
+    lit,
+    rank,
+    when,
+)
 from pyspark.sql.types import NumericType, StringType, ArrayType
 import numpy as np
 
 from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
-from helpers.hdfs_services import HDFSServiceManager  
+from helpers.hdfs_services import HDFSServiceManager
 from helpers.aws_services import S3Services
 import threading
 import time
@@ -33,12 +46,13 @@ class SparkSessionManager:
     Creates a new SparkSession object if not already created, and returns an active session if there is (for threads).
     This is thread safe implementation, and not process safe (pyspark limitation).
     """
-    # Class variables 
+
+    # Class variables
     _instance = None
     _lock = threading.Lock()
     _session = None
     _reference_count = 0
-    _config_lock = threading.Lock()  
+    _config_lock = threading.Lock()
 
     # "spark://172.24.239.133:7077"
     def __new__(cls, app_name="default_app", master=SPARK_MASTER_URL):
@@ -54,10 +68,14 @@ class SparkSessionManager:
         with self._config_lock:
             # Double-checked locking pattern
             if self._session is None:
-                self._session = SparkSession.builder.master(self.master).appName(self.app_name).getOrCreate()
-                print("Spark session created...")  
+                self._session = (
+                    SparkSession.builder.master(self.master)
+                    .appName(self.app_name)
+                    .getOrCreate()
+                )
+                print("Spark session created...")
                 # # for standalone cluster (will not use YARN as resource manager)
-                # spark = SparkSession.builder.remote("sc://localhost:8080").getOrCreate() 
+                # spark = SparkSession.builder.remote("sc://localhost:8080").getOrCreate()
         with self._lock:
             self._reference_count += 1
         return self._session
@@ -100,7 +118,7 @@ class SparkSessionManager:
     #     """
     #     if not df:
     #         return {"message": "Dataset not found."}
-        
+
     #     overview = None
     #     column_stats = []
     #     for column in df.columns:
@@ -108,10 +126,10 @@ class SparkSessionManager:
     #             column_expr = col(f"`{column}`") #useful if col name contains special characters or spaces
     #             column_type = df.schema[column].dataType
     #             stats = {"name": column, "type": str(column_type), "entries": df.select(column_expr).count()}
-                
-    #             # Common statistics for all columns 
+
+    #             # Common statistics for all columns
     #             stats["nullCount"] = df.filter(column_expr.isNull()).count()
-                
+
     #             # Column specific statistics
     #             NumberTypes = ["IntegerType()", "DoubleType()", "FloatType()", "LongType()"]
     #             if str(column_type) in NumberTypes:
@@ -128,7 +146,7 @@ class SparkSessionManager:
     #                     "max": summary["max"],
     #                     "uniqueCount": df.select(column_expr).distinct().count()
     #                 })
-                    
+
     #                 # Quartile calculation
     #                 quantiles = df.approxQuantile(column, [0.25, 0.5, 0.75], 0.05)
     #                 stats["quartiles"] = {
@@ -137,7 +155,7 @@ class SparkSessionManager:
     #                     "Q3": quantiles[2],
     #                     "IQR": quantiles[2] - quantiles[0]
     #                 }
-                    
+
     #                 # Histogram binning
     #                 min_val = summary["min"]
     #                 max_val = summary["max"]
@@ -156,7 +174,7 @@ class SparkSessionManager:
     #             # String columns
     #             elif "StringType" in str(column_type):
     #                 stats["uniqueCount"] = df.select(column_expr).distinct().count()
-                    
+
     #                 # Frequency distribution for top 10 categories
     #                 top_categories = (
     #                     df.groupBy(column_expr)
@@ -173,7 +191,7 @@ class SparkSessionManager:
     #                     for row in top_categories
     #                 ]
     #             elif "ArrayType" in str(column_type):
-                    
+
     #                 pass
 
     #             # Add the column stats to the list
@@ -191,71 +209,74 @@ class SparkSessionManager:
 
     #     return overview
 
-
     def _get_overview(self, df):
         """
         Get an overview of the dataset given pyspark dataframe.
         """
         if not df:
             return {"message": "Dataset not found."}
-        
+
         overview = None
         column_stats = []
         for column in df.columns:
             try:
-                column_expr = col(f"`{column}`") #useful if col name contains special characters or spaces
+                column_expr = col(
+                    f"`{column}`"
+                )  # useful if col name contains special characters or spaces
                 column_type = df.schema[column].dataType
                 num_rows = df.select(column_expr).count()
                 stats = {"name": column, "type": str(column_type), "entries": num_rows}
-                
-                # Common statistics for all columns 
+
+                # Common statistics for all columns
                 stats["nullCount"] = df.filter(column_expr.isNull()).count()
-                
+
                 # Column specific statistics
-                NumberTypes = ["IntegerType()", "DoubleType()", "FloatType()", "LongType()"]
+                NumberTypes = [
+                    "IntegerType()",
+                    "DoubleType()",
+                    "FloatType()",
+                    "LongType()",
+                ]
                 if str(column_type) in NumberTypes:
                     summary = df.select(
                         mean(column_expr).alias("mean"),
                         stddev(column_expr).alias("stddev"),
                         min(column_expr).alias("min"),
-                        max(column_expr).alias("max")
+                        max(column_expr).alias("max"),
                     ).first()
-                    stats.update({
-                        "mean": summary["mean"],
-                        "stddev": summary["stddev"],
-                        "min": summary["min"],
-                        "max": summary["max"],
-                        "uniqueCount": df.select(column_expr).distinct().count()
-                    })
-                    
+                    stats.update(
+                        {
+                            "mean": summary["mean"],
+                            "stddev": summary["stddev"],
+                            "min": summary["min"],
+                            "max": summary["max"],
+                            "uniqueCount": df.select(column_expr).distinct().count(),
+                        }
+                    )
+
                     # Quartile calculation
                     quantiles = df.approxQuantile(column, [0.25, 0.5, 0.75], 0.05)
                     stats["quartiles"] = {
                         "Q1": quantiles[0],
                         "median": quantiles[1],
                         "Q3": quantiles[2],
-                        "IQR": quantiles[2] - quantiles[0]
+                        "IQR": quantiles[2] - quantiles[0],
                     }
-                    
+
                     # Histogram binning
                     min_val = summary["min"]
                     max_val = summary["max"]
                     bin_width = (max_val - min_val) / 10
                     bins = [min_val + i * bin_width for i in range(11)]
                     histogram = (
-                        df.select(column_expr)
-                        .rdd.flatMap(lambda x: x)
-                        .histogram(bins)
+                        df.select(column_expr).rdd.flatMap(lambda x: x).histogram(bins)
                     )
-                    stats["histogram"] = {
-                        "bins": histogram[0],
-                        "counts": histogram[1]
-                    }
+                    stats["histogram"] = {"bins": histogram[0], "counts": histogram[1]}
 
                 # String columns
                 elif "StringType" in str(column_type):
                     stats["uniqueCount"] = df.select(column_expr).distinct().count()
-                    
+
                     # Frequency distribution for top 10 categories
                     top_categories = (
                         df.groupBy(column_expr)
@@ -266,17 +287,28 @@ class SparkSessionManager:
                     )
 
                     stats["topCategories"] = [
-                        {   "value": row[column][:50] + "..." if isinstance(row[column], str) and len(row[column]) > 50 else row[column],
-                            "count": row["count"]
+                        {
+                            "value": (
+                                row[column][:50] + "..."
+                                if isinstance(row[column], str)
+                                and len(row[column]) > 50
+                                else row[column]
+                            ),
+                            "count": row["count"],
                         }
                         for row in top_categories
                     ]
-                
+
                 elif "ArrayType" in str(column_type):
                     # Get first non-null entry
-                    row = df.select(column_expr).filter(col(column).isNotNull()).limit(1).first()
+                    row = (
+                        df.select(column_expr)
+                        .filter(col(column).isNotNull())
+                        .limit(1)
+                        .first()
+                    )
                     arr = row[column] if row else None
-                
+
                     # Infer shape
                     shape = []
                     temp = arr
@@ -286,20 +318,23 @@ class SparkSessionManager:
                             break
                         temp = temp[0] if isinstance(temp[0], list) else None
                     stats["Shape"] = tuple(shape) if shape else None
-                    
-                
+
                     # Length Distribution (top level)
-                    length_stats = df.select(size(col(column)).alias("len")) \
-                        .summary("count", "min", "max", "mean", "stddev") \
-                        .toPandas().set_index("summary").to_dict()["len"]
-                
+                    length_stats = (
+                        df.select(size(col(column)).alias("len"))
+                        .summary("count", "min", "max", "mean", "stddev")
+                        .toPandas()
+                        .set_index("summary")
+                        .to_dict()["len"]
+                    )
+
                     stats["LengthStats"] = {
                         "min": int(length_stats.get("min", 0)),
                         "max": int(length_stats.get("max", 0)),
                         "mean": float(length_stats.get("mean", 0)),
-                        "std": float(length_stats.get("stddev", 0))
+                        "std": float(length_stats.get("stddev", 0)),
                     }
-                
+
                     # Check if inner elements are numeric — if so, calculate value statistics
                     def flatten_all(x):
                         """Recursively flatten list to 1D"""
@@ -308,21 +343,29 @@ class SparkSessionManager:
                                 yield from flatten_all(i)
                         else:
                             yield x
-                
+
                     if row and isinstance(row[column], list):
                         flat_sample = list(flatten_all(row[column]))
                         if flat_sample and isinstance(flat_sample[0], (int, float)):
                             # Only compute value-level stats if numeric
                             # Use RDD for optimized distributed stat collection
-                            rdd = df.select(column_expr).rdd \
-                                .filter(lambda row: row[column] is not None) \
-                                .flatMap(lambda row: flatten_all(row[column]) if row[column] else [])
-                
+                            rdd = (
+                                df.select(column_expr)
+                                .rdd.filter(lambda row: row[column] is not None)
+                                .flatMap(
+                                    lambda row: (
+                                        flatten_all(row[column]) if row[column] else []
+                                    )
+                                )
+                            )
+
                             try:
                                 num_samples = int(np.minimum(num_rows * 0.2, 100000))
-                                stats["sampleSize"] = f"{int(np.minimum(num_rows * 0.2, 100000))} samples"
+                                stats["sampleSize"] = (
+                                    f"{int(np.minimum(num_rows * 0.2, 100000))} samples"
+                                )
                                 sampled = rdd.take(num_samples)  # Safe sample
-                                
+
                                 if sampled:
                                     arr_np = np.array(sampled)
                                     stats["valueStats"] = {
@@ -331,7 +374,9 @@ class SparkSessionManager:
                                         "mean": float(np.mean(arr_np)),
                                         "std": float(np.std(arr_np)),
                                         "median": float(np.median(arr_np)),
-                                        "sparsity": float(np.mean(arr_np == 0))  # Fraction of zeros
+                                        "sparsity": float(
+                                            np.mean(arr_np == 0)
+                                        ),  # Fraction of zeros
                                     }
                             except Exception as e:
                                 stats["valueStats"] = None
@@ -350,11 +395,10 @@ class SparkSessionManager:
         overview = {
             "numRows": df.count(),
             "numColumns": len(df.columns),
-            "columnStats": column_stats
+            "columnStats": column_stats,
         }
 
         return overview
-
 
     async def create_new_dataset(self, filename, filetype):
         """
@@ -365,36 +409,53 @@ class SparkSessionManager:
         print(f"in create_new_dataset {filename} is {filetype}")
         try:
             with SparkSessionManager() as spark:
-                
+
                 # later create a switch case based on file type
                 if filetype == "csv":
-                    print(f"Reading CSV file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}")
-                    df = spark.read.csv(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}",header=True,inferSchema=True)
+                    print(
+                        f"Reading CSV file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}"
+                    )
+                    df = spark.read.csv(
+                        f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}",
+                        header=True,
+                        inferSchema=True,
+                    )
                     write_filename = filename.replace(".csv__PROCESSING__", ".parquet")
                     # if you write without parquet extension, it will create a directory with the filename and store the data in it
-                    df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}")
-                    print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{write_filename}")
+                    df.write.mode("overwrite").parquet(
+                        f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}"
+                    )
+                    print(
+                        f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{write_filename}"
+                    )
 
                 elif filetype == "parquet":
-                    write_filename = filename.replace("__PROCESSING__","")
-                    print(f"Reading Parquet file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}")
+                    write_filename = filename.replace("__PROCESSING__", "")
+                    print(
+                        f"Reading Parquet file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}"
+                    )
                     # we don't need inferSchema=True with parquet (as parquet stores the schema as metadata)
-                    df = spark.read.parquet(f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}")
-                    df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}")
-                    print(f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{write_filename}")
+                    df = spark.read.parquet(
+                        f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}"
+                    )
+                    df.write.mode("overwrite").parquet(
+                        f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}"
+                    )
+                    print(
+                        f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{write_filename}"
+                    )
                 else:
                     print("Unsupported file type for creating new dataset.")
                     return {"message": "Unsupported file type."}
 
                 dataset_overview = self._get_overview(df)
-                
+
                 dataset_overview["filename"] = write_filename
-                return dataset_overview        
+                return dataset_overview
             return {"message": "Dataset created."}
         except Exception as e:
             print(f"Error creating new dataset: {e}")
             raise e
-    
 
     async def preprocess_data(self, directory: str, filename: str, operations: list):
         """
@@ -404,11 +465,11 @@ class SparkSessionManager:
         i) If error occured at any step, the function will print the error and continue to the next step.
         ii) When the operation is not finished in case of error, the df still could be modified (because I'm not maintaining the copy and each step is done on the same df)
         iii) During many ops (like normalization, calculating mean, mode etc.) pyspark internally skips null if there is any
-        iv) Before changing the code please ensure from pyspark docs if it can be paralellized (on executors) 
+        iv) Before changing the code please ensure from pyspark docs if it can be paralellized (on executors)
         v) ensure correctness of the operations and the order of operations, some general rules:
                 - Drop Null, Fill Null, Drop Duplicates should be done before any normalization, scaling, encoding etc.
                 - Normalization, Scaling, Encoding should be done before any transformation (like log, square etc.)
-                - Avoid log, square root and such transformation on negative or 0 values 
+                - Avoid log, square root and such transformation on negative or 0 values
                 - Avoid normalization on categorical columns (see count of unique values in the column to decide)
                 - In most of the ops invalid rows are dropped or skiped by pyspark, take care of that
                 - only int cols can be encoded into one-hot, label encoding
@@ -430,42 +491,59 @@ class SparkSessionManager:
                             {"column": "All Columns", "operation": "Drop Duplicates"},
                         ]
         """
-        
+
         # don't put try except here, if any error occurs, it will be printed and counted as no error ..
         # so wherever this function is called next step will continue even after this error (put try except there instead)
         try:
             with SparkSessionManager() as spark:
                 # Load the dataset from HDFS
-                print(f"Starting preprocessing for {HDFS_FILE_READ_URL}/{directory}/{filename}...")
+                print(
+                    f"Starting preprocessing for {HDFS_FILE_READ_URL}/{directory}/{filename}..."
+                )
                 df = spark.read.parquet(f"{HDFS_FILE_READ_URL}/{directory}/{filename}")
-                
+
                 # Record the time, and get the numeric columns
                 t1 = time.time()
                 All_Columns = df.columns
-                numericCols = [c for c in All_Columns if isinstance(df.schema[c].dataType, NumericType)]
+                numericCols = [
+                    c
+                    for c in All_Columns
+                    if isinstance(df.schema[c].dataType, NumericType)
+                ]
 
                 # Apply the preprocessing steps
                 for step in operations:
                     if step["operation"] == "Exclude from All Columns list":
-                        All_Columns.remove(step['column'])
-                        if step['column'] in numericCols:
-                            numericCols.remove(step['column'])
-                            
+                        All_Columns.remove(step["column"])
+                        if step["column"] in numericCols:
+                            numericCols.remove(step["column"])
+
                     elif step["column"] == "All Columns":
                         try:
-                            df = All_Column_Operations(df, step, numericCols, All_Columns)
+                            df = All_Column_Operations(
+                                df, step, numericCols, All_Columns
+                            )
                         except Exception as e:
-                            print(f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n")       
+                            print(
+                                f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n"
+                            )
                     else:
                         try:
                             df = Column_Operations(df, step)
                         except Exception as e:
-                            print(f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n")
+                            print(
+                                f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n"
+                            )
 
                 newfilename = f"{filename}_{uuid.uuid4().hex}.parquet"
-                df.write.mode("overwrite").parquet(f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename}")
+                df.write.mode("overwrite").parquet(
+                    f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename}"
+                )
 
-                print(f"Preprocessed dataset saved to: {HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename} and time taken: ",time.time()-t1)
+                print(
+                    f"Preprocessed dataset saved to: {HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{newfilename} and time taken: ",
+                    time.time() - t1,
+                )
 
                 overview = self._get_overview(df)
                 print(f"datastats recalculated after merging...")
@@ -475,10 +553,12 @@ class SparkSessionManager:
             print(f"Error in preprocessing dataset: {e}")
             raise e
 
-    async def merge_s3_file_to_hdfs(self, s3_path: str, parent_filename:str, session_id:int):
+    async def merge_s3_file_to_hdfs(
+        self, s3_path: str, parent_filename: str, session_id: int
+    ):
         """
         Creating Dataset for QPD (Quality preserving Database) from the original dataset.
-        """      
+        """
         try:
             with SparkSessionManager() as spark:
                 print(f"reading env variables...merge dir: {MERGE_TEMP_DIRECTORY}")
@@ -486,7 +566,9 @@ class SparkSessionManager:
                 hdfs_path = f"{HDFS_FILE_READ_URL}/{HDFS_PROCESSED_DATASETS_DIR}/{parent_filename}"
                 s3_path = s3_path
                 # newfilename = f"{parent_filename.replace('.parquet','')}_merged_{session_id}.parquet"
-                newpath = f"{HDFS_FILE_READ_URL}/{MERGE_TEMP_DIRECTORY}/{parent_filename}"
+                newpath = (
+                    f"{HDFS_FILE_READ_URL}/{MERGE_TEMP_DIRECTORY}/{parent_filename}"
+                )
 
                 # reading the files from HDFS and S3
                 print(f"Reading from hdfs path: {hdfs_path}")
@@ -494,15 +576,17 @@ class SparkSessionManager:
 
                 print(f"Reading from s3 path: {s3_path}")
                 s3_df = spark.read.parquet(s3_path, inferSchema=True)
-                
+
                 # In Spark ≥ 3.3, DataFrame.isEmpty() is available and does not trigger a full count
                 # for older versions use df.limit(1).rdd.isEmpty()
                 if hdfs_df.isEmpty() or s3_df.isEmpty():
                     print(f"File {hdfs_path} or {s3_path} is empty, skipping merge.")
-                    raise Exception(f"File {hdfs_path} or {s3_path} is empty, skipping merge.")
-                
+                    raise Exception(
+                        f"File {hdfs_path} or {s3_path} is empty, skipping merge."
+                    )
+
                 ####-------------------------------------------------
-                # have to ensure they're compatible for merging, otherwise inconsistencies will be there in DB and hdfs 
+                # have to ensure they're compatible for merging, otherwise inconsistencies will be there in DB and hdfs
                 # currently this will union correctly even for reordered cols, and missing cols in either df
                 ####-------------------------------------------------
 
@@ -523,9 +607,14 @@ class SparkSessionManager:
 
                 # Move the merged file to the final directory
                 if hdfs_client.check_file_exists(hdfs_path):
-                    await hdfs_client.delete_file_from_hdfs(HDFS_PROCESSED_DATASETS_DIR, parent_filename)
+                    await hdfs_client.delete_file_from_hdfs(
+                        HDFS_PROCESSED_DATASETS_DIR, parent_filename
+                    )
 
-                await hdfs_client.rename_file_or_folder(f"{MERGE_TEMP_DIRECTORY}/{parent_filename}", f"{HDFS_PROCESSED_DATASETS_DIR}/{parent_filename}")
+                await hdfs_client.rename_file_or_folder(
+                    f"{MERGE_TEMP_DIRECTORY}/{parent_filename}",
+                    f"{HDFS_PROCESSED_DATASETS_DIR}/{parent_filename}",
+                )
                 print(f"Moved merged dataset to: {hdfs_path}")
 
                 overview = self._get_overview(hdfs_df)
@@ -534,9 +623,10 @@ class SparkSessionManager:
 
         except Exception as e:
             print(f"Error Merging S3 dataset: {e}")
-            await hdfs_client.delete_file_from_hdfs(MERGE_TEMP_DIRECTORY, parent_filename)
+            await hdfs_client.delete_file_from_hdfs(
+                MERGE_TEMP_DIRECTORY, parent_filename
+            )
             raise e
-            
 
 
 # the _get_overview  function will return something like this:
@@ -561,8 +651,8 @@ class SparkSessionManager:
 #                 "IQR": 20
 #             },
 #             "histogram": {
-            #    "bins": [20, 25, 30, 35, 40, 45, 50, 55, 60],
-            #    "counts": [100, 200, 150, 100, 150, 200, 100, 50]
+#    "bins": [20, 25, 30, 35, 40, 45, 50, 55, 60],
+#    "counts": [100, 200, 150, 100, 150, 200, 100, 50]
 #             }
 #         },
 #         {

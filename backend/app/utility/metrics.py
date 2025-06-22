@@ -36,7 +36,9 @@ def recall_score(y_true, y_pred):
 def f1_score(y_true, y_pred):
     precision = precision_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred)
-    return 2 * (precision * recall) / (precision + recall) if (precision + recall) else 0
+    return (
+        2 * (precision * recall) / (precision + recall) if (precision + recall) else 0
+    )
 
 
 def auc_score(y_true, y_pred):
@@ -84,7 +86,9 @@ def calculate_metrics(y_true, y_pred, metrics):
             elif metric == "msle":
                 results["msle"] = round(mean_squared_log_error(y_true, y_pred), 3)
             elif metric == "mape":
-                results["mape"] = round(mean_absolute_percentage_error(y_true, y_pred), 3)
+                results["mape"] = round(
+                    mean_absolute_percentage_error(y_true, y_pred), 3
+                )
             elif metric == "accuracy":
                 results["accuracy"] = round(accuracy_score(y_true, y_pred), 3)
             elif metric == "precision":

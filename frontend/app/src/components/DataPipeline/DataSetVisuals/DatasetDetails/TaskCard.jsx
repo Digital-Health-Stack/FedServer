@@ -6,7 +6,11 @@ import {
   ScaleIcon,
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
-import { FolderPlusIcon, TrashIcon, XCircleIcon } from "@heroicons/react/24/solid";
+import {
+  FolderPlusIcon,
+  TrashIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/solid";
 import { motion } from "framer-motion";
 import {
   listTasksFromDatasetId,
@@ -34,12 +38,12 @@ const METRIC_OPTIONS = [
 ];
 
 const METRIC_MAP = {
-  "Accuracy": "accuracy",
+  Accuracy: "accuracy",
   "F1 Score": "f1",
   "Mean Absolute Error": "mae",
   "Mean Squared Error": "mse",
-  "Precision": "precision",
-  "Recall": "recall",
+  Precision: "precision",
+  Recall: "recall",
 };
 
 const Tasks = ({ datasetId }) => {

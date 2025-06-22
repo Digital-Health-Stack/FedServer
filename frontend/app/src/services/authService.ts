@@ -10,7 +10,7 @@ export const login = async (credentials: {
 
 export const refreshAccessToken = async (
   api: AxiosInstance,
-  refresh_token: String
+  refresh_token: String,
 ) => {
   return api.post("/refresh-token", { refresh_token });
 };

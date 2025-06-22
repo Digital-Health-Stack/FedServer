@@ -10,8 +10,8 @@ const BarPlot = ({ bins, counts, xTitle = "Bins", yTitle = "Counts" }) => {
   const randomColors = counts.map(
     () =>
       `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(
-        Math.random() * 256
-      )}, ${Math.floor(Math.random() * 256)}, 0.8)`
+        Math.random() * 256,
+      )}, ${Math.floor(Math.random() * 256)}, 0.8)`,
   );
 
   const data = {

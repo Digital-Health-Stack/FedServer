@@ -27,7 +27,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
 );
 
 const BENCHMARKS_URL = process.env.REACT_APP_GET_BENCHMARKS_WITH_TASK_ID;
@@ -75,7 +75,7 @@ const Benchmarks = () => {
           e,
           "nearest",
           { intersect: true },
-          true
+          true,
         );
 
         if (points.length > 0) {
@@ -136,7 +136,7 @@ const Benchmarks = () => {
                     </p>
                     <p className="text-sm text-gray-600">
                       {new Date(
-                        selectedBenchmark.created_at
+                        selectedBenchmark.created_at,
                       ).toLocaleDateString()}
                     </p>
                   </div>

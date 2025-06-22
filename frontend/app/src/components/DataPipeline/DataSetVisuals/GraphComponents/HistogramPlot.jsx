@@ -26,7 +26,7 @@ ChartJS.register(
   Legend,
   LineElement,
   PointElement,
-  Filler
+  Filler,
 );
 
 const HistogramPlot = ({
@@ -39,8 +39,8 @@ const HistogramPlot = ({
   const randomColors = counts.map(
     () =>
       `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(
-        Math.random() * 256
-      )}, ${Math.floor(Math.random() * 256)}, 0.8)`
+        Math.random() * 256,
+      )}, ${Math.floor(Math.random() * 256)}, 0.8)`,
   );
 
   // Formatting bins to show ranges with 2 decimal places

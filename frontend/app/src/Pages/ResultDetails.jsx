@@ -6,7 +6,8 @@ import MetricsChart from "../components/ResultDetails/MetricsChart";
 import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap/dist/js/bootstrap.js";
 
-const get_training_detail_from_session_id = 'http://localhost:8000/get-training-result'
+const get_training_detail_from_session_id =
+  "http://localhost:8000/get-training-result";
 
 const RenderData = ({ data, level = 0 }) => {
   if (typeof data === "object" && data !== null) {

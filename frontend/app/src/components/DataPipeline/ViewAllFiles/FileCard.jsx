@@ -5,7 +5,10 @@ import {
   TrashIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/solid";
-import { ClipboardDocumentListIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+import {
+  ClipboardDocumentListIcon,
+  CheckCircleIcon,
+} from "@heroicons/react/24/outline";
 import EditDatasetModal from "./EditDatasetModal";
 import { toast } from "react-toastify";
 
@@ -51,9 +54,10 @@ const FileCard = ({ dataset, isRaw, onDelete, onClick, onEditSuccess }) => {
   return (
     <div
       className={`group relative px-4 py-3 rounded-xl border  transition-all
-        ${isProcessing
-          ? "border-yellow-200 bg-yellow-50 cursor-wait"
-          : "border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md cursor-pointer"
+        ${
+          isProcessing
+            ? "border-yellow-200 bg-yellow-50 cursor-wait"
+            : "border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md cursor-pointer"
         }`}
       onClick={(e) => {
         if (!isProcessing && !isEditModalOpen) {
@@ -61,23 +65,19 @@ const FileCard = ({ dataset, isRaw, onDelete, onClick, onEditSuccess }) => {
         }
       }}
     >
-
       <div className="flex justify-between items-start gap-2">
         <div className="flex-col flex gap-1 items-start min-w-0">
-          {(
+          {
             <span className="text-xs font-medium text-gray-500 px-2 py-1 bg-gray-100 rounded-full">
               ID: {dataset.dataset_id}
             </span>
-          )}
+          }
           <div className="flex items-center gap-2">
-
             <h3 className="text-lg font-semibold text-gray-800 truncate">
               {displayName.length > 30
                 ? `${displayName.slice(0, 30)}...`
                 : displayName}
             </h3>
-
-
           </div>
 
           {dataset.description && (

@@ -6,27 +6,35 @@ from .Notification import Notification
 
 
 class User(Base):
-    __tablename__ = 'users'
-    
+    __tablename__ = "users"
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    role = Column(String, nullable=False, default='client')
+    role = Column(String, nullable=False, default="client")
     data_url = Column(String)
     hashed_password = Column(String)
     refresh_token = Column(String, nullable=True)
     createdAt = Column(DateTime, default=lambda: datetime.now())
-    updatedAt = Column(DateTime, default=lambda: datetime.now(), onupdate=lambda: datetime.now())
-    
-    federated_sessions = relationship('FederatedSession', back_populates='admin')
-    federated_session_clients = relationship('FederatedSessionClient', back_populates='user')
-    notifications = relationship('Notification', back_populates='user')
-    
+    updatedAt = Column(
+        DateTime, default=lambda: datetime.now(), onupdate=lambda: datetime.now()
+    )
+
+    federated_sessions = relationship("FederatedSession", back_populates="admin")
+    federated_session_clients = relationship(
+        "FederatedSessionClient", back_populates="user"
+    )
+    notifications = relationship("Notification", back_populates="user")
+
     def as_dict(self):
         return {
             "id": self.id,
             "username": self.username,
             "role": self.role,
             "data_url": self.data_url,
-            "createdAt": self.createdAt.isoformat() if self.createdAt else None,  # Convert DateTime to ISO format
-            "updatedAt": self.updatedAt.isoformat() if self.updatedAt else None,  # Convert DateTime to ISO format
+            "createdAt": (
+                self.createdAt.isoformat() if self.createdAt else None
+            ),  # Convert DateTime to ISO format
+            "updatedAt": (
+                self.updatedAt.isoformat() if self.updatedAt else None
+            ),  # Convert DateTime to ISO format
         }

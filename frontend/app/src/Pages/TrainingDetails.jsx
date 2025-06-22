@@ -68,7 +68,7 @@ export default function TrainingDetails() {
   const fetchFederatedSessionData = async () => {
     try {
       setIsRefreshing(true);
-      console.log("Checkpoint 1: ", sessionId)
+      console.log("Checkpoint 1: ", sessionId);
       const response = await getFederatedSession(api, sessionId);
       setFederatedSessionData(response.data);
       console.log("Checkpoint 1: ", response.data);
@@ -82,7 +82,6 @@ export default function TrainingDetails() {
   useEffect(() => {
     fetchFederatedSessionData();
   }, [sessionId]);
-
 
   const sections = [
     {
@@ -105,11 +104,11 @@ export default function TrainingDetails() {
       label: "Logs",
       icon: <ChartBarIcon className="h-5 w-5" />,
     },
-          {
-            id: "results",
-            label: "Results",
-            icon: <ChartBarIcon className="h-5 w-5" />,
-          },
+    {
+      id: "results",
+      label: "Results",
+      icon: <ChartBarIcon className="h-5 w-5" />,
+    },
   ];
 
   const renderStatusBadge = () => {
@@ -196,9 +195,7 @@ export default function TrainingDetails() {
           {currentSection === "model-config" && (
             <ModelConfig data={federatedSessionData.federated_info} />
           )}
-          {currentSection === "results"  && (
-            <Result sessionId={sessionId} />  
-          )}
+          {currentSection === "results" && <Result sessionId={sessionId} />}
         </div>
       </div>
     </div>

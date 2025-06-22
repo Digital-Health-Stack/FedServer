@@ -5,7 +5,7 @@ import { useState } from "react";
 import Card from "../components/Card/Card";
 
 const getAllTrainingResultsURL =
-  'http://localhost:8000/get-all-completed-trainings'
+  "http://localhost:8000/get-all-completed-trainings";
 
 export default function TrainingResults() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export default function TrainingResults() {
         } else {
           console.log(
             "Failed to fetch completed trainings data from server, status: ",
-            res.status
+            res.status,
           );
         }
       } catch (error) {
@@ -46,7 +46,7 @@ export default function TrainingResults() {
       ) : (
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
           {completedTrainings.map((item) => (
-           <Card key={item.session_id} item={item} opendetails={opendetails} />
+            <Card key={item.session_id} item={item} opendetails={opendetails} />
           ))}
         </div>
       )}

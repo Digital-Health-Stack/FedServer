@@ -12,17 +12,21 @@ from models.FederatedSession import FederatedSession
 from helpers.federated_services import process_parquet_and_save_xy
 from fastapi import Query
 from typing import List
+
 temporary_router = APIRouter()
 
-@temporary_router.get('/check')
+
+@temporary_router.get("/check")
 def check():
     return {"message": "Everyone can access it!"}
 
-@temporary_router.get('/check-client')
+
+@temporary_router.get("/check-client")
 def check_client(client: User = Depends(role("client"))):
     return {"message": "Only clients can access it!"}
 
-@temporary_router.get('/check-admin')
+
+@temporary_router.get("/check-admin")
 def check_admin(admin: User = Depends(role("admin"))):
     return {"message": "Only admins can access it!"}
 
@@ -32,12 +36,13 @@ def check_user(token: str):
     current_user = verify_token(token)
     return current_user
 
+
 # API endpoint to call the function
 @temporary_router.get("/check-download")
 def check_download(
     filename: str,
     session_id: str,
 ):
-    output_column = ['Target']
+    output_column = ["Target"]
     process_parquet_and_save_xy(filename, session_id, output_column)
     return {"message": "Processing complete"}

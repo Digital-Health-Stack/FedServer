@@ -14,19 +14,16 @@ const mockStats = {
   system_uptime: 86400, // in seconds (24 hours)
 };
 
-
 // Simulate API delay
 const simulateApiDelay = () =>
   new Promise(
-    (resolve) => setTimeout(resolve, Math.random() * 500 + 200) // 200-700ms delay
+    (resolve) => setTimeout(resolve, Math.random() * 500 + 200), // 200-700ms delay
   );
 
 export const getServerStats = async (api) => {
   await simulateApiDelay();
   return { data: mockStats };
 };
-
-
 
 // Optional: Add error simulation for testing error states
 export const getServerStatsWithError = async (api) => {
@@ -349,7 +346,7 @@ export default function Dashboard() {
                       <div
                         className={`h-3 w-3 rounded-full mr-3 ${
                           statusMap[session.training_status]?.color.split(
-                            " "
+                            " ",
                           )[0] || "bg-gray-300"
                         }`}
                       />
@@ -552,7 +549,10 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold text-gray-900">
                 Pending QPD
               </h2>
-              <button className="text-indigo-600 text-xs hover:underline" onClick={() => navigate("/assess-data-quality")}>
+              <button
+                className="text-indigo-600 text-xs hover:underline"
+                onClick={() => navigate("/assess-data-quality")}
+              >
                 View All →
               </button>
             </div>
