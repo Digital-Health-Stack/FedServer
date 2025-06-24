@@ -179,3 +179,56 @@ async def submit_client_price_response(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@federated_router_v2.post("/accept-training")
+async def accept_training(
+    client_response: ClientFederatedResponse,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(role("client")),
+):
+    """
+    This endpoint is used to accept or reject the training session by other clients
+    client_response : session_id and decision
+    decision : 1 means client accepts and 0 means client rejects
+    """
+    session_id = client_response.session_id
+    decision = client_response.decision
+    session = db.query(FederatedSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+        )
+    if session.training_status != 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Clients are not being accepted yet",
+        )
+    if decision == 0:
+        return {
+            "success": True,
+            "message": "Your decision to decline participation in the training session has been recorded. Thank you for your response.",
+        }
+    if decision != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid decision value. Must be 1 (accept) or 0 (reject).",
+        )
+    client = (
+        db.query(FederatedSessionClient)
+        .filter_by(session_id=session_id, user_id=current_user.id)
+        .first()
+    )
+    if client:
+        return {"success": True, "message": "Client Decision has already been saved"}
+    if not client:
+        federated_session_client = FederatedSessionClient(
+            user_id=current_user.id,
+            session_id=session_id,
+            status=0,
+            ip=request.client.host,
+        )
+        db.add(federated_session_client)
+        db.commit()
+    return {"success": True, "message": "Client Decision has been saved"}

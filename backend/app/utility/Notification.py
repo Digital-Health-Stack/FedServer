@@ -1,6 +1,7 @@
 import redis.asyncio as redis
 from contextlib import asynccontextmanager
 import os
+import json
 
 # Redis configuration
 REDIS_HOST = "localhost"
@@ -33,6 +34,17 @@ async def send_notification_for_new_session(message: str):
     try:
         async with get_redis_connection() as r:
             await r.publish("new-session", message)
+        return True
+    except Exception as e:
+        print(f"Error sending notification: {e}")
+        return False
+
+
+async def send_notification_for_new_round(message: dict):
+    """Send notification using a properly managed Redis connection.   Should send {session_id: int, round_number: int, metrics_report: dict}"""
+    try:
+        async with get_redis_connection() as r:
+            await r.publish("new-round", json.dumps(message))
         return True
     except Exception as e:
         print(f"Error sending notification: {e}")
