@@ -8,3 +8,13 @@ class ClientStatus(IntEnum):
     INITIATED = 1  # Config done
     # TRAINING_STARTED = 2
     # COMPLETED = 3
+
+
+class TrainingStatus(IntEnum):
+    # todo
+    FAILED = -2
+    CANCELLED = -1
+    CREATED = 0
+    ACCEPTING_CLIENTS = 1
+    STARTED = 2
+    COMPLETED = 3

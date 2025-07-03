@@ -18,10 +18,13 @@ class User(Base):
     updatedAt = Column(
         DateTime, default=lambda: datetime.now(), onupdate=lambda: datetime.now()
     )
-
+    federated_sessions_v2 = relationship("FederatedSessionsV2", back_populates="admin")
     federated_sessions = relationship("FederatedSession", back_populates="admin")
     federated_session_clients = relationship(
         "FederatedSessionClient", back_populates="user"
+    )
+    federated_session_clients_v2 = relationship(
+        "FederatedSessionClientV2", back_populates="user"
     )
     notifications = relationship("Notification", back_populates="user")
 
