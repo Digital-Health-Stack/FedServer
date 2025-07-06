@@ -1,5 +1,4 @@
 from sqlalchemy import (
-    Column,
     Integer,
     String,
     Float,
@@ -10,17 +9,17 @@ from sqlalchemy import (
     Index,
     func,
 )
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship, declarative_base, mapped_column
 from datetime import datetime
 from models.Base import Base
 
 
 class RawDataset(Base):
     __tablename__ = "raw_datasets"
-    dataset_id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, nullable=False, index=True)
-    description = Column(String, nullable=True)
-    datastats = Column(JSON)
+    dataset_id = mapped_column(Integer, primary_key=True, index=True)
+    filename = mapped_column(String, nullable=False, index=True)
+    description = mapped_column(String, nullable=True)
+    datastats = mapped_column(JSON)
 
     def as_dict(self):
         return {
@@ -34,11 +33,11 @@ class RawDataset(Base):
 class Dataset(Base):
     __tablename__ = "datasets"
 
-    dataset_id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String(255), unique=True, nullable=False, index=True)
-    description = Column(String, nullable=True)
-    datastats = Column(JSON, nullable=True)
-    created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
+    dataset_id = mapped_column(Integer, primary_key=True, index=True)
+    filename = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description = mapped_column(String, nullable=True)
+    datastats = mapped_column(JSON, nullable=True)
+    created_at = mapped_column(TIMESTAMP, server_default=func.now(), index=True)
     tasks = relationship("Task", back_populates="dataset", cascade="all, delete")
 
     def as_dict(self):
@@ -54,17 +53,17 @@ class Dataset(Base):
 class Task(Base):
     __tablename__ = "tasks"
 
-    task_id = Column(Integer, primary_key=True, index=True)
-    dataset_id = Column(
+    task_id = mapped_column(Integer, primary_key=True, index=True)
+    dataset_id = mapped_column(
         Integer,
         ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    task_name = Column(String(255), nullable=False)
-    metric = Column(String(50), nullable=False)
-    benchmark = Column(JSON, nullable=True)  # Temporary field
-    created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
+    task_name = mapped_column(String(255), nullable=False)
+    metric = mapped_column(String(50), nullable=False)
+    benchmark = mapped_column(JSON, nullable=True)  # Temporary field
+    created_at = mapped_column(TIMESTAMP, server_default=func.now(), index=True)
 
     dataset = relationship("Dataset", back_populates="tasks")
 

@@ -1,5 +1,5 @@
 __pycache__
-/backend/app/storage/database.db
+*.db
 /frontend/node_modules
 /backend/app/tmp
 
@@ -30,3 +30,4 @@ create_data.py
 .vscode
 
 
+dump.rdb

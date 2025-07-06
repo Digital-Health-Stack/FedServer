@@ -9,7 +9,7 @@ from models.User import User
 def add_notifications_for_recently_active_users(
     db: Session,
     message: dict,
-    valid_until: datetime = None,
+    valid_until: datetime = datetime.now() + timedelta(days=1),
     excluded_users: List[User] = [],
 ):
     # Calculate the time 24 hours ago
@@ -38,7 +38,7 @@ def add_notifications_for(
     db: Session,
     message: dict,
     users_to_notify: Union[List[int], List[User]],
-    valid_until: datetime = None,
+    valid_until: datetime = datetime.now() + timedelta(days=1),
 ):
 
     # Create a new notification for each user
@@ -57,7 +57,10 @@ def add_notifications_for(
 
 
 def add_notifications_for_user(
-    db: Session, user_id: int, message: dict, valid_until: datetime = None
+    db: Session,
+    user_id: int,
+    message: dict,
+    valid_until: datetime = datetime.now() + timedelta(days=1),
 ):
     """
     Add a notification for a specific user.

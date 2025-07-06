@@ -7,7 +7,7 @@ from models.FederatedSession import (
     FederatedSessionClient,
     FederatedRoundClientSubmission,
 )
-from utility import FederatedLearning
+from utility.FederatedLearning import FederatedLearning
 from models import User
 import asyncio
 import os
@@ -65,16 +65,12 @@ def fetch_benchmark_and_calculate_price(
     session_data: FederatedSession, db: Session
 ) -> float:
 
-    task_id = session_data.federated_info["dataset_info"].get("task_id")
+    task_id = int(session_data.federated_info.get("task_id"))
     baseline_mean, baseline_std = get_baseline_stats_from_task(db, task_id)
 
     try:
-        new_mean = float(
-            session_data.federated_info["expected_results"].get("std_mean")
-        )
-        new_std = float(
-            session_data.federated_info["expected_results"].get("std_deviation")
-        )
+        new_mean = float(session_data.federated_info.get("expected_std_mean"))
+        new_std = float(session_data.federated_info.get("expected_std_deviation"))
     except (TypeError, ValueError) as e:
         raise ValueError(
             "Expected results must contain valid float values for std_mean and std_deviation."
@@ -95,7 +91,7 @@ def fetch_benchmark_and_calculate_price(
     price = calculate_required_data_points(
         model_config, baseline_mean, baseline_std, new_mean, new_std
     )
-    return price
+    return price if price is not None else 100
 
 
 async def start_federated_learning(
@@ -157,6 +153,8 @@ async def start_federated_learning(
         federated_session = (
             db.query(FederatedSession).filter_by(id=session_data.id).first()
         )
+        if not federated_session:
+            raise Exception(f"FederatedSession with ID {session_data.id} not found.")
         federated_session.training_status = -1
         db.commit()
         federated_manager.log_event(
@@ -204,6 +202,10 @@ async def start_federated_learning(
             federated_session = (
                 db.query(FederatedSession).filter_by(id=session_data.id).first()
             )
+            if not federated_session:
+                raise Exception(
+                    f"FederatedSession with ID {session_data.id} not found."
+                )
             federated_session.training_status = 4
             db.commit()
         federated_manager.log_event(
@@ -215,6 +217,10 @@ async def start_federated_learning(
             federated_session = (
                 db.query(FederatedSession).filter_by(id=session_data.id).first()
             )
+            if not federated_session:
+                raise Exception(
+                    f"FederatedSession with ID {session_data.id} not found."
+                )
             federated_session.training_status = -1
             db.commit()
         federated_manager.log_event(
@@ -247,6 +253,10 @@ async def start_federated_learning(
             federated_session = (
                 db.query(FederatedSession).filter_by(id=session_data.id).first()
             )
+            if not federated_session:
+                raise Exception(
+                    f"FederatedSession with ID {session_data.id} not found."
+                )
             federated_session.curr_round = i
             db.commit()
         federated_manager.log_event(session_data.id, f"Round {i} marked in database")
@@ -283,6 +293,8 @@ async def start_federated_learning(
         federated_session = (
             db.query(FederatedSession).filter_by(id=session_data.id).first()
         )
+        if not federated_session:
+            raise Exception(f"FederatedSession with ID {session_data.id} not found.")
         federated_session.training_status = 5
         db.commit()
     federated_manager.log_event(
@@ -308,13 +320,13 @@ async def wait_for_price_confirmation(
         bool: True if the client accepted the price, False if timeout occurred.
     """
     start_time = asyncio.get_event_loop().time()  # Get async time to prevent blocking
-    session_data = federated_manager.get_session(session_id)
+    session_data = federated_manager.get_session(int(session_id))
     federated_manager.log_event(
         session_data.id, f"Starting price confirmation wait (timeout: {timeout}s)"
     )
 
     while True:
-        session_data = federated_manager.get_session(session_id)
+        session_data = federated_manager.get_session(int(session_id))
 
         if session_data.training_status == 2:  # Status 2 means price was accepted
             federated_manager.log_event(
@@ -480,13 +492,12 @@ async def send_model_configs_and_wait_for_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Timeout waiting for clients: {failed_clients}",
-                is_error=True,
             )
             return False
 
     except Exception as e:
         with Session(engine) as db:
-            session_data = federated_manager.get_session(session_id)
+            session_data = federated_manager.get_session(int(session_id))
             federated_manager.log_event(
                 session_data.id, f"Error in model config distribution: {str(e)}"
             )
@@ -496,7 +507,7 @@ async def send_model_configs_and_wait_for_confirmation(
 async def send_training_signal_and_wait_for_clients_training(
     federated_manager: FederatedLearning, session_id: str
 ):
-    session_data = federated_manager.get_session(session_id)
+    session_data = federated_manager.get_session(int(session_id))
     interested_clients = [client.user_id for client in session_data.clients]
     curr_round = session_data.curr_round
 
@@ -541,7 +552,7 @@ async def wait_for_all_clients_to_local_training(
     """
     try:
         with Session(engine) as db:
-            session_data = federated_manager.get_session(session_id)
+            session_data = federated_manager.get_session(int(session_id))
 
             # Get the number of interested clients (clients in the session)
             num_interested_clients = len(session_data.clients)
@@ -556,7 +567,7 @@ async def wait_for_all_clients_to_local_training(
             while attempt < max_retries:
                 db.expire_all()
                 # Fetch the session again in case it has been updated
-                session_data = federated_manager.get_session(session_id)
+                session_data = federated_manager.get_session(int(session_id))
 
                 # Query the submissions of the clients for the current round
                 submissions_count = (
@@ -607,7 +618,7 @@ async def wait_for_all_clients_to_local_training(
             return
     except Exception as e:
         with Session(engine) as db:
-            session_data = federated_manager.get_session(session_id)
+            session_data = federated_manager.get_session(int(session_id))
             federated_manager.log_event(
                 session_data.id,
                 f"Error waiting for client Local Training submissions: {str(e)}",

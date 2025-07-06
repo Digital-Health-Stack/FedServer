@@ -1,7 +1,7 @@
 from datetime import datetime
 from operator import or_
 from typing import Dict, List, Optional, Literal
-from schema import FederatedLearningInfo, User
+from schema import CreateFederatedLearning, FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select
 from models.FederatedSession import (
     FederatedSession,
@@ -129,7 +129,7 @@ class FederatedLearning:
 
     # Every session has a session_id also in future we can add a token and id
     def create_federated_session(
-        self, user: UserModel, federated_info: FederatedLearningInfo, ip, db: Session
+        self, user: UserModel, federated_info: CreateFederatedLearning, ip, db: Session
     ):
         """
         Creates a new federated learning session.
@@ -171,7 +171,7 @@ class FederatedLearning:
         db.commit()
         return federated_session
 
-    def get_session(self, federated_session_id: int) -> FederatedLearningInfo:
+    def get_session(self, federated_session_id: int) -> FederatedSession:
         """
         Retrieves information about a federated learning session.
 

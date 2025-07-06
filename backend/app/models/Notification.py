@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy import Integer, DateTime, ForeignKey, JSON
+from sqlalchemy.orm import mapped_column, relationship
 from datetime import datetime
 from .Base import Base
 
@@ -8,14 +8,14 @@ from .Base import Base
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(
+    id = mapped_column(Integer, primary_key=True, index=True)
+    user_id = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False
     )  # Assuming a 'users' table exists
-    message = Column(JSON, nullable=False)  # JSON field to store structured data
-    created_at = Column(DateTime, default=datetime.now())
-    notified_at = Column(DateTime, nullable=True)
-    valid_until = Column(DateTime, nullable=True)
+    message = mapped_column(JSON, nullable=False)  # JSON field to store structured data
+    created_at = mapped_column(DateTime, default=datetime.now())
+    notified_at = mapped_column(DateTime, nullable=True)
+    valid_until = mapped_column(DateTime, nullable=True)
 
     # Relationships (optional, depending on your app)
     user = relationship(

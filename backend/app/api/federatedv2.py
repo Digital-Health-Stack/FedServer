@@ -2,7 +2,10 @@ from fastapi import APIRouter, status, Depends, Request, BackgroundTasks, HTTPEx
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_, update
-from utility.Notification import send_notification_for_new_session
+from utility.Notification import (
+    send_notification_for_new_session,
+    send_notification_for_new_round,
+)
 from utility.db import get_db
 from utility.FederatedLearning import FederatedLearning
 from utility.auth import role, get_current_user
@@ -16,6 +19,7 @@ from models.FederatedSession import (
     FederatedSession,
     FederatedSessionClient,
     FederatedRoundClientSubmission,
+    TrainingStatus,
 )
 from models.User import User
 from multiprocessing import Process
@@ -23,6 +27,9 @@ import asyncio
 from pathlib import Path
 import json
 from datetime import datetime
+import os
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from schemas.user import ClientSessionStatusSchema
 from schema import (
@@ -34,6 +41,55 @@ from schema import (
 
 federated_router_v2 = APIRouter()
 federated_manager = FederatedLearning()
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+
+async def _start_training_internal(session_id: int, db: Session):
+    """Internal async function for starting training"""
+    print("Starting training")
+    session = db.query(FederatedSession).filter_by(id=session_id).first()
+    if not session:
+        federated_manager.log_event(session_id, f"Session {session_id} not found")
+        return
+    if session.training_status != TrainingStatus.ACCEPTING_CLIENTS:
+        federated_manager.log_event(
+            session_id,
+            f"Session {session_id} is not in the correct state to start training. Current state: {session.training_status}",
+        )
+        return
+    if len(session.clients) <= int(os.getenv("MIN_CLIENTS_FOR_TRAINING", 2)):
+        federated_manager.log_event(
+            session_id,
+            f"Session {session_id} has not enough clients to start training. Current clients: {len(session.clients)}",
+        )
+        return
+    session.training_status = TrainingStatus.STARTED
+    federated_manager.log_event(session_id, f"Training started")
+    db.commit()
+    db.refresh(session)
+    await send_notification_for_new_round(
+        {
+            "session_id": session_id,
+            "round_number": 1,
+            "metrics_report": {},
+        }
+    )
+    # Start training
+
+
+def start_training_sync(session_id: int, db: Session):
+    """Synchronous wrapper for start_training to be used with APScheduler"""
+    asyncio.run(_start_training_internal(session_id, db))
+
+
+@federated_router_v2.get("/force-start-training")
+async def start_training_endpoint(
+    request: Request, session_id: int, db: Session = Depends(get_db)
+):
+    """Endpoint to manually force star  t training"""
+    await _start_training_internal(session_id, db)
+    return {"message": "Training started successfully"}
 
 
 @federated_router_v2.post("/create-federated-session")
@@ -44,15 +100,22 @@ async def create_federated_session_v2(
     db: Session = Depends(get_db),
     current_user: User = Depends(role("client")),
 ):
+    print("Creating federated session")
     # Remove empty layers
-    federated_details.fed_info.model_info["layers"] = [
+    federated_details.model_info["layers"] = [
         layer
-        for layer in federated_details.fed_info.model_info["layers"]
+        for layer in federated_details.model_info["layers"]
         if layer.get("layer_type")
     ]
+    if not request.client:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client not found",
+        )
     session: FederatedSession = federated_manager.create_federated_session(
-        current_user, federated_details.fed_info, request.client.host, db
+        current_user, federated_details, request.client.host, db
     )
+    print("Federated session created")
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -116,7 +179,7 @@ async def submit_client_price_response(
 ):
     """
     decision : 1 means client accepts the price, -1 means client rejects the price
-    training_status = 2 means the training process should start
+    training_status = 1 means the training process should start
     """
     try:
         session_id = client_response.session_id
@@ -131,8 +194,11 @@ async def submit_client_price_response(
                     "message": "Unauthorized user. Can only be accepted by the admin of this session",
                 }
 
-            if session.training_status == 2:
-                return {"success": False, "message": "Training has already started"}
+            if session.training_status != TrainingStatus.CREATED:
+                return {
+                    "success": False,
+                    "message": "Training has already started or is in wrong state",
+                }
 
             federated_session = (
                 db.query(FederatedSession).filter_by(id=session_id).first()
@@ -147,9 +213,7 @@ async def submit_client_price_response(
                 federated_manager.log_event(
                     session_id, f"Admin Accepted the price updating training status = 2"
                 )
-                federated_session.training_status = (
-                    2  # Update training_status to 2 (start training)
-                )
+                federated_session.training_status = TrainingStatus.ACCEPTING_CLIENTS
                 message = (
                     "Thank you for accepting the price. The training will start soon."
                 )
@@ -162,7 +226,7 @@ async def submit_client_price_response(
                     f"Admin rejected the price updating training status = -1",
                 )
                 federated_session.training_status = (
-                    -1
+                    TrainingStatus.CANCELLED
                 )  # Keep or set to a default status for rejection
                 message = (
                     "Thank you for rejecting the price. The training will not start."
@@ -174,6 +238,8 @@ async def submit_client_price_response(
                 )
             # Commit changes to the database
             db.commit()
+            trigger = DateTrigger(run_date=session.wait_till)
+            scheduler.add_job(start_training_sync, trigger, args=[session.id, db])
             return {"success": True, "message": message}
 
     except Exception as e:
@@ -200,7 +266,7 @@ async def accept_training(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
         )
-    if session.training_status != 2:
+    if session.training_status != TrainingStatus.ACCEPTING_CLIENTS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Clients are not being accepted yet",
@@ -222,6 +288,11 @@ async def accept_training(
     )
     if client:
         return {"success": True, "message": "Client Decision has already been saved"}
+    if not request.client:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client not found",
+        )
     if not client:
         federated_session_client = FederatedSessionClient(
             user_id=current_user.id,
@@ -232,3 +303,134 @@ async def accept_training(
         db.add(federated_session_client)
         db.commit()
     return {"success": True, "message": "Client Decision has been saved"}
+
+
+@federated_router_v2.get("/get-weights/{session_id}")
+def get_weights(session_id: int, db: Session = Depends(get_db)):
+    """
+    Client can receive the model parameters / weights and start training
+    """
+    # Path to check for global parameters
+    global_params_dir = Path(f"tmp/parameters/{session_id}/global/")
+    global_params_file = global_params_dir / "global_weights.json"
+
+    # Check if global parameters file exists
+    if global_params_file.exists():
+        try:
+            # Load global parameters from file
+            with open(global_params_file, "r") as f:
+                global_parameters = json.load(f)
+            is_first = 0
+        except Exception as e:
+            # If file exists but can't be read, treat as first round
+            is_first = 1
+            global_parameters = {}
+    else:
+        # No global parameters file exists - first round
+        is_first = 1
+        global_parameters = {}
+
+    response_data = {"global_parameters": global_parameters, "is_first": is_first}
+
+    return response_data
+
+
+@federated_router_v2.post("/send-weights")
+def send_weights(
+    request: ClientReceiveParameters,
+    current_user: User = Depends(role("client")),
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks,
+):
+    session_id = request.session_id
+    weights = request.client_parameter
+    metrics_report = request.metrics_report
+
+    session_data = (
+        db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
+    )
+
+    if not session_data:
+        raise HTTPException(
+            status_code=404, detail=f"Federated Session with ID {session_id} not found!"
+        )
+
+    round_number = session_data.curr_round
+
+    # Check if a submission already exists for this user, session, and round
+    submission = (
+        db.query(FederatedRoundClientSubmission)
+        .filter_by(
+            session_id=session_id, user_id=current_user.id, round_number=round_number
+        )
+        .first()
+    )
+
+    if submission:
+        federated_manager.log_event(
+            session_id,
+            f"Client parameters for this round {round_number} already submitted.",
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Client parameters for this round already submitted.",
+        )
+
+    # Create directory structure
+    base_dir = Path(f"tmp/parameters/{session_id}")
+    local_dir = base_dir / "local"
+    local_dir.mkdir(parents=True, exist_ok=True)
+
+    weights_file = local_dir / f"{current_user.id}.json"
+    metadata_file = local_dir / f"{current_user.id}_metadata.json"
+
+    try:
+        with open(weights_file, "w") as f:
+            json.dump(weights, f)
+
+        metadata = {
+            "submission_time": datetime.utcnow().isoformat(),
+            "user_id": current_user.id,
+            "round_number": round_number,
+        }
+        with open(metadata_file, "w") as f:
+            json.dump(metadata, f)
+
+        # Create new submission entry
+        submission = FederatedRoundClientSubmission(
+            session_id=session_id,
+            user_id=current_user.id,
+            round_number=round_number,
+            metrics_report=metrics_report,
+        )
+        db.add(submission)
+        db.flush()  # Ensures submission.id is available before committing
+        db.commit()
+        federated_manager.log_event(
+            session_id,
+            f"Received client parameters from user {current_user.id} for round {round_number}",
+        )
+
+        session_data = federated_manager.get_session(int(session_id))
+
+        # Should not be here, but should be a background task
+        ## WORKING HERE   <----------------------------------------------------------
+        # TODO: All this should be in a background task including further logic
+        
+        if len(session_data.clients) == session_data.no_of_recieved_weights + session_data.no_of_left_clients:
+            federated_manager.log_event(session_data.id, f"Performing aggregation.")    
+            background_tasks.add_task(
+                federated_manager.aggregate_weights_fedAvg_Neural, session_data.id, session_data.curr_round
+            )
+            federated_manager.log_event(session_data.id, f"Aggregation is done")
+        ## WORKING HERE   <----------------------------------------------------------
+
+        return {"message": "Client Parameters Received"}
+    except Exception as e:
+        db.rollback()
+        federated_manager.log_event(
+            session_id, f"Error receiving client parameters: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Error processing client parameters: {str(e)}"
+        )

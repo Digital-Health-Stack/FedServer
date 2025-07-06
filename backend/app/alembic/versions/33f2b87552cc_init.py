@@ -1,8 +1,8 @@
 """init
 
-Revision ID: aabd8682320e
+Revision ID: 33f2b87552cc
 Revises: 
-Create Date: 2025-06-30 18:51:26.322796
+Create Date: 2025-07-04 09:00:33.252524
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'aabd8682320e'
+revision: str = '33f2b87552cc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -61,22 +61,6 @@ def upgrade() -> None:
     sa.Column('curr_round', sa.Integer(), nullable=False),
     sa.Column('max_round', sa.Integer(), nullable=False),
     sa.Column('session_price', sa.Float(), nullable=True),
-    sa.Column('training_status', sa.Integer(), nullable=False),
-    sa.Column('wait_till', sa.DateTime(), nullable=True),
-    sa.Column('createdAt', sa.DateTime(), nullable=True),
-    sa.Column('updatedAt', sa.DateTime(), nullable=True),
-    sa.Column('deletedAt', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['admin_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_federated_sessions_id'), 'federated_sessions', ['id'], unique=False)
-    op.create_table('federated_sessions_v2',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('federated_info', sa.JSON(), nullable=False),
-    sa.Column('admin_id', sa.Integer(), nullable=False),
-    sa.Column('curr_round', sa.Integer(), nullable=False),
-    sa.Column('max_round', sa.Integer(), nullable=False),
-    sa.Column('session_price', sa.Float(), nullable=True),
     sa.Column('training_status', sa.Enum('FAILED', 'CANCELLED', 'CREATED', 'ACCEPTING_CLIENTS', 'STARTED', 'COMPLETED', name='trainingstatus'), nullable=False),
     sa.Column('wait_till', sa.DateTime(), nullable=True),
     sa.Column('createdAt', sa.DateTime(), nullable=True),
@@ -85,7 +69,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['admin_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_federated_sessions_v2_id'), 'federated_sessions_v2', ['id'], unique=False)
+    op.create_index(op.f('ix_federated_sessions_id'), 'federated_sessions', ['id'], unique=False)
     op.create_table('notifications',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -128,21 +112,6 @@ def upgrade() -> None:
     sa.UniqueConstraint('session_id', 'user_id', 'round_number', name='unique_client_round_submission')
     )
     op.create_index(op.f('ix_federated_round_client_submissions_id'), 'federated_round_client_submissions', ['id'], unique=False)
-    op.create_table('federated_round_client_submissions_v2',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('session_id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('round_number', sa.Integer(), nullable=False),
-    sa.Column('metrics_report', sa.JSON(), nullable=True),
-    sa.Column('createdAt', sa.DateTime(), nullable=True),
-    sa.Column('updatedAt', sa.DateTime(), nullable=True),
-    sa.Column('deletedAt', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['session_id'], ['federated_sessions_v2.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('session_id', 'user_id', 'round_number', name='unique_client_round_submission_v2')
-    )
-    op.create_index(op.f('ix_federated_round_client_submissions_v2_id'), 'federated_round_client_submissions_v2', ['id'], unique=False)
     op.create_table('federated_session_clients',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -157,20 +126,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_federated_session_clients_id'), 'federated_session_clients', ['id'], unique=False)
-    op.create_table('federated_session_clients_v2',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('session_id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.Integer(), nullable=False),
-    sa.Column('ip', sa.String(), nullable=False),
-    sa.Column('createdAt', sa.DateTime(), nullable=True),
-    sa.Column('updatedAt', sa.DateTime(), nullable=True),
-    sa.Column('deletedAt', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['session_id'], ['federated_sessions_v2.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_federated_session_clients_v2_id'), 'federated_session_clients_v2', ['id'], unique=False)
     op.create_table('federated_session_logs',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
@@ -182,17 +137,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_federated_session_logs_id'), 'federated_session_logs', ['id'], unique=False)
-    op.create_table('federated_session_logs_v2',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('session_id', sa.Integer(), nullable=False),
-    sa.Column('message', sa.String(), nullable=False),
-    sa.Column('createdAt', sa.DateTime(), nullable=True),
-    sa.Column('updatedAt', sa.DateTime(), nullable=True),
-    sa.Column('deletedAt', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['session_id'], ['federated_sessions_v2.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_federated_session_logs_v2_id'), 'federated_session_logs_v2', ['id'], unique=False)
     op.create_table('federated_test_results',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
@@ -205,18 +149,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_federated_test_results_id'), 'federated_test_results', ['id'], unique=False)
-    op.create_table('federated_test_results_v2',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('session_id', sa.Integer(), nullable=False),
-    sa.Column('round_number', sa.Integer(), nullable=False),
-    sa.Column('metrics_report', sa.JSON(), nullable=False),
-    sa.Column('createdAt', sa.DateTime(), nullable=True),
-    sa.Column('updatedAt', sa.DateTime(), nullable=True),
-    sa.Column('deletedAt', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['session_id'], ['federated_sessions_v2.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_federated_test_results_v2_id'), 'federated_test_results_v2', ['id'], unique=False)
     op.create_table('training_data_transfers',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('training_name', sa.String(), nullable=False),
@@ -241,20 +173,12 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_training_data_transfers_id'), table_name='training_data_transfers')
     op.drop_index(op.f('ix_training_data_transfers_federated_session_id'), table_name='training_data_transfers')
     op.drop_table('training_data_transfers')
-    op.drop_index(op.f('ix_federated_test_results_v2_id'), table_name='federated_test_results_v2')
-    op.drop_table('federated_test_results_v2')
     op.drop_index(op.f('ix_federated_test_results_id'), table_name='federated_test_results')
     op.drop_table('federated_test_results')
-    op.drop_index(op.f('ix_federated_session_logs_v2_id'), table_name='federated_session_logs_v2')
-    op.drop_table('federated_session_logs_v2')
     op.drop_index(op.f('ix_federated_session_logs_id'), table_name='federated_session_logs')
     op.drop_table('federated_session_logs')
-    op.drop_index(op.f('ix_federated_session_clients_v2_id'), table_name='federated_session_clients_v2')
-    op.drop_table('federated_session_clients_v2')
     op.drop_index(op.f('ix_federated_session_clients_id'), table_name='federated_session_clients')
     op.drop_table('federated_session_clients')
-    op.drop_index(op.f('ix_federated_round_client_submissions_v2_id'), table_name='federated_round_client_submissions_v2')
-    op.drop_table('federated_round_client_submissions_v2')
     op.drop_index(op.f('ix_federated_round_client_submissions_id'), table_name='federated_round_client_submissions')
     op.drop_table('federated_round_client_submissions')
     op.drop_index(op.f('ix_tasks_task_id'), table_name='tasks')
@@ -265,8 +189,6 @@ def downgrade() -> None:
     op.drop_table('tasks')
     op.drop_index(op.f('ix_notifications_id'), table_name='notifications')
     op.drop_table('notifications')
-    op.drop_index(op.f('ix_federated_sessions_v2_id'), table_name='federated_sessions_v2')
-    op.drop_table('federated_sessions_v2')
     op.drop_index(op.f('ix_federated_sessions_id'), table_name='federated_sessions')
     op.drop_table('federated_sessions')
     op.drop_index(op.f('ix_users_username'), table_name='users')

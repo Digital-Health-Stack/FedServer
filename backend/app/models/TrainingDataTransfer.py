@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, event, JSON
-from sqlalchemy.orm import declared_attr, Session, relationship, with_loader_criteria
+from sqlalchemy import DateTime, Integer, String, ForeignKey, event, JSON
+from sqlalchemy.orm import declared_attr, mapped_column, with_loader_criteria, Session
 from .Base import Base
 import os
 
@@ -11,27 +11,31 @@ load_dotenv()
 class TimestampMixin:
     @declared_attr
     def transferredAt(cls):
-        return Column(
+        return mapped_column(
             DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
         )
 
     @declared_attr
     def approvedAt(cls):
-        return Column(DateTime, nullable=True)  # NULL means not approved
+        return mapped_column(DateTime, nullable=True)  # NULL means not approved
 
 
 # Table for approving data transferred for QPD
 class TrainingDataTransfer(TimestampMixin, Base):
     __tablename__ = "training_data_transfers"
 
-    id = Column(Integer, primary_key=True, index=True)
-    training_name = Column(String, nullable=False)  # Name of the training
-    num_datapoints = Column(Integer, nullable=False)  # Number of transferred datapoints
-    data_path = Column(String, nullable=False)  # Where data is stored
+    id = mapped_column(Integer, primary_key=True, index=True)
+    training_name = mapped_column(String, nullable=False)  # Name of the training
+    num_datapoints = mapped_column(
+        Integer, nullable=False
+    )  # Number of transferred datapoints
+    data_path = mapped_column(String, nullable=False)  # Where data is stored
     # although parent filename will be in the session information, we need to store it here for easy access
-    parent_filename = Column(String, nullable=False)  # Filename of the parent dataset
-    datastats = Column(JSON, nullable=True)  # Statistics of the dataset
-    federated_session_id = Column(
+    parent_filename = mapped_column(
+        String, nullable=False
+    )  # Filename of the parent dataset
+    datastats = mapped_column(JSON, nullable=True)  # Statistics of the dataset
+    federated_session_id = mapped_column(
         Integer, ForeignKey("federated_sessions.id"), nullable=False, index=True
     )
 

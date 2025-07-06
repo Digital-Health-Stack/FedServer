@@ -25,8 +25,19 @@ class FederatedLearningInfo(BaseModel):
 
 
 class CreateFederatedLearning(BaseModel):
-    fed_info: FederatedLearningInfo
-    # client_token: str
+    organisation_name: str
+    server_filename: str
+    server_stats: dict
+    task_id: str
+    task_name: str
+    metric: str
+    output_columns: list[str]
+    model_info: dict
+    model_name: str
+    expected_std_mean: float
+    expected_std_deviation: float
+    wait_time: int
+    no_of_rounds: int
 
 
 class ClientFederatedResponse(BaseModel):

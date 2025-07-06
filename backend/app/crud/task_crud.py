@@ -55,6 +55,11 @@ def get_tasks_by_dataset_name(db: Session, dataset_filename: str) -> List[Task]:
     """Get all tasks for a dataset by filename"""
     try:
         dataset = get_dataset_by_filename(db, dataset_filename)
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset with filename {dataset_filename} not found",
+            )
         tasks = db.query(Task).filter(Task.dataset_id == dataset.dataset_id).all()
 
         if not tasks:

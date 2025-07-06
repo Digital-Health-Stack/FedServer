@@ -5,7 +5,7 @@ import shutil
 import numpy as np
 
 
-HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR")
+HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR", "processed")
 
 
 def reshape_image(img_array):
@@ -58,7 +58,7 @@ def process_parquet_and_save_xy(filename: str, session_id: str, output_column: l
 
     shutil.rmtree(temp_download_dir)
 
-    if not parquet_files:
+    if not parquet_files or combined_df is None:
         raise Exception("No parquet files found in the downloaded folder")
 
     print(f"Combined DataFrame Shape: {combined_df.shape}")
@@ -85,6 +85,6 @@ def process_parquet_and_save_xy(filename: str, session_id: str, output_column: l
     Y_filename = os.path.join(local_dir, f"Y_{session_id}.npy")
 
     np.save(X_filename, X)
-    np.save(Y_filename, Y)
+    np.save(Y_filename, Y)  # type: ignore
 
     return
