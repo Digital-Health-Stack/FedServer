@@ -220,7 +220,7 @@ class FederatedLearning:
                 .order_by(desc(FederatedSession.createdAt))
                 .where(
                     or_(
-                        FederatedSession.wait_till > datetime.now(),
+                        FederatedSession.federated_info.wait_time > datetime.now(),
                         FederatedSessionClient.user_id == user.id,
                     )
                 )

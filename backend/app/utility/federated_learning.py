@@ -179,7 +179,7 @@ async def start_federated_learning(
     add_notifications_for_recently_active_users(
         db=db,
         message=message,
-        valid_until=session_data.wait_till,
+        valid_until=session_data.federated_info.wait_time,
         excluded_users=[user],
     )
     federated_manager.log_event(

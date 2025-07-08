@@ -26,7 +26,7 @@ from multiprocessing import Process
 import asyncio
 from pathlib import Path
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -220,6 +220,11 @@ async def submit_client_price_response(
                 await send_notification_for_new_session(
                     "New session created with session id: " + str(session_id)
                 )
+                trigger = DateTrigger(
+                    run_date=datetime.now()
+                    + timedelta(minutes=session.federated_info["wait_time"])
+                )
+                scheduler.add_job(start_training_sync, trigger, args=[session.id, db])
             elif decision == 0:
                 federated_manager.log_event(
                     session_id,
@@ -238,8 +243,6 @@ async def submit_client_price_response(
                 )
             # Commit changes to the database
             db.commit()
-            trigger = DateTrigger(run_date=session.wait_till)
-            scheduler.add_job(start_training_sync, trigger, args=[session.id, db])
             return {"success": True, "message": message}
 
     except Exception as e:
@@ -338,9 +341,8 @@ def get_weights(session_id: int, db: Session = Depends(get_db)):
 @federated_router_v2.post("/send-weights")
 def send_weights(
     request: ClientReceiveParameters,
-    current_user: User = Depends(role("client")),
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks,
+    current_user: User = Depends(role("client")),
 ):
     session_id = request.session_id
     weights = request.client_parameter

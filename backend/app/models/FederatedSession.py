@@ -79,12 +79,6 @@ class FederatedSession(TimestampMixin, Base):
     no_of_recieved_weights = mapped_column(Integer, default=0, nullable=False)
     no_of_left_clients = mapped_column(Integer, default=0, nullable=False)
 
-    wait_till = mapped_column(
-        DateTime,
-        default=lambda: datetime.now(IST)
-        + timedelta(minutes=int(os.getenv("SESSION_WAIT_MINUTES", 0))),
-    )
-
     admin = relationship("User", back_populates="federated_sessions")
     clients = relationship("FederatedSessionClient", back_populates="session")
     logs = relationship(
@@ -108,9 +102,6 @@ class FederatedSession(TimestampMixin, Base):
             "curr_round": self.curr_round,
             "max_round": self.max_round,
             "training_status": self.training_status,
-            "wait_till": (
-                self.wait_till.isoformat() if self.wait_till else None
-            ),  # Convert DateTime to ISO format
             "admin": (
                 self.admin.as_dict() if self.admin else None
             ),  # Call as_dict on the related User
