@@ -46,13 +46,14 @@ const METRIC_MAP = {
   Recall: "recall",
 };
 
-const Tasks = ({ datasetId }) => {
+const Tasks = ({ datasetId, columns }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     dataset_id: datasetId || "",
     task_name: "",
+    output_column: "",
     metric: METRIC_OPTIONS[0],
     std_mean: "",
     std_dev: "",
@@ -82,6 +83,7 @@ const Tasks = ({ datasetId }) => {
       setForm({
         dataset_id: datasetId || "",
         task_name: "",
+        output_column: "",
         metric: METRIC_OPTIONS[0],
         std_mean: "",
         std_dev: "",
@@ -92,7 +94,12 @@ const Tasks = ({ datasetId }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validation
-    if (!form.dataset_id || !form.task_name || !form.metric) {
+    if (
+      !form.dataset_id ||
+      !form.task_name ||
+      !form.output_column ||
+      !form.metric
+    ) {
       toast.error("Please fill all required fields.");
       return;
     }
@@ -106,8 +113,9 @@ const Tasks = ({ datasetId }) => {
     try {
       const backendMetric = METRIC_MAP[form.metric];
       const body = {
-        dataset_id: form.dataset_id,
+        dataset_id: datasetId,
         task_name: form.task_name,
+        output_column: form.output_column,
         metric: backendMetric,
         benchmark: {
           [backendMetric]: {
@@ -122,6 +130,7 @@ const Tasks = ({ datasetId }) => {
       setForm({
         dataset_id: datasetId || "",
         task_name: "",
+        output_column: "",
         metric: METRIC_OPTIONS[0],
         std_mean: "",
         std_dev: "",
@@ -177,19 +186,6 @@ const Tasks = ({ datasetId }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Dataset ID
-                </label>
-                <input
-                  type="text"
-                  name="dataset_id"
-                  value={form.dataset_id}
-                  onChange={handleInputChange}
-                  className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
                   Task Name
                 </label>
                 <input
@@ -200,6 +196,25 @@ const Tasks = ({ datasetId }) => {
                   className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Output Column
+                </label>
+                <select
+                  type="select"
+                  name="output_column"
+                  value={form.output_column}
+                  onChange={handleInputChange}
+                  className="w-full border border-indigo-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  required
+                >
+                  {columns.map((column) => (
+                    <option key={column.name} value={column.name}>
+                      {column.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -299,7 +314,7 @@ const Tasks = ({ datasetId }) => {
                         <ChartBarIcon className="w-5 h-5" />
                       </div>
                       <h3 className="font-medium text-gray-900">
-                        {task.task_name}
+                        {task.task_name} ({task.output_column})
                       </h3>
                     </div>
 

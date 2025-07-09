@@ -85,7 +85,10 @@ const ProcessedDataSetOverview = () => {
       </section>
 
       <section id="tasks" className="scroll-mt-20 mt-12">
-        <Tasks datasetId={dataset.dataset_id} />
+        <Tasks
+          datasetId={dataset.dataset_id}
+          columns={dataset.datastats.columnStats}
+        />
       </section>
 
       <section id="preprocessing" className="scroll-mt-20 mt-12">

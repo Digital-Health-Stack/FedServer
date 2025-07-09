@@ -22,6 +22,7 @@ class DatasetUpdate(BaseModel):
 class TaskCreate(BaseModel):
     dataset_id: int
     task_name: str
+    output_column: str
     metric: str
     benchmark: Optional[dict] = None
 

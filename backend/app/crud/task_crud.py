@@ -12,8 +12,10 @@ from sqlalchemy import func
 
 def create_task(db: Session, task: TaskCreate) -> Task:
     """Create a new task in the database"""
+
     try:
-        db_task = Task(**task.dict())
+
+        db_task = Task(**task.model_dump())
         db.add(db_task)
         db.commit()
         db.refresh(db_task)
@@ -88,13 +90,6 @@ def get_tasks_by_dataset_id(db: Session, dataset_id: int) -> List[Task]:
             )
 
         tasks = db.query(Task).filter(Task.dataset_id == dataset_id).all()
-
-        if not tasks:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No tasks found for dataset with id {dataset_id}",
-            )
-
         return tasks
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -130,7 +125,7 @@ def update_task_by_id(db: Session, task_id: int, task_update: TaskCreate) -> Tas
                 detail=f"Task with id {task_id} not found",
             )
 
-        for key, value in task_update.dict(exclude_unset=True).items():
+        for key, value in task_update.model_dump(exclude_unset=True).items():
             setattr(task, key, value)
 
         db.commit()

@@ -50,10 +50,6 @@ def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
 def read_tasks_by_dataset_id(dataset_id: int, db: Session = Depends(get_db)):
     try:
         tasks = get_tasks_by_dataset_id(db, dataset_id)
-        if not tasks:
-            raise HTTPException(
-                status_code=404, detail="No tasks found for this dataset"
-            )
         return [task.as_dict() for task in tasks]
     except Exception as e:
         print(f"Error retrieving tasks: {e}")

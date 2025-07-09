@@ -42,8 +42,9 @@ export const createNewDataset = (data: { filename: string }) => {
 export const createNewTask = (data: {
   dataset_id: number;
   task_name: string;
+  output_column: string;
   metric: string;
-  benchmark: {
+  benchmark?: {
     [key: string]: {
       std_mean: number;
       std_dev: number;

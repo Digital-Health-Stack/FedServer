@@ -52,8 +52,10 @@ class Dataset(Base):
 # each dataset will have multiple tasks (decided by server admin), every task will have an associated Metric
 class Task(Base):
     __tablename__ = "tasks"
-
-    task_id = mapped_column(Integer, primary_key=True, index=True)
+    # Should be auto assigned by the server
+    task_id = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     dataset_id = mapped_column(
         Integer,
         ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
@@ -61,6 +63,7 @@ class Task(Base):
         index=True,
     )
     task_name = mapped_column(String(255), nullable=False)
+    output_column = mapped_column(String(255), nullable=False)
     metric = mapped_column(String(50), nullable=False)
     benchmark = mapped_column(JSON, nullable=True)  # Temporary field
     created_at = mapped_column(TIMESTAMP, server_default=func.now(), index=True)
@@ -81,6 +84,7 @@ class Task(Base):
             "task_id": self.task_id,
             "dataset_id": self.dataset_id,
             "task_name": self.task_name,
+            "output_column": self.output_column,
             "metric": self.metric,
             "benchmark": self.benchmark,
             "created_at": self.created_at.isoformat() if self.created_at else None,
