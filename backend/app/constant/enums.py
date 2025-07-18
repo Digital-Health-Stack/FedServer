@@ -1,5 +1,5 @@
 # app/enums.py or app/models/enums.py
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 
 class ClientStatus(IntEnum):
@@ -18,3 +18,16 @@ class TrainingStatus(IntEnum):
     ACCEPTING_CLIENTS = 1
     STARTED = 2
     COMPLETED = 3
+
+
+class FederatedSessionLogTag(StrEnum):
+    INFO = "INFO"
+    ERROR = "ERROR"
+    SUCCESS = "SUCCESS"
+    TRAINING = "TRAINING"
+    CLIENT_JOINED = "CLIENT_JOINED"
+    WEIGHTS_RECEIVED = "WEIGHTS_RECEIVED"
+    AGGREGATED_WEIGHTS = "AGGREGATED_WEIGHTS"
+    TEST_RESULTS = "TEST_RESULTS"
+    CLIENT_LEFT = "CLIENT_LEFT"
+    PRIZE_NEGOTIATION = "PRIZE_NEGOTIATION"

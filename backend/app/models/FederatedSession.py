@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, declared_attr, relationship, mapped_column
 from .Base import Base
 import os
-from constant.enums import ClientStatus, TrainingStatus
+from constant.enums import ClientStatus, TrainingStatus, FederatedSessionLogTag
 import pytz
 
 load_dotenv()
@@ -50,7 +50,11 @@ class FederatedSessionLog(TimestampMixin, Base):
         Integer, ForeignKey("federated_sessions.id", ondelete="CASCADE"), nullable=False
     )
     message = mapped_column(String, nullable=False)
-
+    tag = mapped_column(
+        Enum(FederatedSessionLogTag),
+        nullable=False,
+        default=FederatedSessionLogTag.INFO,
+    )
     session = relationship("FederatedSession", back_populates="logs")
 
     def as_dict(self):
@@ -58,6 +62,7 @@ class FederatedSessionLog(TimestampMixin, Base):
             "id": self.id,
             "session_id": self.session_id,
             "message": self.message,
+            "tag": self.tag,
             "created_at": self.createdAt.isoformat() if self.createdAt else None,
             "updated_at": self.updatedAt.isoformat() if self.updatedAt else None,
             "deleted_at": self.deletedAt.isoformat() if self.deletedAt else None,

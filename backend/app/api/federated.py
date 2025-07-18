@@ -27,6 +27,7 @@ from schema import (
     ClientModelIdResponse,
     ClientReceiveParameters,
 )
+from constant.enums import FederatedSessionLogTag
 
 federated_router = APIRouter()
 federated_manager = FederatedLearning()
@@ -161,6 +162,7 @@ async def create_federated_session(
     federated_manager.log_event(
         session.id,
         f"Federated session created by admin {current_user.id} from {request.client.host}",
+        FederatedSessionLogTag.INFO,
     )
 
     try:
@@ -179,11 +181,15 @@ async def create_federated_session(
         process.start()
         federated_manager.add_process(session.id, process)
         federated_manager.log_event(
-            session.id, "Background task for federated learning started"
+            session.id,
+            "Background task for federated learning started",
+            FederatedSessionLogTag.TRAINING,
         )
     except Exception as e:
         federated_manager.log_event(
-            session.id, f"Error starting background task: {str(e)}"
+            session.id,
+            f"Error starting background task: {str(e)}",
+            FederatedSessionLogTag.ERROR,
         )
         return {"message": "An error occurred while starting federated learning."}
 
@@ -291,7 +297,9 @@ def submit_client_price_response(
             # Update training_status based on the decision
             if decision == 1:
                 federated_manager.log_event(
-                    session_id, f"Admin Accepted the price updating training status = 2"
+                    session_id,
+                    f"Admin Accepted the price updating training status = 2",
+                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
                 )
                 federated_session.training_status = (
                     2  # Update training_status to 2 (start training)
@@ -300,6 +308,7 @@ def submit_client_price_response(
                 federated_manager.log_event(
                     session_id,
                     f"Admin rejected the price updating training status = -1",
+                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
                 )
                 federated_session.training_status = (
                     -1
@@ -447,6 +456,7 @@ def receive_client_parameters(
         federated_manager.log_event(
             session_id,
             f"Client parameters for this round {round_number} already submitted.",
+            FederatedSessionLogTag.ERROR,
         )
         raise HTTPException(
             status_code=400,
@@ -486,12 +496,15 @@ def receive_client_parameters(
         federated_manager.log_event(
             session_id,
             f"Received client parameters from user {current_user.id} for round {round_number}",
+            FederatedSessionLogTag.WEIGHTS_RECEIVED,
         )
         return {"message": "Client Parameters Received"}
     except Exception as e:
         db.rollback()
         federated_manager.log_event(
-            session_id, f"Error receiving client parameters: {str(e)}"
+            session_id,
+            f"Error receiving client parameters: {str(e)}",
+            FederatedSessionLogTag.ERROR,
         )
         raise HTTPException(
             status_code=500, detail=f"Error processing client parameters: {str(e)}"

@@ -38,6 +38,7 @@ from schema import (
     ClientModelIdResponse,
     ClientReceiveParameters,
 )
+from constant.enums import FederatedSessionLogTag
 
 federated_router_v2 = APIRouter()
 federated_manager = FederatedLearning()
@@ -50,22 +51,28 @@ async def _start_training_internal(session_id: int, db: Session):
     print("Starting training")
     session = db.query(FederatedSession).filter_by(id=session_id).first()
     if not session:
-        federated_manager.log_event(session_id, f"Session {session_id} not found")
+        federated_manager.log_event(
+            session_id, f"Session {session_id} not found", FederatedSessionLogTag.ERROR
+        )
         return
     if session.training_status != TrainingStatus.ACCEPTING_CLIENTS:
         federated_manager.log_event(
             session_id,
             f"Session {session_id} is not in the correct state to start training. Current state: {session.training_status}",
+            FederatedSessionLogTag.ERROR,
         )
         return
     if len(session.clients) <= int(os.getenv("MIN_CLIENTS_FOR_TRAINING", 2)):
         federated_manager.log_event(
             session_id,
             f"Session {session_id} has not enough clients to start training. Current clients: {len(session.clients)}",
+            FederatedSessionLogTag.ERROR,
         )
         return
     session.training_status = TrainingStatus.STARTED
-    federated_manager.log_event(session_id, f"Training started")
+    federated_manager.log_event(
+        session_id, f"Training started", FederatedSessionLogTag.TRAINING
+    )
     db.commit()
     db.refresh(session)
     await send_notification_for_new_round(
@@ -125,29 +132,42 @@ async def create_federated_session_v2(
     federated_manager.log_event(
         session.id,
         f"Federated session created by admin {current_user.id} from {request.client.host}",
+        FederatedSessionLogTag.INFO,
     )
 
     federated_manager.log_event(
-        session.id, "Fetching benchmark stats and calculating training price"
+        session.id,
+        "Fetching benchmark stats and calculating training price",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
     required_data_points = fetch_benchmark_and_calculate_price(session, db)
     federated_manager.log_event(
-        session.id, f"Calculated training price as {required_data_points} data points"
+        session.id,
+        f"Calculated training price as {required_data_points} data points",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
 
     # Store the calculated price in the session
     federated_manager.log_event(
-        session.id, f"Storing calculated price in session {session.id}"
+        session.id,
+        f"Storing calculated price in session {session.id}",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
     federated_session = db.query(FederatedSession).filter_by(id=session.id).first()
     if federated_session:
         federated_session.session_price = required_data_points
         db.commit()
         db.refresh(federated_session)
-        federated_manager.log_event(session.id, "Price successfully stored in session")
+        federated_manager.log_event(
+            session.id,
+            "Price successfully stored in session",
+            FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        )
     else:
         error_msg = f"FederatedSession with ID {session.id} not found."
-        federated_manager.log_event(session.id, f"{error_msg}")
+        federated_manager.log_event(
+            session.id, f"{error_msg}", FederatedSessionLogTag.ERROR
+        )
         return
 
     return {
@@ -211,7 +231,9 @@ async def submit_client_price_response(
             # Update training_status based on the decision
             if decision == 1:
                 federated_manager.log_event(
-                    session_id, f"Admin Accepted the price updating training status = 2"
+                    session_id,
+                    f"Admin Accepted the price updating training status = 2",
+                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
                 )
                 federated_session.training_status = TrainingStatus.ACCEPTING_CLIENTS
                 message = (
@@ -229,6 +251,7 @@ async def submit_client_price_response(
                 federated_manager.log_event(
                     session_id,
                     f"Admin rejected the price updating training status = -1",
+                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
                 )
                 federated_session.training_status = (
                     TrainingStatus.CANCELLED
@@ -341,6 +364,7 @@ def get_weights(session_id: int, db: Session = Depends(get_db)):
 @federated_router_v2.post("/send-weights")
 def send_weights(
     request: ClientReceiveParameters,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(role("client")),
 ):
@@ -372,6 +396,7 @@ def send_weights(
         federated_manager.log_event(
             session_id,
             f"Client parameters for this round {round_number} already submitted.",
+            FederatedSessionLogTag.ERROR,
         )
         raise HTTPException(
             status_code=400,
@@ -411,6 +436,7 @@ def send_weights(
         federated_manager.log_event(
             session_id,
             f"Received client parameters from user {current_user.id} for round {round_number}",
+            FederatedSessionLogTag.WEIGHTS_RECEIVED,
         )
 
         session_data = federated_manager.get_session(int(session_id))
@@ -418,20 +444,35 @@ def send_weights(
         # Should not be here, but should be a background task
         ## WORKING HERE   <----------------------------------------------------------
         # TODO: All this should be in a background task including further logic
-        
-        if len(session_data.clients) == session_data.no_of_recieved_weights + session_data.no_of_left_clients:
-            federated_manager.log_event(session_data.id, f"Performing aggregation.")    
-            background_tasks.add_task(
-                federated_manager.aggregate_weights_fedAvg_Neural, session_data.id, session_data.curr_round
+
+        if (
+            len(session_data.clients)
+            == session_data.no_of_recieved_weights + session_data.no_of_left_clients
+        ):
+            federated_manager.log_event(
+                session_data.id,
+                f"Performing aggregation.",
+                FederatedSessionLogTag.AGGREGATED_WEIGHTS,
             )
-            federated_manager.log_event(session_data.id, f"Aggregation is done")
+            background_tasks.add_task(
+                federated_manager.aggregate_weights_fedAvg_Neural,
+                session_data.id,
+                session_data.curr_round,
+            )
+            federated_manager.log_event(
+                session_data.id,
+                f"Aggregation is done",
+                FederatedSessionLogTag.AGGREGATED_WEIGHTS,
+            )
         ## WORKING HERE   <----------------------------------------------------------
 
         return {"message": "Client Parameters Received"}
     except Exception as e:
         db.rollback()
         federated_manager.log_event(
-            session_id, f"Error receiving client parameters: {str(e)}"
+            session_id,
+            f"Error receiving client parameters: {str(e)}",
+            FederatedSessionLogTag.ERROR,
         )
         raise HTTPException(
             status_code=500, detail=f"Error processing client parameters: {str(e)}"

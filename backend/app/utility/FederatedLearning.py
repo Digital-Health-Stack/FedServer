@@ -20,6 +20,7 @@ from typing import Dict
 import time
 from pathlib import Path
 import shutil
+from constant.enums import FederatedSessionLogTag
 
 
 class FederatedLearning:
@@ -37,9 +38,13 @@ class FederatedLearning:
         """
         self.processes[session_id] = process
         self.process_start_times[session_id] = time.time()
-        self.log_event(session_id, f"Added process {process.pid} for session")
+        self.log_event(
+            session_id,
+            f"Added process {process.pid} for session",
+            FederatedSessionLogTag.INFO,
+        )
 
-    def get_process(self, session_id: int) -> multiprocessing.Process:
+    def get_process(self, session_id: int) -> Optional[multiprocessing.Process]:
         """
         Get the process for a specific session.
 
@@ -47,7 +52,7 @@ class FederatedLearning:
             session_id (int): The ID of the federated session
 
         Returns:
-            multiprocessing.Process: The process for the session
+            Optional[multiprocessing.Process]: The process for the session, or None if not found
         """
         return self.processes.get(session_id)
 
@@ -353,6 +358,11 @@ class FederatedLearning:
         if num_clients == 0:
             print("No valid client submissions found for this round.")
             return
+
+        if aggregated_sums is None:
+            print("No aggregated sums available for averaging.")
+            return
+
         # Average the parameters
         for key in aggregated_sums:
             aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
@@ -373,9 +383,11 @@ class FederatedLearning:
             json.dump(aggregation_metadata, f)
         return
 
-    def log_event(self, session_id: int, message: str):
+    def log_event(self, session_id: int, message: str, tag: FederatedSessionLogTag):
         with Session(engine) as db:
-            log_entry = FederatedSessionLog(session_id=session_id, message=message)
+            log_entry = FederatedSessionLog(
+                session_id=session_id, message=message, tag=tag
+            )
             db.add(log_entry)
             db.commit()
             print(f"[LOG] Session {session_id}: {message} ")

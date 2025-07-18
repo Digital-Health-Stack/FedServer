@@ -28,6 +28,7 @@ import random
 from utility.test import Test
 from helpers.federated_services import process_parquet_and_save_xy
 import shutil
+from constant.enums import FederatedSessionLogTag
 
 
 def save_weights_to_file(weights: dict, filename: str):
@@ -115,20 +116,29 @@ async def start_federated_learning(
     """
 
     # Fetch benchmark stats and calculate required data points (price)
-    federated_manager.log_event(session_data.id, "Starting federated learning process")
+    federated_manager.log_event(
+        session_data.id,
+        "Starting federated learning process",
+        FederatedSessionLogTag.INFO,
+    )
 
     federated_manager.log_event(
-        session_data.id, "Fetching benchmark stats and calculating training price"
+        session_data.id,
+        "Fetching benchmark stats and calculating training price",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
     required_data_points = fetch_benchmark_and_calculate_price(session_data, db)
     federated_manager.log_event(
         session_data.id,
         f"Calculated training price as {required_data_points} data points",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
 
     # Store the calculated price in the session
     federated_manager.log_event(
-        session_data.id, f"Storing calculated price in session {session_data.id}"
+        session_data.id,
+        f"Storing calculated price in session {session_data.id}",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
     federated_session = db.query(FederatedSession).filter_by(id=session_data.id).first()
     if federated_session:
@@ -136,16 +146,22 @@ async def start_federated_learning(
         db.commit()
         db.refresh(federated_session)
         federated_manager.log_event(
-            session_data.id, "Price successfully stored in session"
+            session_data.id,
+            "Price successfully stored in session",
+            FederatedSessionLogTag.PRIZE_NEGOTIATION,
         )
     else:
         error_msg = f"FederatedSession with ID {session_data.id} not found."
-        federated_manager.log_event(session_data.id, f"{error_msg}")
+        federated_manager.log_event(
+            session_data.id, f"{error_msg}", FederatedSessionLogTag.ERROR
+        )
         return
 
     # Send the price to the client and wait for approval
     federated_manager.log_event(
-        session_data.id, "Waiting for client price confirmation"
+        session_data.id,
+        "Waiting for client price confirmation",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
     approved = await wait_for_price_confirmation(federated_manager, session_data.id, db)
 
@@ -158,12 +174,16 @@ async def start_federated_learning(
         federated_session.training_status = -1
         db.commit()
         federated_manager.log_event(
-            session_data.id, f"Client {user.id} declined the price. Training aborted."
+            session_data.id,
+            f"Client {user.id} declined the price. Training aborted.",
+            FederatedSessionLogTag.PRIZE_NEGOTIATION,
         )
         return
 
     federated_manager.log_event(
-        session_data.id, f"Client {user.id} accepted the price. Training starts."
+        session_data.id,
+        f"Client {user.id} accepted the price. Training starts.",
+        FederatedSessionLogTag.TRAINING,
     )
 
     message = {
@@ -174,7 +194,9 @@ async def start_federated_learning(
 
     # Make alert in Client side
     federated_manager.log_event(
-        session_data.id, "Sending notifications to active users"
+        session_data.id,
+        "Sending notifications to active users",
+        FederatedSessionLogTag.INFO,
     )
     add_notifications_for_recently_active_users(
         db=db,
@@ -183,13 +205,17 @@ async def start_federated_learning(
         excluded_users=[user],
     )
     federated_manager.log_event(
-        session_data.id, f"Notification:new-session is sent to all users."
+        session_data.id,
+        f"Notification:new-session is sent to all users.",
+        FederatedSessionLogTag.INFO,
     )
 
     # Wait for client confirmation of interest
     await wait_for_client_confirmation(federated_manager, session_data.id, db)
     federated_manager.log_event(
-        session_data.id, "Client confirmation process completed."
+        session_data.id,
+        "Client confirmation process completed.",
+        FederatedSessionLogTag.INFO,
     )
 
     # Send Model Configurations to interested clients and wait for their confirmation
@@ -209,7 +235,9 @@ async def start_federated_learning(
             federated_session.training_status = 4
             db.commit()
         federated_manager.log_event(
-            session_data.id, "All interested clients confirmed model configuration"
+            session_data.id,
+            "All interested clients confirmed model configuration",
+            FederatedSessionLogTag.SUCCESS,
         )
     else:
         with Session(engine) as db:
@@ -224,7 +252,9 @@ async def start_federated_learning(
             federated_session.training_status = -1
             db.commit()
         federated_manager.log_event(
-            session_data.id, "Timeout: Not all clients confirmed model configuration"
+            session_data.id,
+            "Timeout: Not all clients confirmed model configuration",
+            FederatedSessionLogTag.ERROR,
         )
         return
 
@@ -232,7 +262,9 @@ async def start_federated_learning(
     # code used to get instance of testing unit
     # Here Input has to be taken in future for the metrics
     test = Test(session_data.id)
-    federated_manager.log_event(session_data.id, f"Initialized test unit.")
+    federated_manager.log_event(
+        session_data.id, f"Initialized test unit.", FederatedSessionLogTag.INFO
+    )
 
     # Download data from Hadoop
     federated_info = session_data.federated_info
@@ -243,11 +275,15 @@ async def start_federated_learning(
 
     # Start Training
     federated_manager.log_event(
-        session_data.id, f"Starting training with {session_data.max_round} rounds"
+        session_data.id,
+        f"Starting training with {session_data.max_round} rounds",
+        FederatedSessionLogTag.TRAINING,
     )
     for i in range(1, session_data.max_round + 1):
         session_data = federated_manager.get_session(session_data.id)
-        federated_manager.log_event(session_data.id, f"Starting round {i}.")
+        federated_manager.log_event(
+            session_data.id, f"Starting round {i}.", FederatedSessionLogTag.TRAINING
+        )
         with Session(engine) as db:
             # Update the training status of the session
             federated_session = (
@@ -259,29 +295,47 @@ async def start_federated_learning(
                 )
             federated_session.curr_round = i
             db.commit()
-        federated_manager.log_event(session_data.id, f"Round {i} marked in database")
+        federated_manager.log_event(
+            session_data.id,
+            f"Round {i} marked in database",
+            FederatedSessionLogTag.TRAINING,
+        )
 
         await send_training_signal_and_wait_for_clients_training(
             federated_manager, session_data.id
         )
         # Aggregate
-        federated_manager.log_event(session_data.id, f"Performing aggregation.")
+        federated_manager.log_event(
+            session_data.id,
+            f"Performing aggregation.",
+            FederatedSessionLogTag.AGGREGATED_WEIGHTS,
+        )
 
         federated_manager.aggregate_weights_fedAvg_Neural(session_data.id, i)
 
-        federated_manager.log_event(session_data.id, f"Aggregation is done")
+        federated_manager.log_event(
+            session_data.id,
+            f"Aggregation is done",
+            FederatedSessionLogTag.AGGREGATED_WEIGHTS,
+        )
 
         ################ Testing start
         results = test.start_test(
             federated_manager.get_latest_global_weights(session_data.id)
         )
-        federated_manager.log_event(session_data.id, f"Global test results: {results}")
+        federated_manager.log_event(
+            session_data.id,
+            f"Global test results: {results}",
+            FederatedSessionLogTag.TEST_RESULTS,
+        )
 
         # Reset client_parameters to an empty JSON object
         federated_manager.clear_client_parameters(session_data.id, i)
 
         federated_manager.log_event(
-            session_data.id, f"Client parameters reset after Round {i}."
+            session_data.id,
+            f"Client parameters reset after Round {i}.",
+            FederatedSessionLogTag.TRAINING,
         )
 
     # Deleted data folder after training is complete
@@ -298,7 +352,9 @@ async def start_federated_learning(
         federated_session.training_status = 5
         db.commit()
     federated_manager.log_event(
-        session_data.id, f"Training completed. Test results saved."
+        session_data.id,
+        f"Training completed. Test results saved.",
+        FederatedSessionLogTag.TEST_RESULTS,
     )
 
 
@@ -322,7 +378,9 @@ async def wait_for_price_confirmation(
     start_time = asyncio.get_event_loop().time()  # Get async time to prevent blocking
     session_data = federated_manager.get_session(int(session_id))
     federated_manager.log_event(
-        session_data.id, f"Starting price confirmation wait (timeout: {timeout}s)"
+        session_data.id,
+        f"Starting price confirmation wait (timeout: {timeout}s)",
+        FederatedSessionLogTag.PRIZE_NEGOTIATION,
     )
 
     while True:
@@ -330,7 +388,9 @@ async def wait_for_price_confirmation(
 
         if session_data.training_status == 2:  # Status 2 means price was accepted
             federated_manager.log_event(
-                session_data.id, f"Client accepted the price for session {session_id}"
+                session_data.id,
+                f"Client accepted the price for session {session_id}",
+                FederatedSessionLogTag.PRIZE_NEGOTIATION,
             )
             return True
 
@@ -339,11 +399,14 @@ async def wait_for_price_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Timeout: Client did not confirm price within {timeout}s",
+                FederatedSessionLogTag.PRIZE_NEGOTIATION,
             )
             return False
 
         federated_manager.log_event(
-            session_data.id, "Waiting for client price confirmation."
+            session_data.id,
+            "Waiting for client price confirmation.",
+            FederatedSessionLogTag.PRIZE_NEGOTIATION,
         )
         await asyncio.sleep(5)  # Non-blocking sleep
 
@@ -362,7 +425,9 @@ async def wait_for_client_confirmation(
         start_time = asyncio.get_event_loop().time()
         session_data = federated_manager.get_session(session_id)
         federated_manager.log_event(
-            session_data.id, f"Starting client confirmation (timeout: {timeout}s)"
+            session_data.id,
+            f"Starting client confirmation (timeout: {timeout}s)",
+            FederatedSessionLogTag.INFO,
         )
 
         while asyncio.get_event_loop().time() - start_time < timeout:
@@ -379,12 +444,14 @@ async def wait_for_client_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Timeout reached. Starting training with {len(accepted_clients)} clients.",
+                FederatedSessionLogTag.TRAINING,
             )
         else:
             federated_session.training_status = -1  # Cancel training
             federated_manager.log_event(
                 session_data.id,
                 "Timeout reached. No clients accepted. Training canceled.",
+                FederatedSessionLogTag.ERROR,
             )
         db.commit()
         return {
@@ -418,7 +485,9 @@ async def send_model_configs_and_wait_for_confirmation(
 
             session_data = federated_manager.get_session(session_id)
             federated_manager.log_event(
-                session_data.id, "Starting model config distribution"
+                session_data.id,
+                "Starting model config distribution",
+                FederatedSessionLogTag.INFO,
             )
 
             # Get initial interested clients (status=2)
@@ -431,6 +500,7 @@ async def send_model_configs_and_wait_for_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Notification:GET_MODEL_PARAMETERS_START_BACKGROUND_PROCESS is sent to all users.",
+                FederatedSessionLogTag.INFO,
             )
             add_notifications_for(db, message, client_ids)
 
@@ -462,13 +532,16 @@ async def send_model_configs_and_wait_for_confirmation(
                         session_data.id,
                         f"Client readiness: {ready_count}/{len(client_ids)} "
                         f"(attempt {attempt + 1}/{max_retries})",
+                        FederatedSessionLogTag.INFO,
                     )
                     last_ready_count = ready_count
 
                 # Complete if all ready
                 if ready_count == len(client_ids):
                     federated_manager.log_event(
-                        session_data.id, "All clients confirmed readiness"
+                        session_data.id,
+                        "All clients confirmed readiness",
+                        FederatedSessionLogTag.SUCCESS,
                     )
                     return True
 
@@ -492,6 +565,7 @@ async def send_model_configs_and_wait_for_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Timeout waiting for clients: {failed_clients}",
+                FederatedSessionLogTag.ERROR,
             )
             return False
 
@@ -499,7 +573,9 @@ async def send_model_configs_and_wait_for_confirmation(
         with Session(engine) as db:
             session_data = federated_manager.get_session(int(session_id))
             federated_manager.log_event(
-                session_data.id, f"Error in model config distribution: {str(e)}"
+                session_data.id,
+                f"Error in model config distribution: {str(e)}",
+                FederatedSessionLogTag.ERROR,
             )
         return False
 
@@ -515,22 +591,27 @@ async def send_training_signal_and_wait_for_clients_training(
         federated_manager.log_event(
             session_data.id,
             f"Round {curr_round}: START_TRAINING signal sent to {len(interested_clients)} clients",
+            FederatedSessionLogTag.TRAINING,
         )
         message = {"type": MessageType.START_TRAINING, "session_id": session_data.id}
         add_notifications_for(db, message, interested_clients)
     federated_manager.log_event(
         session_data.id,
         f"Round {curr_round}: Notification:START_TRAINING is sent to all users.",
+        FederatedSessionLogTag.TRAINING,
     )
     federated_manager.log_event(
         session_data.id,
         f"Round {curr_round}: Waiting for clients to complete local training",
+        FederatedSessionLogTag.TRAINING,
     )
 
     # Run the wait_for_all_clients_to_local_training task in the background
     await wait_for_all_clients_to_local_training(federated_manager, session_id)
     federated_manager.log_event(
-        session_data.id, f"Round {curr_round}:All clients completed local training"
+        session_data.id,
+        f"Round {curr_round}:All clients completed local training",
+        FederatedSessionLogTag.TRAINING,
     )
 
 
@@ -560,6 +641,7 @@ async def wait_for_all_clients_to_local_training(
             federated_manager.log_event(
                 session_data.id,
                 f"Round {curr_round}: Waiting for {num_interested_clients} clients to submit parameters",
+                FederatedSessionLogTag.TRAINING,
             )
             # Tracking variables
             attempt = 0
@@ -581,6 +663,7 @@ async def wait_for_all_clients_to_local_training(
                 federated_manager.log_event(
                     session_data.id,
                     f"Round {curr_round}: Clients who have submitted: {submissions_count}",
+                    FederatedSessionLogTag.TRAINING,
                 )
 
                 # Log progress if changed
@@ -588,6 +671,7 @@ async def wait_for_all_clients_to_local_training(
                     federated_manager.log_event(
                         session_data.id,
                         f"Round {curr_round}: {submissions_count}/{num_interested_clients} clients submitted (attempt {attempt + 1}/{max_retries})",
+                        FederatedSessionLogTag.TRAINING,
                     )
                     last_submitted_count = submissions_count
 
@@ -596,6 +680,7 @@ async def wait_for_all_clients_to_local_training(
                     federated_manager.log_event(
                         session_data.id,
                         f"Round {curr_round}: All clients submitted parameters",
+                        FederatedSessionLogTag.TRAINING,
                     )
                     return
 
@@ -614,6 +699,7 @@ async def wait_for_all_clients_to_local_training(
             federated_manager.log_event(
                 session_data.id,
                 f"Round {curr_round}: Timeout waiting for {missing_clients} clients to submit parameters",
+                FederatedSessionLogTag.TRAINING,
             )
             return
     except Exception as e:
@@ -622,5 +708,6 @@ async def wait_for_all_clients_to_local_training(
             federated_manager.log_event(
                 session_data.id,
                 f"Error waiting for client Local Training submissions: {str(e)}",
+                FederatedSessionLogTag.ERROR,
             )
         return
