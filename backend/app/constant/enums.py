@@ -10,14 +10,14 @@ class ClientStatus(IntEnum):
     # COMPLETED = 3
 
 
-class TrainingStatus(IntEnum):
+class TrainingStatus(StrEnum):
     # todo
-    FAILED = -2
-    CANCELLED = -1
-    CREATED = 0
-    ACCEPTING_CLIENTS = 1
-    STARTED = 2
-    COMPLETED = 3
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    PRICE_NEGOTIATION = "PRICE_NEGOTIATION"
+    ACCEPTING_CLIENTS = "ACCEPTING_CLIENTS"
+    STARTED = "STARTED"
+    COMPLETED = "COMPLETED"
 
 
 class FederatedSessionLogTag(StrEnum):

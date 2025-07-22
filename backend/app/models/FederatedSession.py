@@ -79,7 +79,7 @@ class FederatedSession(TimestampMixin, Base):
     max_round = mapped_column(Integer, default=50, nullable=False)
     session_price = mapped_column(Float, default=0, nullable=True)
     training_status = mapped_column(
-        Enum(TrainingStatus), default=TrainingStatus.CREATED, nullable=False
+        Enum(TrainingStatus), default=TrainingStatus.PRICE_NEGOTIATION, nullable=False
     )
     no_of_recieved_weights = mapped_column(Integer, default=0, nullable=False)
     no_of_left_clients = mapped_column(Integer, default=0, nullable=False)

@@ -109,11 +109,11 @@ async def create_federated_session_v2(
 ):
     print("Creating federated session")
     # Remove empty layers
-    federated_details.model_info["layers"] = [
-        layer
-        for layer in federated_details.model_info["layers"]
-        if layer.get("layer_type")
-    ]
+    # federated_details.model_info["layers"] = [
+    #     layer
+    #     for layer in federated_details.model_info["layers"]
+    #     if layer.get("layer_type")
+    # ]
     if not request.client:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -214,10 +214,10 @@ async def submit_client_price_response(
                     "message": "Unauthorized user. Can only be accepted by the admin of this session",
                 }
 
-            if session.training_status != TrainingStatus.CREATED:
+            if session.training_status != TrainingStatus.PRICE_NEGOTIATION:
                 return {
                     "success": False,
-                    "message": "Training has already started or is in wrong state",
+                    "message": "Training is not in price negotiation state",
                 }
 
             federated_session = (
