@@ -22,6 +22,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
+import { XMarkIcon } from "@heroicons/react/24/solid";
 
 const Leaderboard = () => {
   const { task_id } = useParams();

@@ -170,12 +170,7 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
         # Get sessions with their last round results
         sessions = (
             db.query(FederatedSession)
-            .filter(
-                func.json_extract(
-                    FederatedSession.federated_info, "$.dataset_info.task_id"
-                )
-                == task_id
-            )
+            .filter(FederatedSession.federated_info["dataset_info"]["task_id"].as_integer() == task_id)
             .options(joinedload(FederatedSession.results))
             .all()
         )
