@@ -1,8 +1,8 @@
-"""init
+"""move to postgres
 
-Revision ID: 33f2b87552cc
+Revision ID: b982c0b81ab9
 Revises: 
-Create Date: 2025-07-04 09:00:33.252524
+Create Date: 2025-07-23 11:23:44.524154
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '33f2b87552cc'
+revision: str = 'b982c0b81ab9'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('filename', sa.String(length=255), nullable=False),
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('datastats', sa.JSON(), nullable=True),
-    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('now()'), nullable=True),
     sa.PrimaryKeyConstraint('dataset_id')
     )
     op.create_index(op.f('ix_datasets_created_at'), 'datasets', ['created_at'], unique=False)
@@ -61,8 +61,9 @@ def upgrade() -> None:
     sa.Column('curr_round', sa.Integer(), nullable=False),
     sa.Column('max_round', sa.Integer(), nullable=False),
     sa.Column('session_price', sa.Float(), nullable=True),
-    sa.Column('training_status', sa.Enum('FAILED', 'CANCELLED', 'CREATED', 'ACCEPTING_CLIENTS', 'STARTED', 'COMPLETED', name='trainingstatus'), nullable=False),
-    sa.Column('wait_till', sa.DateTime(), nullable=True),
+    sa.Column('training_status', sa.Enum('FAILED', 'CANCELLED', 'PRICE_NEGOTIATION', 'ACCEPTING_CLIENTS', 'STARTED', 'COMPLETED', name='trainingstatus'), nullable=False),
+    sa.Column('no_of_recieved_weights', sa.Integer(), nullable=False),
+    sa.Column('no_of_left_clients', sa.Integer(), nullable=False),
     sa.Column('createdAt', sa.DateTime(), nullable=True),
     sa.Column('updatedAt', sa.DateTime(), nullable=True),
     sa.Column('deletedAt', sa.DateTime(), nullable=True),
@@ -82,12 +83,13 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_notifications_id'), 'notifications', ['id'], unique=False)
     op.create_table('tasks',
-    sa.Column('task_id', sa.Integer(), nullable=False),
+    sa.Column('task_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('dataset_id', sa.Integer(), nullable=False),
     sa.Column('task_name', sa.String(length=255), nullable=False),
+    sa.Column('output_column', sa.String(length=255), nullable=False),
     sa.Column('metric', sa.String(length=50), nullable=False),
     sa.Column('benchmark', sa.JSON(), nullable=True),
-    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('now()'), nullable=True),
     sa.CheckConstraint("metric IN ('mse', 'mae', 'accuracy', 'msle', 'r2', 'logloss', 'auc', 'f1', 'precision', 'recall')"),
     sa.ForeignKeyConstraint(['dataset_id'], ['datasets.dataset_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('task_id')
@@ -130,6 +132,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
     sa.Column('message', sa.String(), nullable=False),
+    sa.Column('tag', sa.Enum('INFO', 'ERROR', 'SUCCESS', 'TRAINING', 'CLIENT_JOINED', 'WEIGHTS_RECEIVED', 'AGGREGATED_WEIGHTS', 'TEST_RESULTS', 'CLIENT_LEFT', 'PRIZE_NEGOTIATION', name='federatedsessionlogtag'), nullable=False),
     sa.Column('createdAt', sa.DateTime(), nullable=True),
     sa.Column('updatedAt', sa.DateTime(), nullable=True),
     sa.Column('deletedAt', sa.DateTime(), nullable=True),

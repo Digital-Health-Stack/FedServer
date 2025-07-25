@@ -5,9 +5,25 @@ from sqlalchemy import pool
 
 from alembic import context
 
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parents[3] / ".env"
+load_dotenv(dotenv_path=env_path)
+
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+# Override the sqlalchemy.url with the one from environment
+db_url = os.getenv("DB_URL")
+if db_url:
+    config.set_main_option("sqlalchemy.url", db_url)
+    print(f"[Alembic] Loaded DB_URL from .env: {db_url}")
+else:
+    print("[Alembic] DB_URL not found in environment!")
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
