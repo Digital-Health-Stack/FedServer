@@ -138,20 +138,20 @@ async def create_federated_session_v2(
     federated_manager.log_event(
         session.id,
         "Fetching benchmark stats and calculating training price",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
     required_data_points = fetch_benchmark_and_calculate_price(session, db)
     federated_manager.log_event(
         session.id,
         f"Calculated training price as {required_data_points} data points",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
 
     # Store the calculated price in the session
     federated_manager.log_event(
         session.id,
         f"Storing calculated price in session {session.id}",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
     federated_session = db.query(FederatedSession).filter_by(id=session.id).first()
     if federated_session:
@@ -161,7 +161,7 @@ async def create_federated_session_v2(
         federated_manager.log_event(
             session.id,
             "Price successfully stored in session",
-            FederatedSessionLogTag.PRIZE_NEGOTIATION,
+            FederatedSessionLogTag.PRICE_NEGOTIATION,
         )
     else:
         error_msg = f"FederatedSession with ID {session.id} not found."
@@ -233,7 +233,7 @@ async def submit_client_price_response(
                 federated_manager.log_event(
                     session_id,
                     f"Admin Accepted the price updating training status = 2",
-                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
+                    FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
                 federated_session.training_status = TrainingStatus.ACCEPTING_CLIENTS
                 message = (
@@ -251,7 +251,7 @@ async def submit_client_price_response(
                 federated_manager.log_event(
                     session_id,
                     f"Admin rejected the price updating training status = -1",
-                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
+                    FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
                 federated_session.training_status = (
                     TrainingStatus.CANCELLED

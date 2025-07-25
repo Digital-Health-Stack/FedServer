@@ -132,7 +132,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
     sa.Column('message', sa.String(), nullable=False),
-    sa.Column('tag', sa.Enum('INFO', 'ERROR', 'SUCCESS', 'TRAINING', 'CLIENT_JOINED', 'WEIGHTS_RECEIVED', 'AGGREGATED_WEIGHTS', 'TEST_RESULTS', 'CLIENT_LEFT', 'PRIZE_NEGOTIATION', name='federatedsessionlogtag'), nullable=False),
+    sa.Column('tag', sa.Enum('INFO', 'ERROR', 'SUCCESS', 'TRAINING', 'CLIENT_JOINED', 'WEIGHTS_RECEIVED', 'AGGREGATED_WEIGHTS', 'TEST_RESULTS', 'CLIENT_LEFT', 'PRIZE_NEGOTIATION', 'PRICE_NEGOTIATION', name='federatedsessionlogtag'), nullable=False),
     sa.Column('createdAt', sa.DateTime(), nullable=True),
     sa.Column('updatedAt', sa.DateTime(), nullable=True),
     sa.Column('deletedAt', sa.DateTime(), nullable=True),

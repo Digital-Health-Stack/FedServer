@@ -125,20 +125,20 @@ async def start_federated_learning(
     federated_manager.log_event(
         session_data.id,
         "Fetching benchmark stats and calculating training price",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
     required_data_points = fetch_benchmark_and_calculate_price(session_data, db)
     federated_manager.log_event(
         session_data.id,
         f"Calculated training price as {required_data_points} data points",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
 
     # Store the calculated price in the session
     federated_manager.log_event(
         session_data.id,
         f"Storing calculated price in session {session_data.id}",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
     federated_session = db.query(FederatedSession).filter_by(id=session_data.id).first()
     if federated_session:
@@ -148,7 +148,7 @@ async def start_federated_learning(
         federated_manager.log_event(
             session_data.id,
             "Price successfully stored in session",
-            FederatedSessionLogTag.PRIZE_NEGOTIATION,
+            FederatedSessionLogTag.PRICE_NEGOTIATION,
         )
     else:
         error_msg = f"FederatedSession with ID {session_data.id} not found."
@@ -161,7 +161,7 @@ async def start_federated_learning(
     federated_manager.log_event(
         session_data.id,
         "Waiting for client price confirmation",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
     approved = await wait_for_price_confirmation(federated_manager, session_data.id, db)
 
@@ -176,7 +176,7 @@ async def start_federated_learning(
         federated_manager.log_event(
             session_data.id,
             f"Client {user.id} declined the price. Training aborted.",
-            FederatedSessionLogTag.PRIZE_NEGOTIATION,
+            FederatedSessionLogTag.PRICE_NEGOTIATION,
         )
         return
 
@@ -380,7 +380,7 @@ async def wait_for_price_confirmation(
     federated_manager.log_event(
         session_data.id,
         f"Starting price confirmation wait (timeout: {timeout}s)",
-        FederatedSessionLogTag.PRIZE_NEGOTIATION,
+        FederatedSessionLogTag.PRICE_NEGOTIATION,
     )
 
     while True:
@@ -390,7 +390,7 @@ async def wait_for_price_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Client accepted the price for session {session_id}",
-                FederatedSessionLogTag.PRIZE_NEGOTIATION,
+                FederatedSessionLogTag.PRICE_NEGOTIATION,
             )
             return True
 
@@ -399,14 +399,14 @@ async def wait_for_price_confirmation(
             federated_manager.log_event(
                 session_data.id,
                 f"Timeout: Client did not confirm price within {timeout}s",
-                FederatedSessionLogTag.PRIZE_NEGOTIATION,
+                FederatedSessionLogTag.PRICE_NEGOTIATION,
             )
             return False
 
         federated_manager.log_event(
             session_data.id,
             "Waiting for client price confirmation.",
-            FederatedSessionLogTag.PRIZE_NEGOTIATION,
+            FederatedSessionLogTag.PRICE_NEGOTIATION,
         )
         await asyncio.sleep(5)  # Non-blocking sleep
 

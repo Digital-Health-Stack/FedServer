@@ -299,7 +299,7 @@ def submit_client_price_response(
                 federated_manager.log_event(
                     session_id,
                     f"Admin Accepted the price updating training status = 2",
-                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
+                    FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
                 federated_session.training_status = (
                     2  # Update training_status to 2 (start training)
@@ -308,7 +308,7 @@ def submit_client_price_response(
                 federated_manager.log_event(
                     session_id,
                     f"Admin rejected the price updating training status = -1",
-                    FederatedSessionLogTag.PRIZE_NEGOTIATION,
+                    FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
                 federated_session.training_status = (
                     -1
