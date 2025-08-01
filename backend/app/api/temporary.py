@@ -12,8 +12,21 @@ from models.FederatedSession import FederatedSession
 from helpers.federated_services import process_parquet_and_save_xy
 from fastapi import Query
 from typing import List
+from utility.Notification import send_notification_for_new_round
 
 temporary_router = APIRouter()
+
+
+@temporary_router.get("/test-notification")
+async def test_notification():
+    await send_notification_for_new_round(
+        {
+            "session_id": 7,
+            "round_number": 1,
+            "metrics_report": {},
+        }
+    )
+    return {"message": "Notification sent"}
 
 
 @temporary_router.get("/check")
