@@ -31,6 +31,7 @@ class CreateFederatedLearning(BaseModel):
     task_id: str
     task_name: str
     metric: str
+    input_columns: list[str]
     output_columns: list[str]
     model_info: dict
     model_name: str
