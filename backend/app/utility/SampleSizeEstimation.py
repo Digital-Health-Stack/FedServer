@@ -36,6 +36,8 @@ def get_num_predictors_from_config(model_config):
     If no convolution layer is present, it will return 0.
     """
     # Loop through the layers in reverse order to find the last convolutional layer
+    if "layers" not in model_config["model_info"]:
+        return 0
     for layer in reversed(model_config["model_info"]["layers"]):
         if layer["layer_type"] == "convolution":
             return int(layer["filters"])  # Return the number of filters (predictors)
