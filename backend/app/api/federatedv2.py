@@ -375,6 +375,12 @@ def send_weights(
     session_data = (
         db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
     )
+    if session_data:
+        session_data.no_of_recieved_weights = (
+            session_data.no_of_recieved_weights or 0
+        ) + 1
+        db.commit()
+        db.refresh(session_data)
 
     if not session_data:
         raise HTTPException(
@@ -451,18 +457,13 @@ def send_weights(
         ):
             federated_manager.log_event(
                 session_data.id,
-                f"Performing aggregation.",
+                f"All clients have submitted weights. Starting aggregation for round {session_data.curr_round}.",
                 FederatedSessionLogTag.AGGREGATED_WEIGHTS,
             )
             background_tasks.add_task(
                 federated_manager.aggregate_weights_fedAvg_Neural,
                 session_data.id,
                 session_data.curr_round,
-            )
-            federated_manager.log_event(
-                session_data.id,
-                f"Aggregation is done",
-                FederatedSessionLogTag.AGGREGATED_WEIGHTS,
             )
         ## WORKING HERE   <----------------------------------------------------------
 

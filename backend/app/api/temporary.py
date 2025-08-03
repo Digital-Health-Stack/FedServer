@@ -17,11 +17,11 @@ from utility.Notification import send_notification_for_new_round
 temporary_router = APIRouter()
 
 
-@temporary_router.get("/test-notification")
-async def test_notification():
+@temporary_router.get("/test-notification/{session_id}")
+async def test_notification(session_id: int):
     await send_notification_for_new_round(
         {
-            "session_id": 7,
+            "session_id": session_id,
             "round_number": 1,
             "metrics_report": {},
         }
