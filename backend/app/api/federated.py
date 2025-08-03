@@ -597,7 +597,7 @@ def get_model_parameters(
         )
 
     # Verify training is complete
-    if session.training_status != 5:  # Assuming 5 means complete
+    if session.training_status != "COMPLETED":  # Assuming 5 means complete
         raise HTTPException(
             status_code=403,
             detail="Model parameters are only available after training completion",

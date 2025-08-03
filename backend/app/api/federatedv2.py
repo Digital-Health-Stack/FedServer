@@ -400,6 +400,31 @@ async def aggregate_and_test_weights(session_id: int, round_number: int, db: Ses
             FederatedSessionLogTag.TRAINING,
         )
 
+        session_data = (
+            db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
+        )
+        if session_data:
+            session_data.curr_round = round_number + 1
+            session_data.no_of_recieved_weights = 0
+            # session_data.no_of_left_clients = 0
+
+            if (
+                session_data.curr_round
+                == session_data.federated_info["no_of_rounds"] + 1
+            ):
+                federated_manager.log_event(
+                    session_id,
+                    f"Training completed for session {session_id}.",
+                    FederatedSessionLogTag.SUCCESS,
+                )
+                session_data.training_status = TrainingStatus.COMPLETED
+                db.commit()
+                db.refresh(session_data)
+                return
+            else:
+                db.commit()
+                db.refresh(session_data)
+
         # Send notification for new round
         await send_notification_for_new_round(
             {
