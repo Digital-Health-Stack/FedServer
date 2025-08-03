@@ -95,7 +95,7 @@ const ProcessedDataSetOverview = () => {
         <PreprocessingDetails
           columns={columnDetails}
           filename={filename}
-          directory="processed"
+          directory="server/processed"
         />
       </section>
     </DatasetLayout>

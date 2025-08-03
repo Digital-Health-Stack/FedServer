@@ -5,7 +5,9 @@ import shutil
 import numpy as np
 
 
-HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR", "processed")
+HDFS_PROCESSED_DATASETS_DIR = os.getenv(
+    "HDFS_PROCESSED_DATASETS_DIR", "server/processed"
+)
 
 
 def reshape_image(img_array):

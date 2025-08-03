@@ -41,7 +41,7 @@ const DataSetOverview = () => {
       <PreprocessingDetails
         columns={columnDetails}
         filename={filename}
-        directory="uploads"
+        directory="server/uploads"
       />
     </div>
   );

@@ -39,7 +39,7 @@ const ViewRecentUploads = () => {
 
   const handleDataMove = async (file) => {
     const confirmMove = window.confirm(
-      `Are you sure you want to start processing '${file}'?`,
+      `Are you sure you want to start processing '${file}'?`
     );
     if (!confirmMove) return;
 
@@ -48,7 +48,7 @@ const ViewRecentUploads = () => {
         fileName: file,
       });
       setContents((prevContents) =>
-        prevContents.filter((f) => f.filename !== file),
+        prevContents.filter((f) => f.filename !== file)
       );
       //   refresh the page after 1 sec
       setTimeout(() => window.location.reload(), 1000);
@@ -61,14 +61,14 @@ const ViewRecentUploads = () => {
 
   const handleDelete = async (dir, file) => {
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete '${file}'? This action cannot be undone.`,
+      `Are you sure you want to delete '${file}'? This action cannot be undone.`
     );
     if (!confirmDelete) return;
 
     try {
       deleteRecentUpload({ directory: dir, filename: file });
       setContents((prevContents) =>
-        prevContents.filter((f) => f.filename !== file),
+        prevContents.filter((f) => f.filename !== file)
       );
       //   refresh the page
       window.location.reload();
@@ -126,7 +126,9 @@ const ViewRecentUploads = () => {
                   {isProcessingOrCopying(filename) || (
                     <TrashIcon
                       className="h-6 w-6 text-red-500 cursor-pointer hover:text-red-700"
-                      onClick={() => handleDelete("tmpuploads", filename)}
+                      onClick={() =>
+                        handleDelete("server/tmpuploads", filename)
+                      }
                     />
                   )}
                 </div>
