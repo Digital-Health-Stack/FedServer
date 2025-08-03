@@ -2,6 +2,8 @@ from fastapi import APIRouter, status, Depends, Request, BackgroundTasks, HTTPEx
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_, update
+from helpers.federated_services import process_parquet_and_save_xy
+from utility.test import Test
 from utility.Notification import (
     send_notification_for_new_session,
     send_notification_for_new_round,
@@ -239,6 +241,12 @@ async def submit_client_price_response(
                 message = (
                     "Thank you for accepting the price. The training will start soon."
                 )
+                process_parquet_and_save_xy(
+                    session.federated_info["server_filename"],
+                    session_id,
+                    session.federated_info["input_columns"],
+                    session.federated_info["output_columns"],
+                )
                 await send_notification_for_new_session(
                     "New session created with session id: " + str(session_id)
                 )
@@ -361,6 +369,54 @@ def get_weights(session_id: int, db: Session = Depends(get_db)):
     return response_data
 
 
+async def aggregate_and_test_weights(session_id: int, round_number: int, db: Session):
+    """Background task to aggregate weights and run tests"""
+    try:
+        # Aggregate weights using FedAvg
+        federated_manager.aggregate_weights_fedAvg_Neural(session_id, round_number)
+
+        test = Test(session_id)
+
+        federated_manager.log_event(
+            session_id, f"Initialized test unit.", FederatedSessionLogTag.INFO
+        )
+
+        results = test.start_test(
+            federated_manager.get_latest_global_weights(session_id)
+        )
+
+        federated_manager.log_event(
+            session_id,
+            f"Global test results: {results}",
+            FederatedSessionLogTag.TEST_RESULTS,
+        )
+
+        # Reset client_parameters to an empty JSON object
+        federated_manager.clear_client_parameters(session_id, round_number)
+
+        federated_manager.log_event(
+            session_id,
+            f"Client parameters reset after Round {round_number}.",
+            FederatedSessionLogTag.TRAINING,
+        )
+
+        # Send notification for new round
+        await send_notification_for_new_round(
+            {
+                "session_id": session_id,
+                "round_number": round_number + 1,
+                "metrics_report": {},
+            }
+        )
+
+    except Exception as e:
+        federated_manager.log_event(
+            session_id,
+            f"Error in aggregate_and_test_weights: {str(e)}",
+            FederatedSessionLogTag.ERROR,
+        )
+
+
 @federated_router_v2.post("/send-weights")
 def send_weights(
     request: ClientReceiveParameters,
@@ -461,9 +517,7 @@ def send_weights(
                 FederatedSessionLogTag.AGGREGATED_WEIGHTS,
             )
             background_tasks.add_task(
-                federated_manager.aggregate_weights_fedAvg_Neural,
-                session_data.id,
-                session_data.curr_round,
+                aggregate_and_test_weights, session_data.id, session_data.curr_round, db
             )
         ## WORKING HERE   <----------------------------------------------------------
 

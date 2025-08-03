@@ -1,12 +1,5 @@
 import numpy as np
-
-
-"""
-    Assumptions: 
-    1. Datatype is int or float
-    2. Features are scaled using StandardScaler
-    3. Missing Values are handled
-"""
+from sklearn.metrics import mean_squared_error
 
 
 class LinearRegression:
@@ -33,17 +26,15 @@ class LinearRegression:
         # Gradient Descent
         for i in range(self.n_iters):
             Y_pred = np.dot(X_train, self.m) + self.c
-            # print("Check kar : ",Y_pred[:3],Y_train[:3])
-            residuals = Y_train - Y_pred
-            # print("m :",self.m[:5])
-            # print(X_train.shape,residuals.shape)
-            # print(np.dot(X_train.T,residuals))
-            # print("c" , self.c[:5])
-            # print("Check kar : ",X_train[:5])
+            # Ensure Y_train and Y_pred have the same shape
+            Y_train_reshaped = Y_train.reshape(-1)
+            Y_pred_reshaped = Y_pred.reshape(-1)
+
+            residuals = Y_train_reshaped - Y_pred_reshaped
+            # Calculate gradients
             D_m = (-2 / num_samples) * np.dot(X_train.T, residuals)
             D_c = (-2 / num_samples) * np.sum(residuals)
 
-            # print("Check kar L ",D_m,D_c)
             self.m = self.m - self.lr * D_m
             self.c = self.c - self.lr * D_c
 
@@ -71,5 +62,6 @@ class LinearRegression:
         }
         return local_parameter
 
-    def change_n_iters(self, client_iter):
-        self.n_iters = client_iter
+    def evaluate(self, X_test, Y_test):
+        Y_pred = self.predict(X_test)
+        return {"mse": mean_squared_error(Y_pred, Y_test)}
