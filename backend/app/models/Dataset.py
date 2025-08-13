@@ -69,6 +69,7 @@ class Task(Base):
     created_at = mapped_column(TIMESTAMP, server_default=func.now(), index=True)
 
     dataset = relationship("Dataset", back_populates="tasks")
+    client_permissions = relationship("ClientPermission", back_populates="task")
 
     __table_args__ = (
         CheckConstraint(

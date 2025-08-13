@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     String,
     UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.orm import Mapped, declared_attr, relationship, mapped_column
 from .Base import Base
@@ -193,6 +194,27 @@ class FederatedTestResults(TimestampMixin, Base):
             "session_id": self.session_id,
             "round_number": self.round_number,
             "metrics_report": self.metrics_report,
+            "created_at": self.createdAt.isoformat() if self.createdAt else None,
+            "updated_at": self.updatedAt.isoformat() if self.updatedAt else None,
+        }
+
+class ClientPermission(TimestampMixin, Base):
+    __tablename__ = "client_permissions"
+
+    id = mapped_column(Integer, primary_key=True, index=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    task_id = mapped_column(Integer, ForeignKey("tasks.task_id"), nullable=False)
+    permission = mapped_column(Boolean, nullable=False)
+
+    user = relationship("User", back_populates="client_permissions")
+    task = relationship("Task", back_populates="client_permissions")
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "task_id": self.task_id,
+            "permission": self.permission,
             "created_at": self.createdAt.isoformat() if self.createdAt else None,
             "updated_at": self.updatedAt.isoformat() if self.updatedAt else None,
         }

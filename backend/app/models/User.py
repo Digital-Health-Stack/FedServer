@@ -23,6 +23,7 @@ class User(Base):
         "FederatedSessionClient", back_populates="user"
     )
     notifications = relationship("Notification", back_populates="user")
+    client_permissions = relationship("ClientPermission", back_populates="user")
 
     def as_dict(self):
         return {
