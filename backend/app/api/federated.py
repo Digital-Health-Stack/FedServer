@@ -531,8 +531,11 @@ def get_training_result(
 
     # Get Server Round Results
     server_results = {}
+    print("Model Info", model_info)
+    print("Session: ", session)
     raw_server_results = session.as_dict().get("results", [])
-
+    print("Raw server results: ", raw_server_results)
+    print("Test metrics: ", test_metrics)
     for result in raw_server_results:
         round_number = result.get("round_number")
         metrics = result.get("metrics_report", {})

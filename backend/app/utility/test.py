@@ -30,8 +30,8 @@ class Test:
 
             # Access the clients relationship within the session
             self.model_config = session_data.federated_info
-
-        self.metrics = self.model_config["metric"]  # metrics to calculate in test
+        print("Model config: ", self.model_config)
+        self.metrics = self.model_config["model_info"]["test_metrics"]  # metrics to calculate in test
         self.round = 1
         self.build_model()
 
@@ -54,6 +54,7 @@ class Test:
 
         # read data from file
         try:
+            print("Loading test data...")
             X_test = np.load(os.path.join("data", f"X_{self.session_id}.npy"))
             Y_test = np.load(os.path.join("data", f"Y_{self.session_id}.npy"))
         except FileNotFoundError as e:
@@ -61,7 +62,8 @@ class Test:
             return
         # calculate metrics from calculate_metrics function in metrics.py
         # round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
-        metrics_report = self.model.evaluate(X_test, Y_test)
+        print("Metrics: ", self.metrics)
+        metrics_report = self.model.evaluate(X_test, Y_test, self.metrics)
         with Session(engine) as db:
             test_result = FederatedTestResults(
                 session_id=self.session_id,
