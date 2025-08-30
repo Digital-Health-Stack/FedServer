@@ -3,6 +3,7 @@ from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
+
 class LinearRegression:
     def __init__(self, config=None, lr=0.01, n_iters=1000):
         def _to_float(value, default):
@@ -26,17 +27,21 @@ class LinearRegression:
         else:
             self.lr = _to_float(lr, 0.01)
             self.n_iters = _to_int(n_iters, 1000)
-        self.m = None   # slope (manual model)
-        self.c = None   # intercept (manual model)
+        self.m = None  # slope (manual model)
+        self.c = None  # intercept (manual model)
         self.sklearn_model = None
+        self.x_scaler = None
+        self.y_scaler = None
         self.use_sklearn = True  # flag: which one to use in predict
-    
+
     # --------------------------
     # OLD FIT (manual gradient descent)
     # --------------------------
     def fit(self, X, y):
         # Always prefer sklearn training for stability
-        X = np.array(X).reshape(-1, 1)
+        X = np.array(X)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
         y = np.array(y).ravel()
         try:
             self.fit_sklearn(X, y)
@@ -51,8 +56,8 @@ class LinearRegression:
 
         for _ in range(self.n_iters):
             y_pred = m * X.flatten() + c
-            dm = (-2/n) * np.sum((y - y_pred) * X.flatten())
-            dc = (-2/n) * np.sum(y - y_pred)
+            dm = (-2 / n) * np.sum((y - y_pred) * X.flatten())
+            dc = (-2 / n) * np.sum(y - y_pred)
             m -= self.lr * dm
             c -= self.lr * dc
 
@@ -64,88 +69,160 @@ class LinearRegression:
     # NEW FIT (scikit-learn pipeline)
     # --------------------------
     def fit_sklearn(self, X, y):
-        self.sklearn_model = make_pipeline(
-            StandardScaler(),
-            SGDRegressor(
-                learning_rate="constant",
-                eta0=self.lr,
-                max_iter=self.n_iters,
-                tol=None,
-                penalty=None,
-                random_state=42,
-            )
+        X = np.array(X)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+        y = np.array(y).reshape(-1, 1)
+
+        # Fit separate scalers for X and y
+        self.x_scaler = StandardScaler()
+        self.y_scaler = StandardScaler()
+        X_scaled = self.x_scaler.fit_transform(X)
+        y_scaled = self.y_scaler.fit_transform(y).ravel()
+
+        # Fit regressor on scaled data
+        reg = SGDRegressor(
+            learning_rate="constant",
+            eta0=self.lr,
+            max_iter=self.n_iters,
+            tol=None,
+            penalty=None,
+            random_state=42,
         )
-        self.sklearn_model.fit(X, y)
+        reg.fit(X_scaled, y_scaled)
+        self.sklearn_model = reg
         self.use_sklearn = True  # mark active model
-    
+
     # --------------------------
     # PREDICT (choose based on flag)
     # --------------------------
     def predict(self, X):
-        X = np.array(X).reshape(-1, 1)
-        if self.sklearn_model is not None:
-            return self.sklearn_model.predict(X)
+        X = np.array(X)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+        if (
+            self.sklearn_model is not None
+            and self.x_scaler is not None
+            and self.y_scaler is not None
+        ):
+            X_scaled = self.x_scaler.transform(X)
+            y_scaled_pred = self.sklearn_model.predict(X_scaled).reshape(-1, 1)
+            y_pred = self.y_scaler.inverse_transform(y_scaled_pred).ravel()
+            return y_pred
         else:
+            # Manual path supports single or multi-feature if m is a vector
             if self.m is None or self.c is None:
-                # Uninitialized manual parameters -> return zeros
                 return np.zeros(X.shape[0])
-            return self.m * X.flatten() + self.c
-    
+            m_vec = np.array(self.m).ravel()
+            if X.shape[1] == m_vec.shape[0]:
+                return X.dot(m_vec) + float(self.c)
+            if m_vec.size == 1 and X.shape[1] == 1:
+                return m_vec[0] * X.flatten() + float(self.c)
+            return np.zeros(X.shape[0])
+
     # --------------------------
     # UPDATE PARAMS
     # --------------------------
-    def update_parameters(self, parameters=None, lr=None, n_iters=None):
+    def update_parameters(self, global_parameters):
         # Allow updating hyperparameters directly
-        if lr is not None:
-            self.lr = float(lr)
-        if n_iters is not None:
-            self.n_iters = int(n_iters)
+        if global_parameters is not None:
+            self.lr = float(global_parameters["learning_rate"])
+            self.n_iters = int(global_parameters["iterations"])
 
         # Allow loading model parameters from server
-        if parameters is not None and "m" in parameters and "c" in parameters:
-            m = parameters["m"]
-            c = parameters["c"]
+        if (
+            global_parameters is not None
+            and "m" in global_parameters
+            and "c" in global_parameters
+        ):
+            m = global_parameters["m"]
+            c = global_parameters["c"]
 
-            # coef may come as list/array or simple float
-            self.m = float(np.array(m).flatten()[0]) if m is not None else 0.0
+            # coef may come as list/array (multi-feature) or simple float
+            if m is None:
+                self.m = None
+            else:
+                m_arr = np.array(m).ravel()
+                self.m = m_arr if m_arr.size > 1 else float(m_arr[0])
             self.c = float(np.array(c).flatten()[0]) if c is not None else 0.0
 
             # prefer manual path when loading raw params
             self.use_sklearn = False
-    
+
     # --------------------------
     # GET PARAMS
     # --------------------------
     def get_parameters(self):
-        if self.sklearn_model is not None:
-            reg = self.sklearn_model.named_steps["sgdregressor"]
-            scaler = self.sklearn_model.named_steps["standardscaler"]
-            a = float(np.array(reg.coef_).flatten()[0])
-            b = float(np.array(reg.intercept_).flatten()[0])
-            mean = float(np.array(scaler.mean_).flatten()[0])
-            scale = float(np.array(scaler.scale_).flatten()[0]) if hasattr(scaler, "scale_") else 1.0
-            # Convert from standardized space: y = a*((x-mean)/scale)+b => y = (a/scale)*x + (b - a*mean/scale)
-            m_raw = a / (scale if scale != 0 else 1.0)
-            c_raw = b - a * mean / (scale if scale != 0 else 1.0)
+        if (
+            self.sklearn_model is not None
+            and self.x_scaler is not None
+            and self.y_scaler is not None
+        ):
+            # Model in scaled space: y_s = a · x_s + b
+            a_vec = np.array(self.sklearn_model.coef_).ravel()
+            b = float(np.array(self.sklearn_model.intercept_).flatten()[0])
+
+            x_mean_vec = np.array(self.x_scaler.mean_).ravel()
+            if hasattr(self.x_scaler, "scale_"):
+                x_scale_vec = np.array(self.x_scaler.scale_).ravel()
+            else:
+                x_scale_vec = np.ones_like(x_mean_vec)
+
+            y_mean = float(np.array(self.y_scaler.mean_).flatten()[0])
+            if hasattr(self.y_scaler, "scale_"):
+                y_scale = float(np.array(self.y_scaler.scale_).flatten()[0])
+            else:
+                y_scale = 1.0
+
+            safe_x_scale_vec = np.where(x_scale_vec == 0, 1.0, x_scale_vec)
+            safe_y_scale = y_scale if y_scale != 0 else 1.0
+
+            # Convert to original space:
+            # y = (a · ((x - μ_x)/σ_x) + b) * σ_y + μ_y
+            # m = (σ_y * a) / σ_x (element-wise)
+            # c = σ_y * (b - Σ a_j * μ_xj / σ_xj) + μ_y
+            m_vec = (safe_y_scale * a_vec) / safe_x_scale_vec
+            c_raw = (
+                safe_y_scale * (b - np.sum(a_vec * x_mean_vec / safe_x_scale_vec))
+                + y_mean
+            )
+
             return {
-                "m": float(m_raw),
+                "m": [float(v) for v in m_vec.tolist()],
                 "c": float(c_raw),
                 "learning_rate": float(self.lr),
                 "iterations": int(self.n_iters),
             }
 
         # Manual or uninitialized sklearn model -> return scalar params
-        m = float(self.m) if self.m is not None else 0.0
-        c = float(self.c) if self.c is not None else 0.0
+        # m = float(self.m) if self.m is not None else 0.0
+        # c = float(self.c) if self.c is not None else 0.0
+        # return {
+        #     "m": float(m),
+        #     "c": float(c),
+        #     "learning_rate": float(self.lr),
+        #     "iterations": int(self.n_iters),
+        # }
+        if self.m is None:
+            m_out = 0.0
+        elif isinstance(self.m, np.ndarray):  # multi-feature case
+            m_out = [float(v) for v in self.m.ravel().tolist()]
+        else:  # scalar
+            m_out = float(self.m)
+
+        c_out = float(self.c) if self.c is not None else 0.0
+
         return {
-            "m": float(m),
-            "c": float(c),
+            "m": m_out,
+            "c": c_out,
             "learning_rate": float(self.lr),
             "iterations": int(self.n_iters),
         }
 
     def evaluate(self, X, y, metrics):
-        X = np.array(X).reshape(-1, 1)
+        X = np.array(X)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
         y = np.array(y).ravel()
         print("Metrics: ", metrics)
         y_pred = self.predict(X)
