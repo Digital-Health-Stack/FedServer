@@ -225,7 +225,7 @@ async def submit_client_price_response(
 
             federated_session = (
                 db.query(FederatedSession).filter_by(id=session_id).first()
-            ) 
+            )
 
             if not federated_session:
                 raise HTTPException(
@@ -242,7 +242,7 @@ async def submit_client_price_response(
                 message = (
                     "Thank you for accepting the price. The training will start soon."
                 )
-                
+
                 # Add clients who already have permission for this task
                 try:
                     task_id = int(session.federated_info.get("task_id"))
@@ -253,30 +253,30 @@ async def submit_client_price_response(
                             .filter_by(task_id=task_id, permission=True)
                             .all()
                         )
-                        
+
                         added_clients_count = 0
                         for client_permission in clients_with_permission:
                             # Check if client is not already in this session
                             existing_client = (
                                 db.query(FederatedSessionClient)
                                 .filter_by(
-                                    session_id=session_id, 
-                                    user_id=client_permission.user_id
+                                    session_id=session_id,
+                                    user_id=client_permission.user_id,
                                 )
                                 .first()
                             )
-                            
+
                             if not existing_client:
                                 # Add client to the session
                                 federated_session_client = FederatedSessionClient(
                                     user_id=client_permission.user_id,
                                     session_id=session_id,
                                     status=0,  # JOINED status
-                                    ip="auto-added"  # Placeholder IP for auto-added clients
+                                    ip="auto-added",  # Placeholder IP for auto-added clients
                                 )
                                 db.add(federated_session_client)
                                 added_clients_count += 1
-                        
+
                         if added_clients_count > 0:
                             federated_manager.log_event(
                                 session_id,
@@ -286,7 +286,7 @@ async def submit_client_price_response(
                 except (ValueError, TypeError) as e:
                     # Log error but don't fail the request if task_id is invalid
                     print(f"Error adding clients with existing permissions: {e}")
-                
+
                 process_parquet_and_save_xy(
                     session.federated_info["server_filename"],
                     session_id,
@@ -381,7 +381,7 @@ async def accept_training(
             ip=request.client.host,
         )
         db.add(federated_session_client)
-        
+
         # Add client permission for the corresponding task
         try:
             task_id = int(session.federated_info.get("task_id"))
@@ -392,19 +392,17 @@ async def accept_training(
                     .filter_by(user_id=current_user.id, task_id=task_id)
                     .first()
                 )
-                
+
                 if not existing_permission:
                     # Create new client permission
                     client_permission = ClientPermission(
-                        user_id=current_user.id,
-                        task_id=task_id,
-                        permission=True
+                        user_id=current_user.id, task_id=task_id, permission=True
                     )
                     db.add(client_permission)
         except (ValueError, TypeError) as e:
             # Log error but don't fail the request if task_id is invalid
             print(f"Error creating client permission: {e}")
-        
+
         db.commit()
     return {"success": True, "message": "Client Decision has been saved"}
 
@@ -450,7 +448,8 @@ async def aggregate_and_test_weights(session_id: int, round_number: int, db: Ses
         federated_manager.log_event(
             session_id, f"Initialized test unit.", FederatedSessionLogTag.INFO
         )
-
+        print("Getting latest global weights")
+        print(federated_manager.get_latest_global_weights(session_id))
         results = test.start_test(
             federated_manager.get_latest_global_weights(session_id)
         )

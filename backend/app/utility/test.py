@@ -30,7 +30,7 @@ class Test:
 
             # Access the clients relationship within the session
             self.model_config = session_data.federated_info
-        print("Model config: ", self.model_config)
+        # print("Model config: ", self.model_config)
         self.metrics = self.model_config["model_info"][
             "test_metrics"
         ]  # metrics to calculate in test
