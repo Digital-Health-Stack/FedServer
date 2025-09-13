@@ -3,8 +3,8 @@ from typing import Optional
 
 
 class UserCreate(BaseModel):
+    name: str
     username: str
-    data_url: str
     password: str
 
 

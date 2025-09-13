@@ -1,4 +1,5 @@
 from datetime import datetime
+from this import d
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import mapped_column, relationship
 from .Base import Base
@@ -11,7 +12,8 @@ class User(Base):
     id = mapped_column(Integer, primary_key=True, index=True)
     username = mapped_column(String, unique=True, index=True)
     role = mapped_column(String, nullable=False, default="client")
-    data_url = mapped_column(String)
+    name = mapped_column(String, nullable=False, default="User")
+    # data_url = mapped_column(String)
     hashed_password = mapped_column(String)
     refresh_token = mapped_column(String, nullable=True)
     createdAt = mapped_column(DateTime, default=lambda: datetime.now())
