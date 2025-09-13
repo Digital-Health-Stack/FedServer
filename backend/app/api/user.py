@@ -32,7 +32,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     new_user = User(
         username=user.username,
-        data_url=user.data_url,
+        name=user.name,
         role="client",
         hashed_password=get_password_hash(user.password),
     )
@@ -49,12 +49,16 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     def is_invalid(db_user: User):
         return not verify_password(user.password, db_user.hashed_password)
 
-    return create_tokens(
-        db,
-        user.username,
-        HTTPException(status_code=400, detail="Invalid credentials"),
-        is_invalid,
-    )
+    db_user = db.query(User).filter(User.username == user.username).first()
+    return {
+        "name": db_user.name,
+        **create_tokens(
+            db,
+            user.username,
+            HTTPException(status_code=400, detail="Invalid credentials"),
+            is_invalid,
+        ),
+    }
 
 
 @user_router.post("/refresh-token")
