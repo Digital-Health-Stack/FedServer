@@ -32,7 +32,7 @@ class User(Base):
             "id": self.id,
             "username": self.username,
             "role": self.role,
-            "data_url": self.data_url,
+            "name": self.name,
             "createdAt": (
                 self.createdAt.isoformat() if self.createdAt else None
             ),  # Convert DateTime to ISO format
