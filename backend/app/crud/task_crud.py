@@ -166,11 +166,11 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
         benchmark_value = None
         if task.benchmark and task.metric in task.benchmark:
             benchmark_value = task.benchmark[task.metric].get("std_mean")
-
+        print(f"Benchmark value: {benchmark_value}")
         # Get sessions with their last round results
         sessions = (
             db.query(FederatedSession)
-            .filter(FederatedSession.federated_info["dataset_info"]["task_id"].as_integer() == task_id)
+            .filter(FederatedSession.federated_info["task_id"].as_integer() == task_id)
             .options(joinedload(FederatedSession.results))
             .all()
         )
@@ -180,7 +180,7 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
         for session in sessions:
             # # Get last round result
             last_round_result = next(
-                (r for r in session.results if r.round_number == session.max_round),
+                (r for r in session.results if r.round_number == session.federated_info["no_of_rounds"]),
                 None,
             )
 
