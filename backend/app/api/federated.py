@@ -202,8 +202,7 @@ def get_all_federated_sessions(
     per_page: int = Query(6, ge=1, le=100),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     training_status: str | None = Query(None),
-    search_name: str | None = Query(None),
-    search_server_filename: str | None = Query(None),
+    search: str | None = Query(None),  # Combined search field
 ):
     all_sessions = [
         {
@@ -231,18 +230,13 @@ def get_all_federated_sessions(
             if session["training_status"] == training_status
         ]
     
-    # Search by name (case-insensitive partial match)
-    if search_name:
+    # Unified search across name and server filename (case-insensitive partial match)
+    if search:
+        search_lower = search.lower()
         filtered_sessions = [
             session for session in filtered_sessions 
-            if search_name.lower() in (session["name"] or "").lower()
-        ]
-    
-    # Search by server filename (case-insensitive partial match)
-    if search_server_filename:
-        filtered_sessions = [
-            session for session in filtered_sessions 
-            if search_server_filename.lower() in (session["server_filename"] or "").lower()
+            if (search_lower in (session["name"] or "").lower() or 
+                search_lower in (session["server_filename"] or "").lower())
         ]
     
     # Sort by created_at
@@ -266,11 +260,10 @@ def get_all_federated_sessions(
         "filters": {
             "sort_order": sort_order,
             "training_status": training_status,
-            "search_name": search_name,
-            "search_server_filename": search_server_filename,
+            "search": search,
         }
     }
-
+    
 @federated_router.get("/get-federated-session/{session_id}")
 def get_federated_session(
     session_id: int,
