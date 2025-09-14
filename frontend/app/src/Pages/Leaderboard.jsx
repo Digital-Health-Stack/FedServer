@@ -10,11 +10,10 @@ import { getLeaderboardByTaskId } from "../services/federatedService";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import {
-  ScatterChart,
-  Scatter,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
-  ZAxis,
   CartesianGrid,
   Tooltip,
   Legend,
@@ -50,12 +49,36 @@ const Leaderboard = () => {
 
     fetchLeaderboardHistory();
   }, [api, task_id]);
-
+  const formatTimestamp = (timestamp) => {
+    try {
+      const utcTimestamp = timestamp + "Z";
+      const date = new Date(utcTimestamp);
+      return date.toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch (e) {
+      return timestamp;
+    }
+  };
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
 
     const data = payload[0].payload;
     if (!data) return null;
+
+    if (data.isBenchmark) {
+      return (
+        <div className="bg-green-50 p-4 border border-green-200 rounded shadow-lg">
+          <p className="font-bold text-green-800">Benchmark</p>
+          <p>Value: {data.metric_value ? data.metric_value.toFixed(3) : "N/A"}</p>
+          <p>
+            Date:{" "}
+            {data.created_at ? new Date(data.created_at).toLocaleString() : "N/A"}
+          </p>
+        </div>
+      );
+    }
 
     return (
       <div className="bg-white p-4 border border-gray-200 rounded shadow-lg">
@@ -95,7 +118,33 @@ const Leaderboard = () => {
       };
     });
   };
-  const processedData = processData(leaderboardData?.sessions || []);
+  const processedData = (() => {
+    const sessionData = processData(leaderboardData?.sessions || []);
+
+    // Add benchmark as a data point if it exists
+    if (leaderboardData?.benchmark && leaderboardData?.created_at) {
+      const benchmarkEntry = {
+        session_id: 'benchmark',
+        model_name: 'Benchmark',
+        admin_username: 'Benchmark',
+        metric_value: leaderboardData.benchmark,
+        created_at: leaderboardData.created_at,
+        date: new Date(leaderboardData.created_at),
+        formattedDate: new Date(leaderboardData.created_at).toLocaleString("en-IN", {
+          dateStyle: "short",
+        }),
+        meets_benchmark: true, // Benchmark always "meets" itself
+        isBenchmark: true // Flag to identify this as benchmark
+      };
+
+      // Combine and sort by date
+      return [...sessionData, benchmarkEntry].sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at)
+      );
+    }
+
+    return sessionData;
+  })();
 
   return (
     <div className="bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden">
@@ -151,29 +200,29 @@ const Leaderboard = () => {
                       >
                         Rank
                       </th>
-                      <th
+                      {/* <th
                         scope="col"
                         className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Organization
+                      </th> */}
+                      <th
+                        scope="col"
+                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Client name
                       </th>
                       <th
                         scope="col"
                         className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Client
+                        Model used
                       </th>
                       <th
                         scope="col"
                         className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Model
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Value
+                        {leaderboardData.metric}
                       </th>
                       <th
                         scope="col"
@@ -181,47 +230,29 @@ const Leaderboard = () => {
                       >
                         Date
                       </th>
-                      <th
+                      {/* <th
                         scope="col"
                         className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Details
-                      </th>
+                      </th> */}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {/* Benchmark Row */}
-                    <tr className="bg-green-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-green-800">
-                        —
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-green-800">
-                        Benchmark
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-green-800">
-                        —
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-green-800">
-                        —
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-mono font-medium text-green-800">
-                        {leaderboardData.benchmark || "N/A"}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-green-800">
-                        {new Date(
-                          leaderboardData.created_at,
-                        ).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-green-800">
-                        {leaderboardData.metric === "mae" ||
-                        leaderboardData.metric === "mse"
-                          ? "Lower is better"
-                          : "Higher is better"}
-                      </td>
-                    </tr>
-
-                    {/* Session Rows */}
-                    {leaderboardData.sessions
+                    {/* Combined Sessions and Benchmark */}
+                    {[
+                      // Add benchmark as a special entry
+                      {
+                        isBenchmark: true,
+                        metric_value: leaderboardData.benchmark,
+                        created_at: leaderboardData.created_at
+                      },
+                      // Add all sessions
+                      ...leaderboardData.sessions.map(session => ({
+                        ...session,
+                        isBenchmark: false
+                      }))
+                    ]
                       .sort((a, b) => {
                         if (
                           leaderboardData.metric === "mae" ||
@@ -231,57 +262,64 @@ const Leaderboard = () => {
                         }
                         return b.metric_value - a.metric_value;
                       })
-                      .map((session, index) => {
-                        const isBetter =
-                          leaderboardData.benchmark &&
-                          (leaderboardData.metric === "mae" ||
-                          leaderboardData.metric === "mse"
-                            ? session.metric_value <= leaderboardData.benchmark
-                            : session.metric_value >=
+                      .map((entry, index) => {
+                        if (entry.isBenchmark) {
+                          // Benchmark Row
+                          return (
+                            <tr key="benchmark" className="bg-green-50">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-[#f59e0b]">
+                                {index + 1}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-[#f59e0b]">
+                                Benchmark
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-[#f59e0b]">
+                                —
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-mono font-medium text-[#f59e0b]">
+                                {leaderboardData.benchmark || "N/A"}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-[#f59e0b]">
+                                {formatTimestamp(leaderboardData.created_at)}
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          // Session Row
+                          const isBetter =
+                            leaderboardData.benchmark &&
+                            (leaderboardData.metric === "mae" ||
+                              leaderboardData.metric === "mse"
+                              ? entry.metric_value <= leaderboardData.benchmark
+                              : entry.metric_value >=
                               leaderboardData.benchmark);
-
-                        return (
-                          <tr
-                            key={session.session_id}
-                            className={`hover:bg-gray-50 ${isBetter ? "bg-green-50" : ""}`}
-                          >
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {index + 1}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {session.organisation_name}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {session.admin_username}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {session.model_name}
-                            </td>
-                            <td
-                              className={`px-4 py-3 whitespace-nowrap text-sm font-mono font-medium ${
-                                isBetter ? "text-green-600" : "text-red-600"
-                              }`}
+                          console.log(entry);
+                          return (
+                            <tr
+                              key={entry.session_id}
+                              className={`hover:bg-gray-50 ${isBetter ? "bg-green-50" : ""}`}
                             >
-                              {session.metric_value.toFixed(3)}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(
-                                session.created_at,
-                              ).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              <Link
-                                to={`/trainings/${session.session_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center px-2 py-1 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {index + 1}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {entry.admin_username}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {entry.model_name}
+                              </td>
+                              <td
+                                className={`px-4 py-3 whitespace-nowrap text-sm font-mono font-medium ${isBetter ? "text-green-600" : "text-red-600"
+                                  }`}
                               >
-                                <ArrowTopRightOnSquareIcon className="h-3 w-3 mr-1" />
-                                View
-                              </Link>
-                            </td>
-                          </tr>
-                        );
+                                {entry.metric_value}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {formatTimestamp(entry.created_at)}
+                              </td>
+                            </tr>
+                          );
+                        }
                       })}
                   </tbody>
                 </table>
@@ -289,37 +327,30 @@ const Leaderboard = () => {
             ) : (
               <div className="p-4">
                 <ResponsiveContainer width="100%" height={500}>
-                  <ScatterChart
+                  <BarChart
+                    data={processedData}
                     margin={{ top: 20, right: 100, bottom: 40, left: 100 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
 
                     <XAxis
-                      dataKey="formattedDate" // use preprocessed date string
-                      type="category" // <- key change: use 'category' for discrete dates
+                      dataKey="formattedDate"
                       name="Date"
                       tick={{ fontSize: 12 }}
                       label={{
-                        value: "Date (DD/MM/YY)",
-                        position: "insideBottomRight",
+                        // value: "Date (DD/MM/YY)",
+                        position: "insideBottom",
                         offset: -5,
                       }}
                     />
 
                     <YAxis
-                      dataKey="metric_value"
                       name="Value"
                       label={{
-                        value: leaderboardData.metric?.toUpperCase(),
+                        // value: leaderboardData.metric?.toUpperCase(),
                         angle: -90,
                         position: "insideLeft",
                       }}
-                    />
-
-                    <ZAxis
-                      dataKey="total_rounds"
-                      range={[50, 300]}
-                      name="Rounds"
                     />
 
                     <Tooltip content={<CustomTooltip />} />
@@ -328,28 +359,38 @@ const Leaderboard = () => {
                     {leaderboardData?.benchmark && (
                       <ReferenceLine
                         y={leaderboardData.benchmark}
-                        stroke="green"
+                        stroke="#f59e0b"
                         label={{
                           value: "Benchmark",
                           position: "right",
-                          fill: "green",
+                          fill: "#f59e0b",
                         }}
                         strokeDasharray="5 5"
                       />
                     )}
 
-                    <Scatter name="Training Sessions" data={processedData}>
+                    <Bar dataKey="metric_value" name="Training Sessions">
                       {processedData.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={entry.meets_benchmark ? "#82ca9d" : "#ff6b6b"}
+                          fill={
+                            entry.isBenchmark
+                              ? "#f59e0b" // Gold/amber color for benchmark
+                              : entry.meets_benchmark
+                                ? "#15803d" // Dark green for sessions that beat benchmark
+                                : "#991b1b" // Dark red for sessions that don't beat benchmark
+                          }
                         />
                       ))}
-                    </Scatter>
-                  </ScatterChart>
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
 
                 <div className="flex justify-center mt-2 space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full mr-1"></div>
+                    <span className="text-xs">Benchmark</span>
+                  </div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
                     <span className="text-xs">Better than benchmark</span>

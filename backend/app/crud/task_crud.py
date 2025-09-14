@@ -8,6 +8,42 @@ from crud.datasets_crud import get_dataset_by_filename
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy import func
+import re
+
+
+def sanitize_model_name(model_name: str) -> str:
+    """
+    Sanitize model names to make them more readable by converting camelCase/PascalCase
+    to proper spacing and capitalization.
+    
+    Examples:
+    - LinearRegression -> Linear Regression
+    - LandMarkSVM -> Land Mark SVM
+    - multiLayerPerceptron -> Multi Layer Perceptron
+    """
+    if not model_name or model_name == "Unknown":
+        return model_name
+    
+    # Handle specific known cases first
+    model_mappings = {
+        "LinearRegression": "Linear Regression",
+        "LandMarkSVM": "Land Mark SVM",
+        "multiLayerPerceptron": "Multi Layer Perceptron",
+    }
+    
+    if model_name in model_mappings:
+        return model_mappings[model_name]
+    
+    # General camelCase/PascalCase to space-separated conversion
+    # Insert space before uppercase letters that follow lowercase letters
+    result = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', model_name)
+    
+    # Capitalize first letter and ensure proper spacing
+    result = result.strip()
+    if result:
+        result = result[0].upper() + result[1:]
+    
+    return result
 
 
 def create_task(db: Session, task: TaskCreate) -> Task:
@@ -207,7 +243,7 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
 
             # Get admin username
             admin_username = (
-                db.query(User.username).filter(User.id == session.admin_id).scalar()
+                db.query(User.name).filter(User.id == session.admin_id).scalar()
                 or "Unknown"
             )
 
@@ -217,7 +253,7 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
                     "organisation_name": session.federated_info.get(
                         "organisation_name", "Unknown"
                     ),
-                    "model_name": session.federated_info.get("model_name", "Unknown"),
+                    "model_name": sanitize_model_name(session.federated_info.get("model_name", "Unknown")),
                     "metric_value": metric_value,
                     "meets_benchmark": meets_benchmark,
                     "total_rounds": session.max_round,
