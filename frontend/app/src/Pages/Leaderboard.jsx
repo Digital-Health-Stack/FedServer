@@ -4,6 +4,7 @@ import {
   ArrowTopRightOnSquareIcon,
   ChartBarIcon,
   TableCellsIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../contexts/AuthContext";
 import { getLeaderboardByTaskId } from "../services/federatedService";
@@ -60,6 +61,80 @@ const Leaderboard = () => {
     } catch (e) {
       return timestamp;
     }
+  };
+
+  const downloadCSV = () => {
+    if (!leaderboardData || !leaderboardData.sessions) return;
+
+    // Prepare data for CSV
+    const csvData = [
+      // Add benchmark as first row if it exists
+      ...(leaderboardData.benchmark ? [{
+        rank: 1,
+        client_name: "Benchmark",
+        model_name: "Benchmark",
+        metric_value: leaderboardData.benchmark,
+        meets_benchmark: "Yes",
+        date: formatTimestamp(leaderboardData.created_at),
+        is_benchmark: "Yes"
+      }] : []),
+      // Add all sessions
+      ...leaderboardData.sessions.map((session, index) => {
+        const isBetter = leaderboardData.benchmark &&
+          (leaderboardData.metric === "mae" || leaderboardData.metric === "mse"
+            ? session.metric_value <= leaderboardData.benchmark
+            : session.metric_value >= leaderboardData.benchmark);
+        
+        return {
+          rank: (leaderboardData.benchmark ? 2 : 1) + index,
+          client_name: session.admin_username || "Unknown",
+          model_name: session.model_name || "Unknown",
+          metric_value: session.metric_value,
+          meets_benchmark: isBetter ? "Yes" : "No",
+          date: formatTimestamp(session.created_at),
+          is_benchmark: "No"
+        };
+      })
+    ];
+
+    // Sort data based on metric type
+    csvData.sort((a, b) => {
+      if (leaderboardData.metric === "mae" || leaderboardData.metric === "mse") {
+        return a.metric_value - b.metric_value;
+      }
+      return b.metric_value - a.metric_value;
+    });
+
+    // Update ranks after sorting
+    csvData.forEach((row, index) => {
+      row.rank = index + 1;
+    });
+
+    // Convert to CSV format
+    const headers = ["Rank", "Client Name", "Model Used", leaderboardData.metric, "Meets Benchmark", "Date", "Is Benchmark"];
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => [
+        row.rank,
+        `"${row.client_name}"`,
+        `"${row.model_name}"`,
+        row.metric_value,
+        row.meets_benchmark,
+        `"${row.date}"`,
+        row.is_benchmark
+      ].join(","))
+    ].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${leaderboardData.task_name}_leaderboard.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
@@ -177,14 +252,23 @@ const Leaderboard = () => {
                 <button
                   onClick={() => setViewMode("table")}
                   className={`p-2 rounded-md ${viewMode === "table" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}
+                  title="Table View"
                 >
                   <TableCellsIcon className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setViewMode("chart")}
                   className={`p-2 rounded-md ${viewMode === "chart" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}
+                  title="Chart View"
                 >
                   <ChartBarIcon className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={downloadCSV}
+                  className="p-2 rounded-md bg-green-100 text-green-600 hover:bg-green-200 transition-colors flex items-center gap-2"
+                  title="Download CSV"
+                >
+                  <ArrowDownTrayIcon className="h-5 w-5" /> Download CSV
                 </button>
               </div>
             </div>
