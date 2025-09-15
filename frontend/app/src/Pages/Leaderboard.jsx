@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ScaleIcon,
   ArrowTopRightOnSquareIcon,
@@ -23,6 +23,7 @@ import {
   Cell,
 } from "recharts";
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import html2canvas from "html2canvas";
 
 const Leaderboard = () => {
   const { task_id } = useParams();
@@ -31,6 +32,7 @@ const Leaderboard = () => {
   const [error, setError] = useState(null);
   const { api } = useAuth();
   const [viewMode, setViewMode] = useState("table"); // 'table' or 'chart'
+  const chartRef = useRef(null);
 
   useEffect(() => {
     const fetchLeaderboardHistory = async () => {
@@ -69,22 +71,27 @@ const Leaderboard = () => {
     // Prepare data for CSV
     const csvData = [
       // Add benchmark as first row if it exists
-      ...(leaderboardData.benchmark ? [{
-        rank: 1,
-        client_name: "Benchmark",
-        model_name: "Benchmark",
-        metric_value: leaderboardData.benchmark,
-        meets_benchmark: "Yes",
-        date: formatTimestamp(leaderboardData.created_at),
-        is_benchmark: "Yes"
-      }] : []),
+      ...(leaderboardData.benchmark
+        ? [
+          {
+            rank: 1,
+            client_name: "Benchmark",
+            model_name: "Benchmark",
+            metric_value: leaderboardData.benchmark,
+            meets_benchmark: "Yes",
+            date: formatTimestamp(leaderboardData.created_at),
+            is_benchmark: "Yes",
+          },
+        ]
+        : []),
       // Add all sessions
       ...leaderboardData.sessions.map((session, index) => {
-        const isBetter = leaderboardData.benchmark &&
+        const isBetter =
+          leaderboardData.benchmark &&
           (leaderboardData.metric === "mae" || leaderboardData.metric === "mse"
             ? session.metric_value <= leaderboardData.benchmark
             : session.metric_value >= leaderboardData.benchmark);
-        
+
         return {
           rank: (leaderboardData.benchmark ? 2 : 1) + index,
           client_name: session.admin_username || "Unknown",
@@ -92,14 +99,17 @@ const Leaderboard = () => {
           metric_value: session.metric_value,
           meets_benchmark: isBetter ? "Yes" : "No",
           date: formatTimestamp(session.created_at),
-          is_benchmark: "No"
+          is_benchmark: "No",
         };
-      })
+      }),
     ];
 
     // Sort data based on metric type
     csvData.sort((a, b) => {
-      if (leaderboardData.metric === "mae" || leaderboardData.metric === "mse") {
+      if (
+        leaderboardData.metric === "mae" ||
+        leaderboardData.metric === "mse"
+      ) {
         return a.metric_value - b.metric_value;
       }
       return b.metric_value - a.metric_value;
@@ -111,18 +121,28 @@ const Leaderboard = () => {
     });
 
     // Convert to CSV format
-    const headers = ["Rank", "Client Name", "Model Used", leaderboardData.metric, "Meets Benchmark", "Date", "Is Benchmark"];
+    const headers = [
+      "Rank",
+      "Client Name",
+      "Model Used",
+      leaderboardData.metric,
+      "Meets Benchmark",
+      "Date",
+      "Is Benchmark",
+    ];
     const csvContent = [
       headers.join(","),
-      ...csvData.map(row => [
-        row.rank,
-        `"${row.client_name}"`,
-        `"${row.model_name}"`,
-        row.metric_value,
-        row.meets_benchmark,
-        `"${row.date}"`,
-        row.is_benchmark
-      ].join(","))
+      ...csvData.map((row) =>
+        [
+          row.rank,
+          `"${row.client_name}"`,
+          `"${row.model_name}"`,
+          row.metric_value,
+          row.meets_benchmark,
+          `"${row.date}"`,
+          row.is_benchmark,
+        ].join(",")
+      ),
     ].join("\n");
 
     // Create and download file
@@ -130,11 +150,35 @@ const Leaderboard = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `${leaderboardData.task_name}_leaderboard.csv`);
+    link.setAttribute(
+      "download",
+      `${leaderboardData.task_name}_leaderboard.csv`
+    );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const downloadPNG = async () => {
+    if (!chartRef.current || !leaderboardData) return;
+
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: true,
+      });
+
+      // Create download link
+      const link = document.createElement("a");
+      link.download = `${leaderboardData.task_name}_leaderboard_chart.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error("Error generating PNG:", error);
+    }
   };
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
@@ -146,10 +190,14 @@ const Leaderboard = () => {
       return (
         <div className="bg-green-50 p-4 border border-green-200 rounded shadow-lg">
           <p className="font-bold text-green-800">Benchmark</p>
-          <p>Value: {data.metric_value ? data.metric_value.toFixed(3) : "N/A"}</p>
+          <p>
+            Value: {data.metric_value ? data.metric_value.toFixed(3) : "N/A"}
+          </p>
           <p>
             Date:{" "}
-            {data.created_at ? new Date(data.created_at).toLocaleString() : "N/A"}
+            {data.created_at
+              ? new Date(data.created_at).toLocaleString()
+              : "N/A"}
           </p>
         </div>
       );
@@ -173,7 +221,7 @@ const Leaderboard = () => {
 
     // Sort sessions by date first (in ascending order)
     const sortedSessions = [...sessions].sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
     );
 
     return sortedSessions.map((session) => {
@@ -183,7 +231,9 @@ const Leaderboard = () => {
       return {
         ...session,
         date: new Date(session.created_at),
-        monthYear: `${String(month).padStart(2, "0")}/${String(year).slice(-2)}`,
+        monthYear: `${String(month).padStart(2, "0")}/${String(year).slice(
+          -2
+        )}`,
         formattedDate: date.toLocaleString("en-IN", {
           day: "2-digit",
           month: "short",
@@ -199,17 +249,20 @@ const Leaderboard = () => {
     // Add benchmark as a data point if it exists
     if (leaderboardData?.benchmark && leaderboardData?.created_at) {
       const benchmarkEntry = {
-        session_id: 'benchmark',
-        model_name: 'Benchmark',
-        admin_username: 'Benchmark',
+        session_id: "benchmark",
+        model_name: "Benchmark",
+        admin_username: "Benchmark",
         metric_value: leaderboardData.benchmark,
         created_at: leaderboardData.created_at,
         date: new Date(leaderboardData.created_at),
-        formattedDate: new Date(leaderboardData.created_at).toLocaleString("en-IN", {
-          dateStyle: "short",
-        }),
+        formattedDate: new Date(leaderboardData.created_at).toLocaleString(
+          "en-IN",
+          {
+            dateStyle: "short",
+          }
+        ),
         meets_benchmark: true, // Benchmark always "meets" itself
-        isBenchmark: true // Flag to identify this as benchmark
+        isBenchmark: true, // Flag to identify this as benchmark
       };
 
       // Combine and sort by date
@@ -251,24 +304,31 @@ const Leaderboard = () => {
               <div className="flex justify-center mt-2 space-x-2">
                 <button
                   onClick={() => setViewMode("table")}
-                  className={`p-2 rounded-md ${viewMode === "table" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}
+                  className={`p-2 rounded-md ${viewMode === "table"
+                    ? "bg-blue-100 text-blue-600"
+                    : "bg-gray-100 text-gray-600"
+                    }`}
                   title="Table View"
                 >
                   <TableCellsIcon className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setViewMode("chart")}
-                  className={`p-2 rounded-md ${viewMode === "chart" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}
+                  className={`p-2 rounded-md ${viewMode === "chart"
+                    ? "bg-blue-100 text-blue-600"
+                    : "bg-gray-100 text-gray-600"
+                    }`}
                   title="Chart View"
                 >
                   <ChartBarIcon className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={downloadCSV}
+                  onClick={viewMode === "chart" ? downloadPNG : downloadCSV}
                   className="p-2 rounded-md bg-green-100 text-green-600 hover:bg-green-200 transition-colors flex items-center gap-2"
-                  title="Download CSV"
+                  title={viewMode === "chart" ? "Download PNG" : "Download CSV"}
                 >
-                  <ArrowDownTrayIcon className="h-5 w-5" /> Download CSV
+                  <ArrowDownTrayIcon className="h-5 w-5" />
+                  {viewMode === "chart" ? "Download PNG" : "Download CSV"}
                 </button>
               </div>
             </div>
@@ -280,43 +340,43 @@ const Leaderboard = () => {
                     <tr>
                       <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Rank
                       </th>
                       {/* <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Organization
                       </th> */}
                       <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Client name
                       </th>
                       <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Model used
                       </th>
                       <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         {leaderboardData.metric}
                       </th>
                       <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Date
                       </th>
                       {/* <th
                         scope="col"
-                        className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Details
                       </th> */}
@@ -329,13 +389,13 @@ const Leaderboard = () => {
                       {
                         isBenchmark: true,
                         metric_value: leaderboardData.benchmark,
-                        created_at: leaderboardData.created_at
+                        created_at: leaderboardData.created_at,
                       },
                       // Add all sessions
-                      ...leaderboardData.sessions.map(session => ({
+                      ...leaderboardData.sessions.map((session) => ({
                         ...session,
-                        isBenchmark: false
-                      }))
+                        isBenchmark: false,
+                      })),
                     ]
                       .sort((a, b) => {
                         if (
@@ -350,20 +410,20 @@ const Leaderboard = () => {
                         if (entry.isBenchmark) {
                           // Benchmark Row
                           return (
-                            <tr key="benchmark" className="bg-green-50">
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-[#f59e0b]">
+                            <tr key="benchmark" className="bg-[#fff5fa]">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                                 {index + 1}
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-[#f59e0b]">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-[#DD2780] text-center">
                                 Benchmark
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-[#f59e0b]">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                                 —
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-mono font-medium text-[#f59e0b]">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-mono font-bold text-[#DD2780] text-center">
                                 {leaderboardData.benchmark || "N/A"}
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-[#f59e0b]">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                                 {formatTimestamp(leaderboardData.created_at)}
                               </td>
                             </tr>
@@ -381,24 +441,24 @@ const Leaderboard = () => {
                           return (
                             <tr
                               key={entry.session_id}
-                              className={`hover:bg-gray-50 ${isBetter ? "bg-green-50" : ""}`}
+                              className={`hover:bg-gray-50`}
                             >
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                                 {index + 1}
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                              <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${isBetter ? "text-[#638FFE]" : "text-[#FFB101]"} text-center`}>
                                 {entry.admin_username}
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                                 {entry.model_name}
                               </td>
                               <td
-                                className={`px-4 py-3 whitespace-nowrap text-sm font-mono font-medium ${isBetter ? "text-green-600" : "text-red-600"
+                                className={`px-4 py-3 whitespace-nowrap text-sm font-mono font-bold text-center ${isBetter ? "text-[#638FFE]" : "text-[#FFB101]"
                                   }`}
                               >
                                 {entry.metric_value}
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                                 {formatTimestamp(entry.created_at)}
                               </td>
                             </tr>
@@ -409,7 +469,7 @@ const Leaderboard = () => {
                 </table>
               </div>
             ) : (
-              <div className="p-4">
+              <div ref={chartRef} className="p-4">
                 <ResponsiveContainer width="100%" height={500}>
                   <BarChart
                     data={processedData}
@@ -443,11 +503,11 @@ const Leaderboard = () => {
                     {leaderboardData?.benchmark && (
                       <ReferenceLine
                         y={leaderboardData.benchmark}
-                        stroke="#f59e0b"
+                        stroke="#DD2780"
                         label={{
                           value: "Benchmark",
                           position: "right",
-                          fill: "#f59e0b",
+                          fill: "#DD2780",
                         }}
                         strokeDasharray="5 5"
                       />
@@ -459,10 +519,10 @@ const Leaderboard = () => {
                           key={`cell-${index}`}
                           fill={
                             entry.isBenchmark
-                              ? "#f59e0b" // Gold/amber color for benchmark
+                              ? "#DD2780"
                               : entry.meets_benchmark
-                                ? "#15803d" // Dark green for sessions that beat benchmark
-                                : "#991b1b" // Dark red for sessions that don't beat benchmark
+                                ? "#638FFE"
+                                : "#FFB101"
                           }
                         />
                       ))}
@@ -472,16 +532,16 @@ const Leaderboard = () => {
 
                 <div className="flex justify-center mt-2 space-x-4">
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-amber-500 rounded-full mr-1"></div>
-                    <span className="text-xs">Benchmark</span>
+                    <div className="w-3 h-3 bg-[#DD2780] rounded-full mr-1"></div>
+                    <span className="text-md">Benchmark</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                    <span className="text-xs">Better than benchmark</span>
+                    <div className="w-3 h-3 bg-[#638FFE] rounded-full mr-1"></div>
+                    <span className="text-md">Better than benchmark</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                    <span className="text-xs">Worse than benchmark</span>
+                    <div className="w-3 h-3 bg-[#FFB101] rounded-full mr-1"></div>
+                    <span className="text-md">Worse than benchmark</span>
                   </div>
                 </div>
               </div>
