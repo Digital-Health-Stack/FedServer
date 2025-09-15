@@ -191,6 +191,7 @@ async def get_federated_session_v2(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
         )
+    session.no_of_clients = len(session.clients)
     return session
 
 
