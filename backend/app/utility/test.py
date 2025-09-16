@@ -57,8 +57,17 @@ class Test:
         # read data from file
         try:
             print("Loading test data...")
-            X_test = np.load(os.path.join("data", f"X_{self.session_id}.npy"))
-            Y_test = np.load(os.path.join("data", f"Y_{self.session_id}.npy"))
+            X_test = np.load(
+                os.path.join("data", f"X_{self.session_id}.npy"), allow_pickle=True
+            )
+            Y_test = np.load(
+                os.path.join("data", f"Y_{self.session_id}.npy"), allow_pickle=True
+            )
+
+            if isinstance(X_test[0], str):
+                X_test = np.array([np.fromstring(img, sep=",") for img in X_test])
+
+            print(f"X_test shape: {X_test.shape}")
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
