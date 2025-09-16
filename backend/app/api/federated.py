@@ -204,66 +204,41 @@ def get_all_federated_sessions(
     training_status: str | None = Query(None),
     search: str | None = Query(None),  # Combined search field
 ):
-    all_sessions = [
+    # Use the optimized get_all method with database-level filtering
+    result = federated_manager.get_all(
+        page=page,
+        per_page=per_page,
+        sort_order=sort_order,
+        training_status=training_status,
+        search=search,
+    )
+
+    # Transform the raw session data into the expected format
+    formatted_sessions = [
         {
-            "id": id,
+            "id": session_id,
             "training_status": training_status,
             "name": federated_info.get("organisation_name"),
             "server_filename": federated_info.get("server_filename"),
             "created_at": createdAt,
         }
-        for [
-            id,
-            training_status,
-            federated_info,
-            createdAt,
-        ] in federated_manager.get_all()
+        for session_id, training_status, federated_info, createdAt in result["sessions"]
     ]
-    
-    # Apply filters
-    filtered_sessions = all_sessions
-    
-    # Filter by training status
-    if training_status:
-        filtered_sessions = [
-            session for session in filtered_sessions 
-            if session["training_status"] == training_status
-        ]
-    
-    # Unified search across name and server filename (case-insensitive partial match)
-    if search:
-        search_lower = search.lower()
-        filtered_sessions = [
-            session for session in filtered_sessions 
-            if (search_lower in (session["name"] or "").lower() or 
-                search_lower in (session["server_filename"] or "").lower())
-        ]
-    
-    # Sort by created_at
-    filtered_sessions.sort(
-        key=lambda x: x["created_at"], 
-        reverse=(sort_order == "desc")
-    )
-    
-    # Calculate pagination
-    total = len(filtered_sessions)
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated_sessions = filtered_sessions[start:end]
 
     return {
-        "data": paginated_sessions,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "total_pages": (total + per_page - 1) // per_page,
+        "data": formatted_sessions,
+        "total": result["total"],
+        "page": result["page"],
+        "per_page": result["per_page"],
+        "total_pages": result["total_pages"],
         "filters": {
             "sort_order": sort_order,
             "training_status": training_status,
             "search": search,
-        }
+        },
     }
-    
+
+
 @federated_router.get("/get-federated-session/{session_id}")
 def get_federated_session(
     session_id: int,

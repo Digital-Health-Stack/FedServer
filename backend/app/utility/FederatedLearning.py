@@ -2,7 +2,7 @@ from datetime import datetime
 from operator import or_
 from typing import Dict, List, Optional, Literal
 from schema import CreateFederatedLearning, FederatedLearningInfo, User
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, desc, select, func
 from models.FederatedSession import (
     FederatedSession,
     FederatedSessionClient,
@@ -201,17 +201,81 @@ class FederatedLearning:
     #     with Session(engine) as db:
     #         stmt = select(FederatedSessionClient).where(FederatedSession.id == )
 
-    def get_all(self):
+    def get_all(
+        self,
+        page: int = 1,
+        per_page: int = 6,
+        sort_order: str = "desc",
+        training_status: Optional[str] = None,
+        search: Optional[str] = None,
+    ):
         with Session(engine) as db:
+            # Base query
             stmt = select(
                 FederatedSession.id,
                 FederatedSession.training_status,
                 FederatedSession.federated_info,
                 FederatedSession.createdAt,
-            ).order_by(desc(FederatedSession.createdAt))
+            )
+
+            # Apply training status filter
+            if training_status:
+                stmt = stmt.where(FederatedSession.training_status == training_status)
+
+            # Apply search filter (search in organisation_name and server_filename within federated_info JSON)
+            if search:
+                search_lower = f"%{search.lower()}%"
+                stmt = stmt.where(
+                    or_(
+                        FederatedSession.federated_info[
+                            "organisation_name"
+                        ].astext.ilike(search_lower),
+                        FederatedSession.federated_info["server_filename"].astext.ilike(
+                            search_lower
+                        ),
+                    )
+                )
+
+            # Apply sorting
+            if sort_order == "asc":
+                stmt = stmt.order_by(FederatedSession.createdAt)
+            else:
+                stmt = stmt.order_by(desc(FederatedSession.createdAt))
+
+            # Get total count for pagination
+            count_stmt = select(func.count(FederatedSession.id))
+            if training_status:
+                count_stmt = count_stmt.where(
+                    FederatedSession.training_status == training_status
+                )
+            if search:
+                search_lower = f"%{search.lower()}%"
+                count_stmt = count_stmt.where(
+                    or_(
+                        FederatedSession.federated_info[
+                            "organisation_name"
+                        ].astext.ilike(search_lower),
+                        FederatedSession.federated_info["server_filename"].astext.ilike(
+                            search_lower
+                        ),
+                    )
+                )
+
+            total_count = db.execute(count_stmt).scalar()
+
+            # Apply pagination
+            offset = (page - 1) * per_page
+            stmt = stmt.offset(offset).limit(per_page)
 
             federated_sessions = db.execute(stmt).all()
-            return federated_sessions
+
+            return {
+                "sessions": federated_sessions,
+                "total": total_count,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": (total_count + per_page - 1) // per_page,
+            }
 
     def get_my_sessions(self, user: UserModel):
         with Session(engine) as db:
