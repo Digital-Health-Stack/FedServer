@@ -10,7 +10,7 @@ load_dotenv()
 
 # Get the database URL from the environment
 DATABASE_URL = os.getenv("DB_URL")
-print(f"Database URL: {DATABASE_URL}")
+# print(f"Database URL: {DATABASE_URL}")
 
 db = next(get_db())
 
