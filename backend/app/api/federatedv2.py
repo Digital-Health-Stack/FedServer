@@ -450,7 +450,7 @@ async def aggregate_and_test_weights(session_id: int, round_number: int, db: Ses
             session_id, f"Initialized test unit.", FederatedSessionLogTag.INFO
         )
         print("Getting latest global weights")
-        print(federated_manager.get_latest_global_weights(session_id))
+        # print(federated_manager.get_latest_global_weights(session_id))
         results = test.start_test(
             federated_manager.get_latest_global_weights(session_id)
         )
