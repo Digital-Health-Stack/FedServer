@@ -216,6 +216,7 @@ class FederatedLearning:
                 FederatedSession.training_status,
                 FederatedSession.federated_info,
                 FederatedSession.createdAt,
+                FederatedSession.curr_round,
             )
 
             # Apply training status filter
@@ -260,9 +261,7 @@ class FederatedLearning:
                         ),
                     )
                 )
-
             total_count = db.execute(count_stmt).scalar()
-
             # Apply pagination
             offset = (page - 1) * per_page
             stmt = stmt.offset(offset).limit(per_page)

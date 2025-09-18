@@ -221,8 +221,10 @@ def get_all_federated_sessions(
             "name": federated_info.get("organisation_name"),
             "server_filename": federated_info.get("server_filename"),
             "created_at": createdAt,
+            "curr_round": curr_round,
+            "total_rounds": federated_info.get("no_of_rounds"),
         }
-        for session_id, training_status, federated_info, createdAt in result["sessions"]
+        for session_id, training_status, federated_info, createdAt, curr_round in result["sessions"]
     ]
 
     return {
