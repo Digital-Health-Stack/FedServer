@@ -224,7 +224,9 @@ def get_all_federated_sessions(
             "curr_round": curr_round,
             "total_rounds": federated_info.get("no_of_rounds"),
         }
-        for session_id, training_status, federated_info, createdAt, curr_round in result["sessions"]
+        for session_id, training_status, federated_info, createdAt, curr_round in result[
+            "sessions"
+        ]
     ]
 
     return {

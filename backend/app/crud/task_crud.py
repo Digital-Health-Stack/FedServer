@@ -1,13 +1,13 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from models.FederatedSession import FederatedSession, FederatedTestResults
 from models.User import User
 from models.Dataset import Task, Dataset
 from schemas.dataset import TaskCreate
-from typing import List, Dict, Optional
+from typing import List, Dict
 from crud.datasets_crud import get_dataset_by_filename
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy import func
+from sqlalchemy import func, and_, desc, asc
 import re
 
 
@@ -15,7 +15,7 @@ def sanitize_model_name(model_name: str) -> str:
     """
     Sanitize model names to make them more readable by converting camelCase/PascalCase
     to proper spacing and capitalization.
-    
+
     Examples:
     - LinearRegression -> Linear Regression
     - LandMarkSVM -> Land Mark SVM
@@ -23,26 +23,26 @@ def sanitize_model_name(model_name: str) -> str:
     """
     if not model_name or model_name == "Unknown":
         return model_name
-    
+
     # Handle specific known cases first
     model_mappings = {
         "LinearRegression": "Linear Regression",
         "LandMarkSVM": "Land Mark SVM",
         "multiLayerPerceptron": "Multi Layer Perceptron",
     }
-    
+
     if model_name in model_mappings:
         return model_mappings[model_name]
-    
+
     # General camelCase/PascalCase to space-separated conversion
     # Insert space before uppercase letters that follow lowercase letters
-    result = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', model_name)
-    
+    result = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", model_name)
+
     # Capitalize first letter and ensure proper spacing
     result = result.strip()
     if result:
         result = result[0].upper() + result[1:]
-    
+
     return result
 
 
@@ -203,35 +203,76 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
         if task.benchmark and task.metric in task.benchmark:
             benchmark_value = task.benchmark[task.metric].get("std_mean")
         print(f"Benchmark value: {benchmark_value}")
-        # Get sessions with their last round results
-        sessions = (
-            db.query(FederatedSession)
-            .filter(FederatedSession.federated_info["task_id"].as_integer() == task_id)
-            .options(joinedload(FederatedSession.results))
+
+        # Create subquery to get the last round result for each session
+        # This replaces the Python filtering with database-level filtering
+        last_round_subquery = (
+            db.query(
+                FederatedTestResults.session_id,
+                func.max(FederatedTestResults.round_number).label("max_round_number"),
+            )
+            .group_by(FederatedTestResults.session_id)
+            .subquery()
+        )
+
+        # Determine sort order based on metric type
+        reverse_sort = task.metric not in ["mae", "mse"]
+        metric_order = desc if reverse_sort else asc
+
+        # Main query with all optimizations:
+        # 1. Join with last round subquery to get only final results
+        # 2. Join with User table to avoid N+1 queries
+        # 3. Filter sessions by task_id and ensure metrics exist
+        # 4. Order by metric value in the database
+        query_results = (
+            db.query(
+                FederatedSession.id.label("session_id"),
+                FederatedSession.federated_info,
+                FederatedSession.max_round.label("total_rounds"),
+                FederatedSession.createdAt,
+                FederatedTestResults.metrics_report,
+                FederatedTestResults.round_number,
+                User.name.label("admin_username"),
+            )
+            .join(
+                FederatedTestResults,
+                FederatedSession.id == FederatedTestResults.session_id,
+            )
+            .join(
+                last_round_subquery,
+                and_(
+                    FederatedTestResults.session_id == last_round_subquery.c.session_id,
+                    FederatedTestResults.round_number
+                    == last_round_subquery.c.max_round_number,
+                ),
+            )
+            .join(User, FederatedSession.admin_id == User.id)
+            .filter(
+                and_(
+                    FederatedSession.federated_info["task_id"].as_integer() == task_id,
+                    FederatedTestResults.metrics_report.isnot(None),
+                    FederatedTestResults.metrics_report[task.metric].isnot(None),
+                )
+            )
+            .order_by(
+                metric_order(
+                    FederatedTestResults.metrics_report[task.metric].as_float()
+                )
+            )
             .all()
         )
-        print(f"Total sessions fetched: {len(sessions)}")
+
+        print(f"Total sessions fetched: {len(query_results)}")
         leaderboard = []
 
-        for session in sessions:
-            # # Get last round result
-            last_round_result = next(
-                (r for r in session.results if r.round_number == session.federated_info["no_of_rounds"]),
-                None,
-            )
-
-            if not last_round_result or not last_round_result.metrics_report:
-                continue
-            if last_round_result:
-                print(
-                    f">>> Selected Last Round Result: Round {last_round_result.round_number} | Metrics: {last_round_result.metrics_report}"
-                )
-            else:
-                print(">>> No result found for the max round.")
-
-            metric_value = last_round_result.metrics_report.get(task.metric)
+        for result in query_results:
+            metric_value = result.metrics_report.get(task.metric)
             if metric_value is None:
                 continue
+
+            print(
+                f">>> Selected Last Round Result: Round {result.round_number} | Metrics: {result.metrics_report}"
+            )
 
             # Determine if benchmark is met
             meets_benchmark = None
@@ -241,32 +282,24 @@ def get_leaderboard_by_task_id(db: Session, task_id: int) -> Dict:
                 else:  # Accuracy, F1, etc.
                     meets_benchmark = metric_value >= benchmark_value
 
-            # Get admin username
-            admin_username = (
-                db.query(User.name).filter(User.id == session.admin_id).scalar()
-                or "Unknown"
-            )
-
             leaderboard.append(
                 {
-                    "session_id": session.id,
-                    "organisation_name": session.federated_info.get(
+                    "session_id": result.session_id,
+                    "organisation_name": result.federated_info.get(
                         "organisation_name", "Unknown"
                     ),
-                    "model_name": sanitize_model_name(session.federated_info.get("model_name", "Unknown")),
+                    "model_name": sanitize_model_name(
+                        result.federated_info.get("model_name", "Unknown")
+                    ),
                     "metric_value": metric_value,
                     "meets_benchmark": meets_benchmark,
-                    "total_rounds": session.max_round,
+                    "total_rounds": result.total_rounds,
                     "created_at": (
-                        session.createdAt.isoformat() if session.createdAt else None
+                        result.createdAt.isoformat() if result.createdAt else None
                     ),
-                    "admin_username": admin_username,
+                    "admin_username": result.admin_username or "Unknown",
                 }
             )
-
-        # Sort based on metric type
-        reverse_sort = task.metric not in ["mae", "mse"]
-        leaderboard.sort(key=lambda x: x["metric_value"], reverse=reverse_sort)
 
         return {
             "task_name": task.task_name,
