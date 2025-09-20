@@ -56,7 +56,7 @@ class Test:
 
         # Base improvement factor - metrics get better with more rounds
         improvement_factor = min(
-            0.95 + (self.round * 0.02), 0.99
+            0.95 + (self.round * 0.02), 0.94
         )  # Caps at 99% improvement
         base_performance = 0.3 + (
             self.round * 0.05
@@ -170,7 +170,8 @@ class Test:
         print("Metrics: ", self.metrics)
 
         # Temporary evaluate function that simulates improving metrics over rounds
-        metrics_report = self.temporary_evaluate_function()
+        metrics_report = self.model.evaluate(X_test, Y_test, self.metrics)
+        # metrics_report = self.temporary_evaluate_function()
         with Session(engine) as db:
             test_result = FederatedTestResults(
                 session_id=self.session_id,
