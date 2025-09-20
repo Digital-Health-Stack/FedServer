@@ -67,22 +67,21 @@ const Leaderboard = () => {
 
   const downloadCSV = () => {
     if (!leaderboardData || !leaderboardData.sessions) return;
-
     // Prepare data for CSV
     const csvData = [
       // Add benchmark as first row if it exists
       ...(leaderboardData.benchmark
         ? [
-          {
-            rank: 1,
-            client_name: "Benchmark",
-            model_name: "Benchmark",
-            metric_value: leaderboardData.benchmark,
-            meets_benchmark: "Yes",
-            date: formatTimestamp(leaderboardData.created_at),
-            is_benchmark: "Yes",
-          },
-        ]
+            {
+              rank: 1,
+              client_name: "Benchmark",
+              model_name: "Benchmark",
+              metric_value: leaderboardData.benchmark,
+              meets_benchmark: "Yes",
+              date: formatTimestamp(leaderboardData.created_at),
+              is_benchmark: "Yes",
+            },
+          ]
         : []),
       // Add all sessions
       ...leaderboardData.sessions.map((session, index) => {
@@ -255,12 +254,7 @@ const Leaderboard = () => {
         metric_value: leaderboardData.benchmark,
         created_at: leaderboardData.created_at,
         date: new Date(leaderboardData.created_at),
-        formattedDate: new Date(leaderboardData.created_at).toLocaleString(
-          "en-IN",
-          {
-            dateStyle: "short",
-          }
-        ),
+        formattedDate: formatTimestamp(leaderboardData.created_at),
         meets_benchmark: true, // Benchmark always "meets" itself
         isBenchmark: true, // Flag to identify this as benchmark
       };
@@ -304,20 +298,22 @@ const Leaderboard = () => {
               <div className="flex justify-center mt-2 space-x-2">
                 <button
                   onClick={() => setViewMode("table")}
-                  className={`p-2 rounded-md ${viewMode === "table"
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-gray-100 text-gray-600"
-                    }`}
+                  className={`p-2 rounded-md ${
+                    viewMode === "table"
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
                   title="Table View"
                 >
                   <TableCellsIcon className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setViewMode("chart")}
-                  className={`p-2 rounded-md ${viewMode === "chart"
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-gray-100 text-gray-600"
-                    }`}
+                  className={`p-2 rounded-md ${
+                    viewMode === "chart"
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
                   title="Chart View"
                 >
                   <ChartBarIcon className="h-5 w-5" />
@@ -433,10 +429,10 @@ const Leaderboard = () => {
                           const isBetter =
                             leaderboardData.benchmark &&
                             (leaderboardData.metric === "mae" ||
-                              leaderboardData.metric === "mse"
+                            leaderboardData.metric === "mse"
                               ? entry.metric_value <= leaderboardData.benchmark
                               : entry.metric_value >=
-                              leaderboardData.benchmark);
+                                leaderboardData.benchmark);
                           console.log(entry);
                           return (
                             <tr
@@ -446,15 +442,20 @@ const Leaderboard = () => {
                               <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                                 {index + 1}
                               </td>
-                              <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${isBetter ? "text-[#638FFE]" : "text-[#FFB101]"} text-center`}>
+                              <td
+                                className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${
+                                  isBetter ? "text-[#638FFE]" : "text-[#FFB101]"
+                                } text-center`}
+                              >
                                 {entry.admin_username}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                                 {entry.model_name}
                               </td>
                               <td
-                                className={`px-4 py-3 whitespace-nowrap text-sm font-mono font-bold text-center ${isBetter ? "text-[#638FFE]" : "text-[#FFB101]"
-                                  }`}
+                                className={`px-4 py-3 whitespace-nowrap text-sm font-mono font-bold text-center ${
+                                  isBetter ? "text-[#638FFE]" : "text-[#FFB101]"
+                                }`}
                               >
                                 {entry.metric_value}
                               </td>
@@ -521,8 +522,8 @@ const Leaderboard = () => {
                             entry.isBenchmark
                               ? "#DD2780"
                               : entry.meets_benchmark
-                                ? "#638FFE"
-                                : "#FFB101"
+                              ? "#638FFE"
+                              : "#FFB101"
                           }
                         />
                       ))}
