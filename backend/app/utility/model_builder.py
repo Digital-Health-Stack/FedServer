@@ -3,6 +3,7 @@ from .CustomModels.CustomSVM import CustomSVM
 from .CustomModels.LinearRegression import LinearRegression
 from .CustomModels.MultiLayerPerceptron import MultiLayerPerceptron
 from .CustomModels.CustomCNN import CustomCNN
+from .CustomModels.LogisticRegression import LogisticRegression
 
 import json
 
@@ -12,6 +13,7 @@ model_classes = {
     "LandMarkSVM": LandMarkSVM,
     "multiLayerPerceptron": MultiLayerPerceptron,
     "CNN": CustomCNN,
+    "LogisticRegression": LogisticRegression,
 }
 
 
