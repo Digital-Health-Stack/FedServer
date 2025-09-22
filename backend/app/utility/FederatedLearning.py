@@ -356,27 +356,66 @@ class FederatedLearning:
         aggregated_sums = None
         num_clients = 0
 
-        def initialize_aggregated_sums(param):
-            if isinstance(param, list):
+        # Parameters that should not be aggregated (metadata)
+        non_aggregatable_params = {
+            "n_features",
+            "n_classes",
+            "max_depth",
+            "n_leaves",
+            "n_nodes",
+            "task_type",
+            "random_state",
+            "min_samples_split",
+            "min_samples_leaf",
+        }
+
+        def initialize_aggregated_sums(param, param_name=None):
+            if isinstance(param, dict):
+                return {
+                    key: initialize_aggregated_sums(value, key)
+                    for key, value in param.items()
+                }
+            elif isinstance(param, list):
                 return [initialize_aggregated_sums(p) for p in param]
             else:
+                # For non-aggregatable parameters, store the value as-is
+                if param_name and param_name in non_aggregatable_params:
+                    return param
                 return np.zeros_like(param)
 
-        def sum_parameters(aggregated, param):
-            if isinstance(param, list):
+        def sum_parameters(aggregated, param, param_name=None):
+            if isinstance(param, dict):
+                for key in param:
+                    if key in aggregated:
+                        aggregated[key] = sum_parameters(
+                            aggregated[key], param[key], key
+                        )
+                return aggregated
+            elif isinstance(param, list):
                 for i in range(len(param)):
                     aggregated[i] = sum_parameters(aggregated[i], param[i])
                 return aggregated
             else:
+                # For non-aggregatable parameters, keep the existing value
+                if param_name and param_name in non_aggregatable_params:
+                    return aggregated
                 return aggregated + np.array(param)
 
-        def average_parameters(aggregated, count):
-            if isinstance(aggregated, list):
+        def average_parameters(aggregated, count, param_name=None):
+            if isinstance(aggregated, dict):
+                return {
+                    key: average_parameters(value, count, key)
+                    for key, value in aggregated.items()
+                }
+            elif isinstance(aggregated, list):
                 return [
                     average_parameters(sub_aggregated, count)
                     for sub_aggregated in aggregated
                 ]
             else:
+                # For non-aggregatable parameters, return as-is
+                if param_name and param_name in non_aggregatable_params:
+                    return aggregated
                 return (aggregated / count).tolist()
 
         # for submission in submissions:
@@ -410,13 +449,13 @@ class FederatedLearning:
                 aggregated_sums = {}
                 for key in client_weights:
                     aggregated_sums[key] = initialize_aggregated_sums(
-                        client_weights[key]
+                        client_weights[key], key
                     )
 
             # Sum the parameters
             for key in client_weights:
                 aggregated_sums[key] = sum_parameters(
-                    aggregated_sums[key], client_weights[key]
+                    aggregated_sums[key], client_weights[key], key
                 )
 
         if num_clients == 0:
@@ -429,7 +468,9 @@ class FederatedLearning:
 
         # Average the parameters
         for key in aggregated_sums:
-            aggregated_sums[key] = average_parameters(aggregated_sums[key], num_clients)
+            aggregated_sums[key] = average_parameters(
+                aggregated_sums[key], num_clients, key
+            )
         print(f"Aggregated sums: {aggregated_sums}")
         # Save global weights to file
         with open(global_weights_file, "w") as f:
