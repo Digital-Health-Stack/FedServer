@@ -6,12 +6,15 @@ from .CustomModels.CustomCNN import CustomCNN
 from .CustomModels.LogisticRegression import LogisticRegression
 from .CustomModels.DecisionTree import DecisionTree
 from .CustomModels.RandomForest import RandomForest
+from .CustomModels.CustomSVR import CustomSVR
+
 
 import json
 
 model_classes = {
     "LinearRegression": LinearRegression,
     "SVM": CustomSVM,
+    "SVR": CustomSVR,
     "LandMarkSVM": LandMarkSVM,
     "multiLayerPerceptron": MultiLayerPerceptron,
     "CNN": CustomCNN,
