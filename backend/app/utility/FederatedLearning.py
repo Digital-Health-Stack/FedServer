@@ -433,7 +433,7 @@ class FederatedLearning:
             # Read client parameters
             with open(client_file, "r") as f:
                 client_weights = json.load(f)
-            print(f"Client weights: {client_weights}")
+            # print(f"Client weights: {client_weights}")
             # Read metadata to verify round number
             metadata_file = local_dir / f"{client_file.stem}_metadata.json"
             with open(metadata_file, "r") as f:
@@ -471,7 +471,7 @@ class FederatedLearning:
             aggregated_sums[key] = average_parameters(
                 aggregated_sums[key], num_clients, key
             )
-        print(f"Aggregated sums: {aggregated_sums}")
+        # print(f"Aggregated sums: {aggregated_sums}")
         # Save global weights to file
         with open(global_weights_file, "w") as f:
             json.dump(aggregated_sums, f)

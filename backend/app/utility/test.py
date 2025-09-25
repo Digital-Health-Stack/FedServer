@@ -151,17 +151,65 @@ class Test:
         # read data from file
         try:
             print("Loading test data...")
-            X_test = np.load(
+            X = np.load(
                 os.path.join("data", f"X_{self.session_id}.npy"), allow_pickle=True
             )
             Y_test = np.load(
                 os.path.join("data", f"Y_{self.session_id}.npy"), allow_pickle=True
             )
 
-            if isinstance(X_test[0], str):
-                X_test = np.array([np.fromstring(img, sep=",") for img in X_test])
+            (
+                print("X : ", X.shape, X.dtype)
+                if isinstance(X, np.ndarray)
+                else print("X : ", len(X), type(X))
+            )
+            # Normalize dataset formats: allow object arrays of shape (n,1) with string rows
+            try:
+                first_elem = (
+                    X[0]
+                    if not (
+                        isinstance(X, np.ndarray) and X.ndim == 2 and X.shape[1] == 1
+                    )
+                    else X[0, 0]
+                )
+            except Exception:
+                first_elem = None
 
-            print(f"X_test shape: {X_test.shape}")
+            if isinstance(first_elem, str):
+                print("Parsing string rows into individual pixel values")
+                if isinstance(X, np.ndarray) and X.ndim == 2 and X.shape[1] == 1:
+                    strings = [row[0] for row in X]
+                else:
+                    strings = list(X)
+                X = np.array(
+                    [
+                        np.fromstring(s.strip(), sep=",", dtype=np.float32)
+                        for s in strings
+                    ],
+                    dtype=np.float32,
+                )
+                # Optional reshape if input_shape is provided
+                model_info = (
+                    self.model_config.get("model_info", {})
+                    if isinstance(self.model_config, dict)
+                    else {}
+                )
+                input_shape = model_info.get("input_shape")
+                if input_shape is not None:
+                    if isinstance(input_shape, str):
+                        # Handle string format like '(150,150,3)'
+                        import ast
+
+                        input_shape = ast.literal_eval(input_shape)
+                    print(f"Parsed input_shape: {input_shape}")
+                    try:
+                        X = X.reshape(-1, *input_shape)
+                    except Exception as reshape_err:
+                        print(
+                            f"Reshape failed with error {reshape_err}. Keeping flat features."
+                        )
+
+            print(f"X shape: {X.shape}")
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
@@ -170,7 +218,7 @@ class Test:
         print("Metrics: ", self.metrics)
 
         # Temporary evaluate function that simulates improving metrics over rounds
-        metrics_report = self.model.evaluate(X_test, Y_test, self.metrics)
+        metrics_report = self.model.evaluate(X, Y_test, self.metrics)
         # metrics_report = self.temporary_evaluate_function()
         with Session(engine) as db:
             test_result = FederatedTestResults(
