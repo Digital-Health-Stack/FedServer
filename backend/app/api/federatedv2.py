@@ -245,48 +245,50 @@ async def submit_client_price_response(
                 )
 
                 # Add clients who already have permission for this task
-                try:
-                    task_id = int(session.federated_info.get("task_id"))
-                    if task_id:
-                        # Find all clients who have permission for this task
-                        clients_with_permission = (
-                            db.query(ClientPermission)
-                            .filter_by(task_id=task_id, permission=True)
-                            .all()
-                        )
+                # TEMPORARILY DISABLED FOR SINGLE-CLIENT TESTING
+                # TODO: Re-enable this for multi-client production usage
+                # try:
+                #     task_id = int(session.federated_info.get("task_id"))
+                #     if task_id:
+                #         # Find all clients who have permission for this task
+                #         clients_with_permission = (
+                #             db.query(ClientPermission)
+                #             .filter_by(task_id=task_id, permission=True)
+                #             .all()
+                #         )
 
-                        added_clients_count = 0
-                        for client_permission in clients_with_permission:
-                            # Check if client is not already in this session
-                            existing_client = (
-                                db.query(FederatedSessionClient)
-                                .filter_by(
-                                    session_id=session_id,
-                                    user_id=client_permission.user_id,
-                                )
-                                .first()
-                            )
+                #         added_clients_count = 0
+                #         for client_permission in clients_with_permission:
+                #             # Check if client is not already in this session
+                #             existing_client = (
+                #                 db.query(FederatedSessionClient)
+                #                 .filter_by(
+                #                     session_id=session_id,
+                #                     user_id=client_permission.user_id,
+                #                 )
+                #                 .first()
+                #             )
 
-                            if not existing_client:
-                                # Add client to the session
-                                federated_session_client = FederatedSessionClient(
-                                    user_id=client_permission.user_id,
-                                    session_id=session_id,
-                                    status=0,  # JOINED status
-                                    ip="auto-added",  # Placeholder IP for auto-added clients
-                                )
-                                db.add(federated_session_client)
-                                added_clients_count += 1
+                #             if not existing_client:
+                #                 # Add client to the session
+                #                 federated_session_client = FederatedSessionClient(
+                #                     user_id=client_permission.user_id,
+                #                     session_id=session_id,
+                #                     status=0,  # JOINED status
+                #                     ip="auto-added",  # Placeholder IP for auto-added clients
+                #                 )
+                #                 db.add(federated_session_client)
+                #                 added_clients_count += 1
 
-                        if added_clients_count > 0:
-                            federated_manager.log_event(
-                                session_id,
-                                f"Automatically added {added_clients_count} clients with existing task permissions",
-                                FederatedSessionLogTag.INFO,
-                            )
-                except (ValueError, TypeError) as e:
-                    # Log error but don't fail the request if task_id is invalid
-                    print(f"Error adding clients with existing permissions: {e}")
+                #         if added_clients_count > 0:
+                #             federated_manager.log_event(
+                #                 session_id,
+                #                 f"Automatically added {added_clients_count} clients with existing task permissions",
+                #                 FederatedSessionLogTag.INFO,
+                #             )
+                # except (ValueError, TypeError) as e:
+                #     # Log error but don't fail the request if task_id is invalid
+                #     print(f"Error adding clients with existing permissions: {e}")
 
                 process_parquet_and_save_xy(
                     session.federated_info["server_filename"],
@@ -596,11 +598,36 @@ def send_weights(
             FederatedSessionLogTag.WEIGHTS_RECEIVED,
         )
 
-        session_data = federated_manager.get_session(int(session_id))
+        # Refresh session_data to get the updated no_of_recieved_weights
+        db.refresh(session_data)
 
         # Should not be here, but should be a background task
         ## WORKING HERE   <----------------------------------------------------------
         # TODO: All this should be in a background task including further logic
+
+        # Debug logging for aggregation condition
+        total_clients = len(session_data.clients)
+        received_weights = session_data.no_of_recieved_weights
+        left_clients = session_data.no_of_left_clients
+
+        # Log detailed client information
+        client_details = []
+        for client in session_data.clients:
+            client_details.append(
+                f"User {client.user_id} (IP: {client.ip}, Status: {client.status})"
+            )
+
+        federated_manager.log_event(
+            session_id,
+            f"Aggregation check: {total_clients} total clients, {received_weights} received weights, {left_clients} left clients",
+            FederatedSessionLogTag.INFO,
+        )
+
+        federated_manager.log_event(
+            session_id,
+            f"Registered clients: {', '.join(client_details)}",
+            FederatedSessionLogTag.INFO,
+        )
 
         if (
             len(session_data.clients)
@@ -611,8 +638,19 @@ def send_weights(
                 f"All clients have submitted weights. Starting aggregation for round {session_data.curr_round}.",
                 FederatedSessionLogTag.AGGREGATED_WEIGHTS,
             )
+            federated_manager.log_event(
+                session_data.id,
+                f"Adding background task for aggregation and testing (round {session_data.curr_round})",
+                FederatedSessionLogTag.INFO,
+            )
             background_tasks.add_task(
                 aggregate_and_test_weights, session_data.id, session_data.curr_round, db
+            )
+        else:
+            federated_manager.log_event(
+                session_data.id,
+                f"Not all clients submitted yet. Waiting for more submissions.",
+                FederatedSessionLogTag.INFO,
             )
         ## WORKING HERE   <----------------------------------------------------------
 
