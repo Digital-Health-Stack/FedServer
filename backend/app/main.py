@@ -12,6 +12,7 @@ from api.confidential import confidential_router
 from api.task import task_router
 from api.training_data_transfers import qpd_router
 from api.logs import log_router
+from api.file_upload_routes import file_upload_router
 
 load_dotenv()
 
@@ -44,3 +45,4 @@ app.include_router(qpd_router, tags=["QPD"])
 app.include_router(confidential_router, tags=["Confidential"])
 app.include_router(temporary_router, tags=["Temporary"])
 app.include_router(log_router, tags=["Logs"], prefix="/logs")
+app.include_router(file_upload_router)

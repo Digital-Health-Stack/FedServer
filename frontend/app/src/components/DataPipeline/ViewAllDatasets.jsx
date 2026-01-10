@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   FolderIcon,
@@ -7,18 +7,36 @@ import {
   ArrowUpTrayIcon,
   XCircleIcon,
 } from "@heroicons/react/24/solid";
+import { FilePlus } from "lucide-react";
 import Pagination from "./ViewAllFiles/Pagination";
 import FileCard from "./ViewAllFiles/FileCard";
+import AddDataset from "./ViewAllDatasetsHelper/AddDataset";
 
 const ViewAllDatasets = () => {
   // Environment variables and navigation setup
-  const [selectedFolder, setSelectedFolder] = useState("raw");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [selectedFolder, setSelectedFolder] = useState("add");
   const [datasets, setDatasets] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (["add", "raw", "processed"].includes(hash)) {
+      setSelectedFolder(hash);
+    } else {
+      setSelectedFolder("add");
+      navigate(`${location.pathname}#add`);
+    }
+  }, [location.hash, location.pathname]);
+
+  const handleTabClick = (folder) => {
+    navigate(`${location.pathname}#${folder}`);
+    setSelectedFolder(folder);
+  };
 
   const PAGE_SIZE = 20; // Number of datasets per page
   const endpoints = {
@@ -51,7 +69,9 @@ const ViewAllDatasets = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    if (selectedFolder !== "add") {
+      fetchData();
+    }
   }, [selectedFolder, currentPage]);
 
   const handleDelete = async (datasetId) => {
@@ -71,10 +91,22 @@ const ViewAllDatasets = () => {
       <div className="mx-auto grid grid-cols-[240px_1fr] gap-8 max-w-9xl">
         {/* Sidebar */}
         <div className="space-y-3">
+          <button
+            onClick={() => handleTabClick("add")}
+            className={`w-full flex items-center gap-3 p-3 rounded-xl text-left
+              ${
+                selectedFolder === "add"
+                  ? "bg-blue-50 text-blue-700"
+                  : "hover:bg-gray-100"
+              }`}
+          >
+            <FilePlus className="h-5 w-5" />
+            Add New Dataset
+          </button>
           {["raw", "processed"].map((folder) => (
             <button
               key={folder}
-              onClick={() => setSelectedFolder(folder)}
+              onClick={() => handleTabClick(folder)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl text-left
                 ${
                   selectedFolder === folder
@@ -88,7 +120,9 @@ const ViewAllDatasets = () => {
           ))}
         </div>
 
+        {selectedFolder === "add" && <AddDataset />}
         {/* Main Content */}
+        {selectedFolder !== "add" && (
         <div className="space-y-6">
           {/* Header */}
           <div className="bg-white p-6 rounded-xl shadow-sm border">
@@ -151,6 +185,7 @@ const ViewAllDatasets = () => {
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   );

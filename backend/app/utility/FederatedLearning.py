@@ -230,8 +230,8 @@ class FederatedLearning:
                     or_(
                         FederatedSession.federated_info[
                             "organisation_name"
-                        ].astext.ilike(search_lower),
-                        FederatedSession.federated_info["server_filename"].astext.ilike(
+                        ].as_string().ilike(search_lower),
+                        FederatedSession.federated_info["server_filename"].as_string().ilike(
                             search_lower
                         ),
                     )
@@ -255,8 +255,8 @@ class FederatedLearning:
                     or_(
                         FederatedSession.federated_info[
                             "organisation_name"
-                        ].astext.ilike(search_lower),
-                        FederatedSession.federated_info["server_filename"].astext.ilike(
+                        ].as_string().ilike(search_lower),
+                        FederatedSession.federated_info["server_filename"].as_string().ilike(
                             search_lower
                         ),
                     )

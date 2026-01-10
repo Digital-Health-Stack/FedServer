@@ -1,3 +1,6 @@
+import findspark
+
+findspark.init()
 from pyspark.sql import SparkSession
 from dotenv import load_dotenv
 from pyspark.sql.functions import (
@@ -65,9 +68,13 @@ class SparkSessionManager:
 
     # Context Manager for SparkSession creation
     def __enter__(self):
+        print(f"DEBUG __enter__: Entering SparkSessionManager context")
+        print(f"DEBUG __enter__: SparkSession type = {type(SparkSession)}")
+        print(f"DEBUG __enter__: SparkSession.builder type = {type(SparkSession.builder)}")
         with self._config_lock:
             # Double-checked locking pattern
             if self._session is None:
+                print(f"DEBUG __enter__: Creating new session with master={self.master}, app={self.app_name}")
                 self._session = (
                     SparkSession.builder.master(self.master)
                     .appName(self.app_name)
@@ -406,11 +413,16 @@ class SparkSessionManager:
         Notes:
         - ensure no same file name exists in the tmpuploads directory, or in uploads directory
         """
-        print(f"in create_new_dataset {filename} is {filetype}")
         try:
+            print(f"in create_new_dataset {filename} is {filetype}")
+            print(f"DEBUG: SPARK_MASTER_URL = {SPARK_MASTER_URL}")
+            print(f"DEBUG: HDFS_FILE_READ_URL = {HDFS_FILE_READ_URL}")
+            print(f"DEBUG: About to create SparkSessionManager")
             with SparkSessionManager() as spark:
-
+                print(f"DEBUG: SparkSession created successfully, type: {type(spark)}")
                 # later create a switch case based on file type
+
+                print("reaching 1")
                 if filetype == "csv":
                     print(
                         f"Reading CSV file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}"
@@ -420,7 +432,7 @@ class SparkSessionManager:
                         header=True,
                         inferSchema=True,
                     )
-                    write_filename = filename.replace(".csv__PROCESSING__", ".parquet")
+                    write_filename = filename.replace(".csv", ".parquet")
                     # if you write without parquet extension, it will create a directory with the filename and store the data in it
                     df.write.mode("overwrite").parquet(
                         f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}"
@@ -430,7 +442,6 @@ class SparkSessionManager:
                     )
 
                 elif filetype == "parquet":
-                    write_filename = filename.replace("__PROCESSING__", "")
                     print(
                         f"Reading Parquet file: {HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}"
                     )
@@ -439,10 +450,10 @@ class SparkSessionManager:
                         f"{HDFS_FILE_READ_URL}/{RECENTLY_UPLOADED_DATASETS_DIR}/{filename}"
                     )
                     df.write.mode("overwrite").parquet(
-                        f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{write_filename}"
+                        f"{HDFS_FILE_READ_URL}/{HDFS_RAW_DATASETS_DIR}/{filename}"
                     )
                     print(
-                        f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{write_filename}"
+                        f"Successfully created new dataset in HDFS: {HDFS_RAW_DATASETS_DIR}/{filename}"
                     )
                 else:
                     print("Unsupported file type for creating new dataset.")
@@ -450,7 +461,7 @@ class SparkSessionManager:
 
                 dataset_overview = self._get_overview(df)
 
-                dataset_overview["filename"] = write_filename
+                dataset_overview["filename"] = write_filename if filetype == "csv" else filename
                 return dataset_overview
             return {"message": "Dataset created."}
         except Exception as e:
