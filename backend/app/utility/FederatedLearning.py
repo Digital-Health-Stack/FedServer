@@ -163,6 +163,12 @@ class FederatedLearning:
             db.add(federated_session)
             db.commit()
             db.refresh(federated_session)
+            
+            # Set max_round from no_of_rounds if provided
+            if hasattr(federated_info, 'no_of_rounds') and federated_info.no_of_rounds:
+                federated_session.max_round = federated_info.no_of_rounds
+                db.commit()
+                db.refresh(federated_session)
         except Exception as e:
             db.rollback()  # Rollback in case of any error
             raise HTTPException(

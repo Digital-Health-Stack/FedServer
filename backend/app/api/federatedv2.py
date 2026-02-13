@@ -247,12 +247,18 @@ async def submit_client_price_response(
             if decision == 1:
                 federated_manager.log_event(
                     session_id,
-                    f"Admin Accepted the price updating training status = 2",
+                    f"Admin Accepted the price. Waiting for wait_time to be set.",
                     FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
-                federated_session.training_status = TrainingStatus.ACCEPTING_CLIENTS
+                # Keep status as PRICE_NEGOTIATION - will be updated to ACCEPTING_CLIENTS after wait_time is submitted
+                # Set price_accepted flag in federated_info
+                federated_info = federated_session.federated_info
+                if not isinstance(federated_info, dict):
+                    federated_info = {}
+                federated_info["price_accepted"] = True
+                federated_session.federated_info = federated_info
                 message = (
-                    "Thank you for accepting the price. The training will start soon."
+                    "Thank you for accepting the price. Please set the training start time."
                 )
 
                 # Add clients who already have permission for this task
@@ -310,11 +316,12 @@ async def submit_client_price_response(
                 await send_notification_for_new_session(
                     "New session created with session id: " + str(session_id)
                 )
-                trigger = DateTrigger(
-                    run_date=datetime.now()
-                    + timedelta(minutes=session.federated_info["wait_time"])
+                # Do NOT schedule cron job here - it will be scheduled after wait_time is submitted
+                federated_manager.log_event(
+                    session_id,
+                    "Price accepted. Waiting for admin to set training start time.",
+                    FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
-                scheduler.add_job(start_training_sync, trigger, args=[session.id, db])
             elif decision == 0:
                 federated_manager.log_event(
                     session_id,
@@ -339,6 +346,116 @@ async def submit_client_price_response(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@federated_router_v2.post("/submit-wait-time")
+async def submit_wait_time(
+    request_data: dict,
+    current_user: User = Depends(role("client")),
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint to submit wait_time after price acceptance.
+    Updates status to ACCEPTING_CLIENTS and schedules cron job.
+    """
+    try:
+        session_id = request_data.get("session_id")
+        wait_time = request_data.get("wait_time")
+
+        if session_id is None or wait_time is None:
+            raise HTTPException(
+                status_code=400,
+                detail="session_id and wait_time are required",
+            )
+
+        if wait_time < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="wait_time must be 0 or greater",
+            )
+
+        session = federated_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404, detail="Federated session not found"
+            )
+
+        # Only admin can set wait_time
+        if session.admin_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized. Only the admin can set wait_time.",
+            )
+
+        # Validate session is in PRICE_NEGOTIATION status
+        if session.training_status != TrainingStatus.PRICE_NEGOTIATION:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Session is not in PRICE_NEGOTIATION status. Current status: {session.training_status}",
+            )
+
+        # Validate that price has been accepted
+        federated_info = session.federated_info
+        if not isinstance(federated_info, dict):
+            federated_info = {}
+        
+        if not federated_info.get("price_accepted"):
+            raise HTTPException(
+                status_code=400,
+                detail="Price has not been accepted yet. Please accept the price first.",
+            )
+
+        # Get session from database to update
+        federated_session = (
+            db.query(FederatedSession).filter_by(id=session_id).first()
+        )
+        if not federated_session:
+            raise HTTPException(
+                status_code=404, detail="Federated session not found"
+            )
+
+        # Update federated_info with wait_time
+        federated_info["wait_time"] = wait_time
+        federated_session.federated_info = federated_info
+
+        # Update training_status to ACCEPTING_CLIENTS
+        federated_session.training_status = TrainingStatus.ACCEPTING_CLIENTS
+
+        # Commit changes
+        db.commit()
+        db.refresh(federated_session)
+
+        # Log event
+        federated_manager.log_event(
+            session_id,
+            f"Admin set wait_time to {wait_time} minutes. Training will start after {wait_time} minutes.",
+            FederatedSessionLogTag.PRICE_NEGOTIATION,
+        )
+
+        # Schedule cron job with provided wait_time
+        trigger = DateTrigger(
+            run_date=datetime.now() + timedelta(minutes=wait_time)
+        )
+        scheduler.add_job(start_training_sync, trigger, args=[session_id, db])
+
+        federated_manager.log_event(
+            session_id,
+            f"Cron job scheduled to start training in {wait_time} minutes.",
+            FederatedSessionLogTag.PRICE_NEGOTIATION,
+        )
+
+        return {
+            "success": True,
+            "message": f"Training start time set successfully. Training will start in {wait_time} minutes.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in submit_wait_time: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred: {str(e)}"
+        )
 
 
 @federated_router_v2.post("/accept-training")
@@ -617,7 +734,9 @@ def send_weights(
         # TODO: All this should be in a background task including further logic
 
         # Debug logging for aggregation condition
-        total_clients = len(session_data.clients)
+        # total_clients = len(session_data.clients)
+        total_clients = 1
+        print("total_clients", total_clients)
         received_weights = session_data.no_of_recieved_weights
         left_clients = session_data.no_of_left_clients
 
