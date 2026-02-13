@@ -52,6 +52,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
     return {
         "name": db_user.name,
+        "id": db_user.id,
         **create_tokens(
             db,
             user.username,

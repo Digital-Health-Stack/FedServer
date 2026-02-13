@@ -192,6 +192,17 @@ async def get_federated_session_v2(
             status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
         )
     session.no_of_clients = len(session.clients)
+
+    # Calculate client_status for the current user
+    # Find if the current user has a FederatedSessionClient entry
+    client = next(
+        (client for client in session.clients if client.user_id == current_user.id),
+        None,
+    )
+
+    # Add client_status directly to the session object
+    session.client_status = client.status if client else -1
+
     return session
 
 
@@ -629,10 +640,7 @@ def send_weights(
             FederatedSessionLogTag.INFO,
         )
 
-        if (
-            len(session_data.clients)
-            == session_data.no_of_recieved_weights + session_data.no_of_left_clients
-        ):
+        if total_clients == received_weights + left_clients:
             federated_manager.log_event(
                 session_data.id,
                 f"All clients have submitted weights. Starting aggregation for round {session_data.curr_round}.",
