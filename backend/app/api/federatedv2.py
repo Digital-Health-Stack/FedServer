@@ -251,10 +251,8 @@ async def submit_client_price_response(
                     FederatedSessionLogTag.PRICE_NEGOTIATION,
                 )
                 # Keep status as PRICE_NEGOTIATION - will be updated to ACCEPTING_CLIENTS after wait_time is submitted
-                # Set price_accepted flag in federated_info
-                federated_info = federated_session.federated_info
-                if not isinstance(federated_info, dict):
-                    federated_info = {}
+                # Set price_accepted flag in federated_info (assign new dict so SQLAlchemy persists the change)
+                federated_info = dict(federated_session.federated_info or {})
                 federated_info["price_accepted"] = True
                 federated_session.federated_info = federated_info
                 message = (

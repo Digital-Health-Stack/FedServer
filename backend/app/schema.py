@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -37,7 +38,7 @@ class CreateFederatedLearning(BaseModel):
     model_name: str
     expected_std_mean: float
     expected_std_deviation: float
-    wait_time: int
+    wait_time: Optional[int] = None  # Set later via submit-wait-time after price acceptance
     no_of_rounds: int
 
 
