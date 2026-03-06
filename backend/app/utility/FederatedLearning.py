@@ -2,7 +2,7 @@ from datetime import datetime
 from operator import or_
 from typing import Dict, List, Optional, Literal
 from schema import CreateFederatedLearning, FederatedLearningInfo, User
-from sqlalchemy import and_, desc, select, func
+from sqlalchemy import and_, desc, select, func, case
 from models.FederatedSession import (
     FederatedSession,
     FederatedSessionClient,
@@ -206,6 +206,23 @@ class FederatedLearning:
     # def get_session_clients(self, federated_session_id: int):
     #     with Session(engine) as db:
     #         stmt = select(FederatedSessionClient).where(FederatedSession.id == )
+
+
+    
+
+    def get_session_stats(self):
+        with Session(engine) as db:
+            result = db.query(
+                func.count(FederatedSession.id).label("total"),
+                func.count(case((FederatedSession.training_status == "COMPLETED", 1))).label("completed"),
+                func.count(case((FederatedSession.training_status == "STARTED", 1))).label("active"),
+            ).one()
+
+            return {
+                "total": result.total,
+                "completed": result.completed,
+                "active": result.active,
+            }
 
     def get_all(
         self,

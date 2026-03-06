@@ -46,7 +46,7 @@ const statusConfig = {
     color: "bg-yellow-100 text-yellow-800",
     icon: <BoltIcon className="h-5 w-5" />,
   },
-  5: {
+  COMPLETED: {
     text: "Completed",
     color: "bg-green-100 text-green-800",
     icon: <CheckCircleIcon className="h-5 w-5" />,

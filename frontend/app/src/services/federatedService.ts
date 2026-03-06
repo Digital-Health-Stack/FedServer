@@ -6,6 +6,10 @@ export const getAllSessions = async (api, page = 1, perPage = 6) => {
   );
 };
 
+export const getSessionStats = async (api) => {
+  return api.get(`/federated-sessions-stats`);
+};
+
 export const getFederatedSession = (api: AxiosInstance, session_id) => {
   return api.get(`get-federated-session/${session_id}`);
 };

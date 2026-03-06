@@ -37,7 +37,15 @@ export default function App() {
           {/* <EventsAction socket={socket} clientToken={clientToken} /> */}
           <NavBar />
           <Routes>
-            <Route path="/" exact element={<Dashboard />} />
+            <Route
+              path="/"
+              exact
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
 
             <Route
               path="/admin-login"
@@ -52,8 +60,22 @@ export default function App() {
               }
             />
 
-            <Route path="/About" element={<About />} />
-            <Route path="/ManageData" element={<ManageData />} />
+            <Route
+              path="/About"
+              element={
+                <PrivateRoute>
+                  <About />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/ManageData"
+              element={
+                <PrivateRoute>
+                  <ManageData />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/view-recent-uploads"
               element={
@@ -62,20 +84,56 @@ export default function App() {
                 </PrivateRoute>
               }
             />
-            <Route path="/view-all-datasets" element={<ViewAllDatasets />} />
+            <Route
+              path="/view-all-datasets"
+              element={
+                <PrivateRoute>
+                  <ViewAllDatasets />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/raw-dataset-overview/:filename"
-              element={<RawDataSetOverview />}
+              element={
+                <PrivateRoute>
+                  <RawDataSetOverview />
+                </PrivateRoute>
+              }
             />
             <Route
               path="/processed-dataset-overview/:filename"
-              element={<ProcessedDataSetOverview />}
+              element={
+                <PrivateRoute>
+                  <ProcessedDataSetOverview />
+                </PrivateRoute>
+              }
             />
-            <Route path="/preprocessing-docs" element={<PreprocessingDocs />} />
+            <Route
+              path="/preprocessing-docs"
+              element={
+                <PrivateRoute>
+                  <PreprocessingDocs />
+                </PrivateRoute>
+              }
+            />
 
-            <Route path="/tasks/:task_id/benchmarks" element={<Benchmarks />} />
+            <Route
+              path="/tasks/:task_id/benchmarks"
+              element={
+                <PrivateRoute>
+                  <Benchmarks />
+                </PrivateRoute>
+              }
+            />
 
-            <Route path="/history/:task_id" element={<Leaderboard />} />
+            <Route
+              path="/history/:task_id"
+              element={
+                <PrivateRoute>
+                  <Leaderboard />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/assess-data-quality"
               element={
@@ -84,8 +142,22 @@ export default function App() {
                 </PrivateRoute>
               }
             />
-            <Route path="/trainings" element={<Trainings />} />
-            <Route path="/trainings/:sessionId" element={<TrainingDetails />} />
+            <Route
+              path="/trainings"
+              element={
+                <PrivateRoute>
+                  <Trainings />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/trainings/:sessionId"
+              element={
+                <PrivateRoute>
+                  <TrainingDetails />
+                </PrivateRoute>
+              }
+            />
             <Route path="/*" element={<Error />} />
           </Routes>
         </AuthProvider>

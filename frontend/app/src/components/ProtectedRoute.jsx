@@ -5,11 +5,7 @@ export const PrivateRoute = ({ children }) => {
   const { user } = useAuth();
   const location = useLocation();
 
-  return user ? (
-    children
-  ) : (
-    <Navigate to="/admin-login" state={{ from: location }} replace />
-  );
+  return user ? children : <Navigate to="/admin-login" />;
 };
 
 export const OnlyGuestRoute = ({ children }) => {

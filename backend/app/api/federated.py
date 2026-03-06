@@ -196,6 +196,16 @@ async def create_federated_session(
     return {"message": "Federated Session has been created!", "session_id": session.id}
 
 
+#mera code
+@federated_router.get("/federated-sessions-stats")
+def get_federated_session_stats():
+    stats = federated_manager.get_session_stats()
+    return {
+        "total_sessions": stats["total"],
+        "completed_sessions": stats["completed"],
+        "active_sessions": stats["active"],
+    }
+
 @federated_router.get("/get-all-federated-sessions")
 def get_all_federated_sessions(
     page: int = Query(1, ge=1),
