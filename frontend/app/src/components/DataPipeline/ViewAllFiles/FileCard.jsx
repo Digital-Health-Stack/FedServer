@@ -5,19 +5,14 @@ import {
   TrashIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/solid";
-import {
-  ClipboardDocumentListIcon,
-  CheckCircleIcon,
-} from "@heroicons/react/24/outline";
+import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 import EditDatasetModal from "./EditDatasetModal";
 import { toast } from "react-toastify";
 
-const RAW_DATASET_RENAME_URL =
-  process.env.REACT_APP_SERVER_BASE_URL + "/edit-raw-dataset-details";
-const PROCESSED_DATASET_RENAME_URL =
+const DATASET_EDIT_URL =
   process.env.REACT_APP_SERVER_BASE_URL + "/edit-dataset-details";
 
-const FileCard = ({ dataset, isRaw, onDelete, onClick, onEditSuccess }) => {
+const FileCard = ({ dataset, onDelete, onClick, onEditSuccess }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isProcessing] = useState(dataset.filename.endsWith("__PROCESSING__"));
   const displayName = dataset.filename.replace(/__PROCESSING__$/, "");
@@ -25,11 +20,7 @@ const FileCard = ({ dataset, isRaw, onDelete, onClick, onEditSuccess }) => {
 
   const handleEdit = async (newFilename, newDescription) => {
     try {
-      const endpoint = isRaw
-        ? RAW_DATASET_RENAME_URL
-        : PROCESSED_DATASET_RENAME_URL;
-
-      await axios.put(endpoint, {
+      await axios.put(DATASET_EDIT_URL, {
         dataset_id: dataset.dataset_id,
         filename: newFilename,
         description: newDescription,
@@ -116,7 +107,7 @@ const FileCard = ({ dataset, isRaw, onDelete, onClick, onEditSuccess }) => {
               className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete(dataset.dataset_id, isRaw);
+                onDelete(dataset.dataset_id);
               }}
             >
               <TrashIcon className="h-5 w-5" />

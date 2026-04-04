@@ -90,16 +90,12 @@ const ProcessedDataSetOverview = () => {
       <section id="tasks" className="scroll-mt-20 mt-12">
         <Tasks
           datasetId={dataset.dataset_id}
-          columns={dataset.datastats.columnStats}
+          columns={dataset.datastats?.columnStats || []}
         />
       </section>
 
       <section id="preprocessing" className="scroll-mt-20 mt-12">
-        <PreprocessingDetails
-          columns={columnDetails}
-          filename={filename}
-          directory="processed"
-        />
+        <PreprocessingDetails columns={columnDetails} filename={filename} />
       </section>
     </DatasetLayout>
   );

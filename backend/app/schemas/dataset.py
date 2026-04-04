@@ -6,7 +6,6 @@ from typing import Optional, Any, List
 class DatasetCreate(BaseModel):
     filename: str
     description: Optional[str] = None
-    datastats: Optional[dict] = None
 
 
 class DatasetResponse(DatasetCreate):
@@ -31,12 +30,6 @@ class TaskResponse(TaskCreate):
     task_id: int
 
 
-class RawDatasetListResponse(BaseModel):
-    dataset_id: int
-    filename: str
-    description: Optional[str] = None
-
-
 class DatasetListResponse(BaseModel):
     dataset_id: int
     filename: str
@@ -56,8 +49,6 @@ class SessionLeaderboardEntry(BaseModel):
     total_rounds: int
     metric_value: float
     meets_benchmark: Optional[bool]
-    # metric_name: str
-    # all_metrics: Dict[str, float]
     created_at: Optional[str]
     admin_username: str
 

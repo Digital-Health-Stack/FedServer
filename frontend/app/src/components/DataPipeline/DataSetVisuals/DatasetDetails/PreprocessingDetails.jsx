@@ -11,10 +11,7 @@ import {
 import PreprocessingOptions from "../ProcessingComponents/PreprocessingOptions.jsx";
 import { preprocessDataset } from "../../../../services/privateService.js";
 
-// const REACT_APP_PREPROCESS_DATASET_URL =
-//   process.env.REACT_APP_PREPROCESS_DATASET_URL;
-
-const PreprocessingDetails = ({ columns, filename, directory }) => {
+const PreprocessingDetails = ({ columns, filename }) => {
   const [selectedColumn, setSelectedColumn] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
   const [operations, setOperations] = useState([]);
@@ -44,7 +41,6 @@ const PreprocessingDetails = ({ columns, filename, directory }) => {
   const handleSubmit = async () => {
     const payload = {
       filename: filename,
-      directory: directory,
       operations: operations,
     };
 
@@ -105,7 +101,7 @@ const PreprocessingDetails = ({ columns, filename, directory }) => {
             disabled={isSubmitted}
             className="bg-indigo-500 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-600 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
-            <CloudArrowUpIcon className="h-5 w-5" />
+            <CloudArrowUpIcon className="w-5 h-5" />
             {isSubmitted ? "Processing..." : "Start Preprocessing"}
           </button>
         </div>
@@ -167,9 +163,9 @@ const PreprocessingDetails = ({ columns, filename, directory }) => {
           onClick={() => setIsBannerFixed(!isBannerFixed)}
         >
           {isBannerFixed ? (
-            <CheckIcon className="h-4 w-4 text-gray-600" />
+            <CheckIcon className="w-4 h-4 text-gray-600" />
           ) : (
-            <ArrowUpOnSquareIcon className="h-4 w-4 text-gray-600" />
+            <ArrowUpOnSquareIcon className="w-4 h-4 text-gray-600" />
           )}
         </button>
       </div>

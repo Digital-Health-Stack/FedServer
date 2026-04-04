@@ -16,7 +16,6 @@ import ManageData from "./Pages/ManageData";
 import AssessDataQuality from "./Pages/AssessDataQuality.jsx";
 import ViewRecentUploads from "./components/DataPipeline/ViewRecentUploads";
 import ViewAllDatasets from "./components/DataPipeline/ViewAllDatasets";
-import RawDataSetOverview from "./components/DataPipeline/DataSetVisuals/RawDataSetOverview.jsx";
 import ProcessedDataSetOverview from "./components/DataPipeline/DataSetVisuals/ProcessedDataSetOverview.jsx";
 import PreprocessingDocs from "./components/DataPipeline/DataSetVisuals/ProcessingComponents/PreprocessingDocs.jsx";
 import Benchmarks from "./components/DataPipeline/DataSetVisuals/DatasetDetails/BenchmarkList.jsx";
@@ -89,14 +88,6 @@ export default function App() {
               element={
                 <PrivateRoute>
                   <ViewAllDatasets />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/raw-dataset-overview/:filename"
-              element={
-                <PrivateRoute>
-                  <RawDataSetOverview />
                 </PrivateRoute>
               }
             />

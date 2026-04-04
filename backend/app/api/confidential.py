@@ -10,7 +10,7 @@ from schemas.user import UserCreate
 from schemas.dataset import DatasetCreate
 from utility.auth import get_password_hash
 from dotenv import dotenv_values
-from crud.datasets_crud import create_dataset, create_raw_dataset
+from crud.datasets_crud import create_dataset
 
 confidential_router = APIRouter()
 
@@ -45,6 +45,3 @@ def create_dataset_endpoint(dataset: DatasetCreate, db: Session = Depends(get_db
     return create_dataset(db, dataset)
 
 
-@confidential_router.post("/create-raw-dataset", status_code=201)
-def create_raw_dataset_endpoint(dataset: DatasetCreate, db: Session = Depends(get_db)):
-    return create_raw_dataset(db, dataset)

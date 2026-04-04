@@ -2,14 +2,18 @@ import os
 import tempfile
 import time
 import uuid
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
 from helpers.aws_services import S3Services
-from helpers.local_storage_services import LocalStorageManager
+from helpers.local_storage_services import (
+    DATASET_PARQUET,
+    LocalStorageManager,
+    folder_name_from_api_filename,
+)
 from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
 
 load_dotenv()
@@ -192,7 +196,9 @@ class DataProcessingManager:
         }
         return serialize_for_json(overview)
 
-    async def create_new_dataset(self, filename: str, filetype: str):
+    async def create_new_dataset(
+        self, filename: str, filetype: str, description: Optional[str] = None
+    ):
         try:
             print(f"in create_new_dataset {filename} is {filetype}")
             src = self.storage.get_path(filename)
@@ -203,33 +209,55 @@ class DataProcessingManager:
             if filetype == "csv":
                 df = pd.read_csv(src)
                 write_filename = filename.replace(".csv", ".parquet")
-                dest = self.storage.get_path(write_filename)
-                df.to_parquet(dest, index=False)
+            elif filetype == "parquet":
+                df = pd.read_parquet(src)
+            else:
+                print("Unsupported file type for creating new dataset.")
+                return {"message": "Unsupported file type."}
+
+            dataset_dir = self.storage.get_dataset_dir(write_filename)
+            os.makedirs(dataset_dir, exist_ok=True)
+            parquet_path = os.path.join(dataset_dir, DATASET_PARQUET)
+            df.to_parquet(parquet_path, index=False)
+
+            if filetype == "csv":
                 try:
                     os.remove(src)
                 except OSError as e:
                     print(f"Warning: could not remove uploaded CSV {filename}: {e}")
             elif filetype == "parquet":
-                df = pd.read_parquet(src)
-                dest = self.storage.get_path(write_filename)
-                df.to_parquet(dest, index=False)
-            else:
-                print("Unsupported file type for creating new dataset.")
-                return {"message": "Unsupported file type."}
+                try:
+                    os.remove(src)
+                except OSError as e:
+                    print(f"Warning: could not remove uploaded parquet {filename}: {e}")
 
             dataset_overview = self._get_overview(df)
-            dataset_overview["filename"] = write_filename
-            return dataset_overview
+            desc = description or f"Dataset created from {filename}"
+            meta = {
+                "filename": write_filename,
+                "description": desc,
+                "datastats": {
+                    "numRows": dataset_overview["numRows"],
+                    "numColumns": dataset_overview["numColumns"],
+                    "columnStats": dataset_overview["columnStats"],
+                },
+            }
+            self.storage.write_metadata(write_filename, meta)
+
+            out = {
+                **dataset_overview,
+                "filename": write_filename,
+                "description": desc,
+            }
+            return out
         except Exception as e:
             print(f"Error creating new dataset: {e}")
             raise e
 
-    async def preprocess_data(
-        self, dataset_type: str, filename: str, operations: List[dict]
-    ):
+    async def preprocess_data(self, filename: str, operations: List[dict]):
         try:
-            path = self.storage.get_path(filename)
-            print(f"Starting preprocessing for {path} (dataset_type={dataset_type})...")
+            path = self.storage.get_dataset_parquet_path(filename)
+            print(f"Starting preprocessing for {path}...")
             df = pd.read_parquet(path)
 
             All_Columns = list(df.columns)
@@ -261,19 +289,36 @@ class DataProcessingManager:
                             f"error: Error in {step['operation']} operation for {step['column']} column: {str(e)} \n"
                         )
 
-            newfilename = f"{filename}_{uuid.uuid4().hex}.parquet"
-            out = self.storage.get_path(newfilename)
-            os.makedirs(os.path.dirname(out), exist_ok=True)
-            df.to_parquet(out, index=False)
+            stem = folder_name_from_api_filename(filename)
+            newfilename = f"{stem}_{uuid.uuid4().hex}.parquet"
+            new_dir = self.storage.get_dataset_dir(newfilename)
+            os.makedirs(new_dir, exist_ok=True)
+            out_path = os.path.join(new_dir, DATASET_PARQUET)
+            df.to_parquet(out_path, index=False)
 
             print(
-                f"Preprocessed dataset saved to: {out} and time taken: ",
+                f"Preprocessed dataset saved to: {out_path} and time taken: ",
                 time.time() - t1,
             )
 
             overview = self._get_overview(df)
-            overview["filename"] = newfilename
-            return overview
+            desc = f"Processed version of {filename}"
+            meta = {
+                "filename": newfilename,
+                "description": desc,
+                "datastats": {
+                    "numRows": overview["numRows"],
+                    "numColumns": overview["numColumns"],
+                    "columnStats": overview["columnStats"],
+                },
+            }
+            self.storage.write_metadata(newfilename, meta)
+
+            return {
+                **overview,
+                "filename": newfilename,
+                "description": desc,
+            }
         except Exception as e:
             print(f"Error in preprocessing dataset: {e}")
             raise e
@@ -282,9 +327,10 @@ class DataProcessingManager:
         self, s3_path: str, parent_filename: str, session_id: int
     ):
         _ = session_id
-        merge_rel = f"{self.merge_temp}/{parent_filename}"
+        stem = folder_name_from_api_filename(parent_filename)
+        merge_rel = f"{self.merge_temp}/{stem}"
         merge_abs = self.storage.get_path(merge_rel)
-        local_parent = self.storage.get_path(parent_filename)
+        local_parent = self.storage.get_dataset_parquet_path(parent_filename)
 
         try:
             print(f"reading env variables...merge dir: {self.merge_temp}")
@@ -312,17 +358,27 @@ class DataProcessingManager:
             s3_df = s3_df.reindex(columns=cols)
             merged = pd.concat([hdfs_df, s3_df], ignore_index=True)
 
-            os.makedirs(os.path.dirname(merge_abs), exist_ok=True)
-            merged.to_parquet(merge_abs, index=False)
-            print(f"Merged dataset saved to: {merge_abs}")
+            os.makedirs(merge_abs, exist_ok=True)
+            merged_parquet = os.path.join(merge_abs, DATASET_PARQUET)
+            merged.to_parquet(merged_parquet, index=False)
+            print(f"Merged dataset saved to: {merged_parquet}")
 
             if self.storage.path_exists(parent_filename):
                 await self.storage.delete_file(parent_filename)
 
             await self.storage.rename_file_or_folder(merge_rel, parent_filename)
-            print(f"Moved merged dataset to: {self.storage.get_path(parent_filename)}")
+            print(f"Moved merged dataset to: {self.storage.get_dataset_dir(parent_filename)}")
 
             overview = self._get_overview(merged)
+            meta = self.storage.read_metadata(parent_filename) or {}
+            meta["filename"] = parent_filename
+            meta["datastats"] = {
+                "numRows": overview["numRows"],
+                "numColumns": overview["numColumns"],
+                "columnStats": overview["columnStats"],
+            }
+            self.storage.write_metadata(parent_filename, meta)
+
             overview["filename"] = parent_filename
             return overview
 

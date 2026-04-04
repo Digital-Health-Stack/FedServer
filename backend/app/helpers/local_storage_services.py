@@ -1,8 +1,29 @@
+import json
 import os
 import shutil
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
 
 load_dotenv()
+
+DATASET_PARQUET = "dataset.parquet"
+METADATA_JSON = "metadata.json"
+
+
+def folder_name_from_api_filename(name: str) -> str:
+    """API id is like 'foo.parquet'; on-disk folder name is 'foo'."""
+    if not name or not str(name).strip():
+        raise ValueError("Invalid storage path")
+    if name.endswith(".parquet"):
+        return name[: -len(".parquet")]
+    return name
+
+
+def api_filename_from_folder_name(folder: str) -> str:
+    if folder.endswith(".parquet"):
+        return folder
+    return f"{folder}.parquet"
 
 
 def _human_readable_size(size_in_bytes: float) -> str:
@@ -26,7 +47,12 @@ def _entry_size(path: str) -> int:
 
 
 class LocalStorageManager:
-    """Flat local filesystem storage under LOCAL_STORAGE_DIR."""
+    """Local filesystem storage under LOCAL_STORAGE_DIR.
+
+    Datasets use one folder per dataset: ``<folder>/dataset.parquet`` and
+    ``<folder>/metadata.json``. The API refers to a dataset as ``<folder>.parquet``.
+    Loose uploads may still exist as files at the storage root until processed.
+    """
 
     def __init__(self):
         self.root = os.path.abspath(os.getenv("LOCAL_STORAGE_DIR", "./storage"))
@@ -44,14 +70,51 @@ class LocalStorageManager:
     def get_path(self, name: str) -> str:
         return self._resolve_under_root(name)
 
+    def get_dataset_dir(self, api_filename: str) -> str:
+        folder = folder_name_from_api_filename(api_filename)
+        return self._resolve_under_root(folder)
+
+    def get_dataset_parquet_path(self, api_filename: str) -> str:
+        return os.path.join(self.get_dataset_dir(api_filename), DATASET_PARQUET)
+
+    def read_metadata(self, api_filename: str) -> Optional[Dict[str, Any]]:
+        meta_path = os.path.join(self.get_dataset_dir(api_filename), METADATA_JSON)
+        if not os.path.isfile(meta_path):
+            return None
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"Error reading metadata for {api_filename}: {e}")
+            return None
+
+    def write_metadata(self, api_filename: str, data: Dict[str, Any]) -> None:
+        d = self.get_dataset_dir(api_filename)
+        os.makedirs(d, exist_ok=True)
+        meta_path = os.path.join(d, METADATA_JSON)
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, default=str)
+
+    def merge_metadata(self, api_filename: str, updates: Dict[str, Any]) -> None:
+        current = self.read_metadata(api_filename) or {}
+        current.update(updates)
+        self.write_metadata(api_filename, current)
+
     def path_exists(self, name: str) -> bool:
         try:
+            if name.endswith(".parquet") and "/" not in name:
+                return os.path.isdir(self.get_dataset_dir(name))
             return os.path.exists(self._resolve_under_root(name))
         except ValueError:
             return False
 
     async def delete_file(self, filename: str) -> None:
-        path = self._resolve_under_root(filename)
+        if "/" in filename:
+            path = self._resolve_under_root(filename)
+        elif filename.endswith(".parquet"):
+            path = self.get_dataset_dir(filename)
+        else:
+            path = self._resolve_under_root(filename)
         if not os.path.exists(path):
             raise FileNotFoundError(f"Not found: {filename}")
         if os.path.isdir(path):
@@ -62,14 +125,28 @@ class LocalStorageManager:
     async def rename_file_or_folder(
         self, old_name: str, new_name: str, ignore_missing: bool = False
     ) -> None:
-        src = self.get_path(old_name)
-        dst = self.get_path(new_name)
+        src = self._rename_resolve_src(old_name)
+        dst = self._rename_resolve_dst(new_name)
         if not os.path.exists(src):
             if ignore_missing:
                 return
             raise FileNotFoundError(f"Not found: {old_name}")
         os.makedirs(os.path.dirname(dst) or self.root, exist_ok=True)
         shutil.move(src, dst)
+
+    def _rename_resolve_src(self, name: str) -> str:
+        if "/" in name:
+            return self._resolve_under_root(name)
+        if name.endswith(".parquet"):
+            return self.get_dataset_dir(name)
+        return self._resolve_under_root(name)
+
+    def _rename_resolve_dst(self, name: str) -> str:
+        if "/" in name and not name.endswith(".parquet"):
+            return self._resolve_under_root(name)
+        if name.endswith(".parquet"):
+            return self.get_dataset_dir(name)
+        return self._resolve_under_root(name)
 
     def save_file(self, source_path: str, filename: str) -> None:
         dst = self.get_path(filename)
@@ -134,10 +211,15 @@ class LocalStorageManager:
         return {"contents": {"uploads": formatted}, "error": None}
 
     def copy_storage_entry_to_local(self, filename: str, local_destination_path: str) -> None:
-        """Copy a file or parquet directory from storage root into a local folder."""
-        src = self.get_path(filename)
-        if not os.path.exists(src):
-            raise FileNotFoundError(f"Storage entry not found: {filename}")
+        """Copy a loose file or a dataset folder from storage into a local folder."""
+        if filename.endswith(".parquet"):
+            src = self.get_dataset_dir(filename)
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Storage entry not found: {filename}")
+        else:
+            src = self.get_path(filename)
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Storage entry not found: {filename}")
         os.makedirs(local_destination_path, exist_ok=True)
         dst = os.path.join(local_destination_path, os.path.basename(src))
         if os.path.isfile(src):
@@ -148,4 +230,15 @@ class LocalStorageManager:
             shutil.copytree(src, dst)
 
     def check_file_exists(self, name: str) -> bool:
-        return self.path_exists(name)
+        try:
+            if os.path.isfile(self._resolve_under_root(name)):
+                return True
+            if name.endswith(".parquet"):
+                p = self.get_dataset_parquet_path(name)
+                return os.path.isfile(p)
+            p = self._resolve_under_root(name)
+            if os.path.isdir(p):
+                return os.path.isfile(os.path.join(p, DATASET_PARQUET))
+            return False
+        except ValueError:
+            return False

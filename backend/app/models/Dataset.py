@@ -1,7 +1,6 @@
 from sqlalchemy import (
     Integer,
     String,
-    Float,
     ForeignKey,
     JSON,
     TIMESTAMP,
@@ -9,25 +8,8 @@ from sqlalchemy import (
     Index,
     func,
 )
-from sqlalchemy.orm import relationship, declarative_base, mapped_column
-from datetime import datetime
+from sqlalchemy.orm import relationship, mapped_column
 from models.Base import Base
-
-
-class RawDataset(Base):
-    __tablename__ = "raw_datasets"
-    dataset_id = mapped_column(Integer, primary_key=True, index=True)
-    filename = mapped_column(String, nullable=False, index=True)
-    description = mapped_column(String, nullable=True)
-    datastats = mapped_column(JSON)
-
-    def as_dict(self):
-        return {
-            "dataset_id": self.dataset_id,
-            "filename": self.filename,
-            "description": self.description,
-            "datastats": self.datastats,
-        }
 
 
 class Dataset(Base):
@@ -36,7 +18,6 @@ class Dataset(Base):
     dataset_id = mapped_column(Integer, primary_key=True, index=True)
     filename = mapped_column(String(255), unique=True, nullable=False, index=True)
     description = mapped_column(String, nullable=True)
-    datastats = mapped_column(JSON, nullable=True)
     created_at = mapped_column(TIMESTAMP, server_default=func.now(), index=True)
     tasks = relationship("Task", back_populates="dataset", cascade="all, delete")
 
@@ -45,7 +26,6 @@ class Dataset(Base):
             "dataset_id": self.dataset_id,
             "filename": self.filename,
             "description": self.description,
-            "datastats": self.datastats,
         }
 
 

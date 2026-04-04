@@ -27,16 +27,6 @@ const AddDataset = () => {
   const navigate = useNavigate();
 
   const endpoints = {
-    raw: {
-      fetch: `${process.env.REACT_APP_SERVER_BASE_URL}/list-raw-datasets`,
-      delete: `${process.env.REACT_APP_SERVER_BASE_URL}/delete-raw-dataset-file`,
-      overview: "/raw-dataset-overview",
-    },
-    processed: {
-      fetch: `${process.env.REACT_APP_SERVER_BASE_URL}/list-datasets`,
-      delete: `${process.env.REACT_APP_SERVER_BASE_URL}/delete-dataset-file`,
-      overview: "/processed-dataset-overview",
-    },
     upload: {
       upload: `${process.env.REACT_APP_SERVER_BASE_URL}/create-new-dataset`,
       list: `${process.env.REACT_APP_SERVER_BASE_URL}/file-upload/list-files`,

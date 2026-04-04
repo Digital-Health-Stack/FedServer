@@ -76,27 +76,23 @@ const ViewAllDatasets = () => {
     }
   }, [selectedFolder, currentPage]);
 
-  const handleDelete = async (datasetId, isRaw) => {
+  const handleDelete = async (datasetId) => {
     if (!window.confirm("Permanently delete this dataset?")) return;
     try {
-      const deleteUrl = isRaw
-        ? `${process.env.REACT_APP_SERVER_BASE_URL}/delete-raw-dataset-file`
-        : `${process.env.REACT_APP_SERVER_BASE_URL}/delete-dataset-file`;
-      await axios.delete(deleteUrl, {
-        params: { dataset_id: datasetId },
-      });
+      await axios.delete(
+        `${process.env.REACT_APP_SERVER_BASE_URL}/delete-dataset-file`,
+        {
+          params: { dataset_id: datasetId },
+        }
+      );
       fetchData();
     } catch (err) {
       setError("Deletion failed");
     }
   };
 
-  const getOverviewPath = (dataset) => {
-    if (dataset.source === "processed") {
-      return `/processed-dataset-overview/${dataset.filename}`;
-    }
-    return `/raw-dataset-overview/${dataset.filename}`;
-  };
+  const getOverviewPath = (dataset) =>
+    `/processed-dataset-overview/${dataset.filename}`;
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -179,12 +175,9 @@ const ViewAllDatasets = () => {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {datasets.map((dataset) => (
                         <FileCard
-                          key={`${dataset.source}-${dataset.dataset_id || dataset.filename}`}
+                          key={`${dataset.dataset_id}-${dataset.filename}`}
                           dataset={dataset}
-                          isRaw={dataset.source === "raw"}
-                          onDelete={(id) =>
-                            handleDelete(id, dataset.source === "raw")
-                          }
+                          onDelete={handleDelete}
                           onClick={() => navigate(getOverviewPath(dataset))}
                           onEditSuccess={fetchData}
                         />

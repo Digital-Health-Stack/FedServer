@@ -46,7 +46,7 @@ const METRIC_MAP = {
   Recall: "recall",
 };
 
-const Tasks = ({ datasetId, columns }) => {
+const Tasks = ({ datasetId, columns = [] }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

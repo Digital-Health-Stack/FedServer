@@ -21,7 +21,7 @@ from crud.training_data_transfer_crud import (
     get_transfer_mini_details,
 )
 
-from crud.datasets_crud import update_dataset_stats, create_dataset
+from crud.datasets_crud import update_dataset_metadata_from_overview
 from schemas.dataset import DatasetCreate
 from schemas.training_data_transfer import (
     TransferCreate,
@@ -75,8 +75,7 @@ async def run_transfer_merge_job(transfer_id: int):
         # if isinstance(crud_result, dict) and "error" in crud_result:
         #     raise HTTPException(status_code=400, detail=crud_result["error"])
 
-        result = update_dataset_stats(db, overview["filename"], overview)
-        # result = update_dataset_stats(db, result.parent_filename, overview)
+        result = update_dataset_metadata_from_overview(overview["filename"], overview)
         handle_error(result)
         print("DB updated with merged dataset stats")
 

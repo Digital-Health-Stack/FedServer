@@ -63,11 +63,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { getAllSessions, getSessionStats } from "../services/federatedService";
-import {
-  getRawDatasets,
-  getProcessedDatasets,
-  listTransferredData,
-} from "../services/privateService";
+import { getAllDatasets, listTransferredData } from "../services/privateService";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
@@ -177,17 +173,10 @@ export default function Dashboard() {
   // Fetch available datasets
   const fetchDatasets = async () => {
     try {
-      const [raw, processed] = await Promise.all([
-        getRawDatasets().catch(() => ({ data: [] })), // Handle rejected promises
-        getProcessedDatasets().catch(() => ({ data: [] })),
-      ]);
-
-      const uploads = Array.isArray(raw.data) ? raw.data.slice(0, 4) : [];
-      const processedData = Array.isArray(processed.data)
-        ? processed.data.slice(0, 4)
-        : [];
-
-      setDatasets({ uploads, processed: processedData });
+      const res = await getAllDatasets(0, 8).catch(() => ({ data: { datasets: [] } }));
+      const list = res.data?.datasets ?? [];
+      const slice = Array.isArray(list) ? list.slice(0, 4) : [];
+      setDatasets({ uploads: slice, processed: slice });
     } catch (error) {
       setDatasets({ uploads: [], processed: [] });
       console.error("Error fetching datasets:", error);

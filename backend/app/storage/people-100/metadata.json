@@ -1,0 +1,414 @@
+{
+  "filename": "people-100.parquet",
+  "description": "Dataset created from people-100.csv",
+  "datastats": {
+    "numRows": 100,
+    "numColumns": 9,
+    "columnStats": [
+      {
+        "name": "Index",
+        "type": "IntegerType()",
+        "entries": 100,
+        "nullCount": 0,
+        "mean": 50.5,
+        "stddev": 29.011491975882016,
+        "min": 1.0,
+        "max": 100.0,
+        "uniqueCount": 100,
+        "quartiles": {
+          "Q1": 25.75,
+          "median": 50.5,
+          "Q3": 75.25,
+          "IQR": 49.5
+        },
+        "histogram": {
+          "bins": [
+            1.0,
+            10.9,
+            20.8,
+            30.700000000000003,
+            40.6,
+            50.5,
+            60.400000000000006,
+            70.3,
+            80.2,
+            90.10000000000001,
+            100.0
+          ],
+          "counts": [
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10
+          ]
+        }
+      },
+      {
+        "name": "User Id",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 100,
+        "topCategories": [
+          {
+            "value": "88F7B33d2bcf9f5",
+            "count": 1
+          },
+          {
+            "value": "f90cD3E76f1A9b9",
+            "count": 1
+          },
+          {
+            "value": "DbeAb8CcdfeFC2c",
+            "count": 1
+          },
+          {
+            "value": "A31Bee3c201ef58",
+            "count": 1
+          },
+          {
+            "value": "1bA7A3dc874da3c",
+            "count": 1
+          },
+          {
+            "value": "bfDD7CDEF5D865B",
+            "count": 1
+          },
+          {
+            "value": "bE9EEf34cB72AF7",
+            "count": 1
+          },
+          {
+            "value": "2EFC6A4e77FaEaC",
+            "count": 1
+          },
+          {
+            "value": "baDcC4DeefD8dEB",
+            "count": 1
+          },
+          {
+            "value": "8e4FB470FE19bF0",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "First Name",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 94,
+        "topCategories": [
+          {
+            "value": "Isaiah",
+            "count": 2
+          },
+          {
+            "value": "Frank",
+            "count": 2
+          },
+          {
+            "value": "Jacqueline",
+            "count": 2
+          },
+          {
+            "value": "Brittney",
+            "count": 2
+          },
+          {
+            "value": "Ryan",
+            "count": 2
+          },
+          {
+            "value": "Melody",
+            "count": 2
+          },
+          {
+            "value": "Erin",
+            "count": 1
+          },
+          {
+            "value": "Katherine",
+            "count": 1
+          },
+          {
+            "value": "Ricardo",
+            "count": 1
+          },
+          {
+            "value": "Dave",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "Last Name",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 95,
+        "topCategories": [
+          {
+            "value": "Andrews",
+            "count": 3
+          },
+          {
+            "value": "Payne",
+            "count": 2
+          },
+          {
+            "value": "Barnes",
+            "count": 2
+          },
+          {
+            "value": "Oconnell",
+            "count": 2
+          },
+          {
+            "value": "Todd",
+            "count": 1
+          },
+          {
+            "value": "Martinez",
+            "count": 1
+          },
+          {
+            "value": "Terrell",
+            "count": 1
+          },
+          {
+            "value": "Hinton",
+            "count": 1
+          },
+          {
+            "value": "Farrell",
+            "count": 1
+          },
+          {
+            "value": "Downs",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "Sex",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 2,
+        "topCategories": [
+          {
+            "value": "Female",
+            "count": 53
+          },
+          {
+            "value": "Male",
+            "count": 47
+          }
+        ]
+      },
+      {
+        "name": "Email",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 100,
+        "topCategories": [
+          {
+            "value": "elijah57@example.net",
+            "count": 1
+          },
+          {
+            "value": "bethany14@example.com",
+            "count": 1
+          },
+          {
+            "value": "bthompson@example.com",
+            "count": 1
+          },
+          {
+            "value": "kaitlinkaiser@example.com",
+            "count": 1
+          },
+          {
+            "value": "buchananmanuel@example.net",
+            "count": 1
+          },
+          {
+            "value": "tconner@example.org",
+            "count": 1
+          },
+          {
+            "value": "conniecowan@example.com",
+            "count": 1
+          },
+          {
+            "value": "wyattbishop@example.com",
+            "count": 1
+          },
+          {
+            "value": "nmccann@example.net",
+            "count": 1
+          },
+          {
+            "value": "virginiaterrell@example.org",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "Phone",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 100,
+        "topCategories": [
+          {
+            "value": "001-084-906-7849x73518",
+            "count": 1
+          },
+          {
+            "value": "214.112.6044x4913",
+            "count": 1
+          },
+          {
+            "value": "277.609.7938",
+            "count": 1
+          },
+          {
+            "value": "584.094.6111",
+            "count": 1
+          },
+          {
+            "value": "689-207-3558x7233",
+            "count": 1
+          },
+          {
+            "value": "001-171-649-9856x5553",
+            "count": 1
+          },
+          {
+            "value": "+1-773-151-6685x49162",
+            "count": 1
+          },
+          {
+            "value": "001-447-699-7998x88612",
+            "count": 1
+          },
+          {
+            "value": "603-428-2429x27392",
+            "count": 1
+          },
+          {
+            "value": "+1-511-372-1544x8206",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "Date of birth",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 100,
+        "topCategories": [
+          {
+            "value": "1945-10-26",
+            "count": 1
+          },
+          {
+            "value": "1910-03-24",
+            "count": 1
+          },
+          {
+            "value": "1992-07-02",
+            "count": 1
+          },
+          {
+            "value": "2017-08-03",
+            "count": 1
+          },
+          {
+            "value": "1938-12-01",
+            "count": 1
+          },
+          {
+            "value": "2015-10-28",
+            "count": 1
+          },
+          {
+            "value": "1989-01-22",
+            "count": 1
+          },
+          {
+            "value": "1924-03-26",
+            "count": 1
+          },
+          {
+            "value": "2018-10-06",
+            "count": 1
+          },
+          {
+            "value": "1964-09-20",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "Job Title",
+        "type": "StringType()",
+        "entries": 100,
+        "nullCount": 0,
+        "uniqueCount": 91,
+        "topCategories": [
+          {
+            "value": "Biochemist, clinical",
+            "count": 3
+          },
+          {
+            "value": "Outdoor activities/education manager",
+            "count": 2
+          },
+          {
+            "value": "Scientist, clinical (histocompatibility and immuno...",
+            "count": 2
+          },
+          {
+            "value": "Retail banker",
+            "count": 2
+          },
+          {
+            "value": "Accountant, chartered management",
+            "count": 2
+          },
+          {
+            "value": "Research scientist (life sciences)",
+            "count": 2
+          },
+          {
+            "value": "Jewellery designer",
+            "count": 2
+          },
+          {
+            "value": "Seismic interpreter",
+            "count": 2
+          },
+          {
+            "value": "Veterinary surgeon",
+            "count": 1
+          },
+          {
+            "value": "Market researcher",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  }
+}
