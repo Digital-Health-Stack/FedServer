@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from schemas.dataset import TaskCreate
-from utility.db import get_db
+from utilities.core.db import get_db
 from schemas.dataset import TaskCreate, TaskResponse, LeaderboardResponse
 
-from crud.task_crud import (
+from db.task_crud import (
     create_task,
     delete_task,
     get_tasks_by_dataset_id,

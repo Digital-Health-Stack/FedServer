@@ -4,13 +4,13 @@
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from utility.db import get_db
+from utilities.core.db import get_db
 from models.User import User
 from schemas.user import UserCreate
 from schemas.dataset import DatasetCreate
-from utility.auth import get_password_hash
+from utilities.core.auth import get_password_hash
 from dotenv import dotenv_values
-from crud.datasets_crud import create_dataset
+from db.datasets_crud import create_dataset
 
 confidential_router = APIRouter()
 

@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import null
 import os
 
-from utility.db import SessionLocal
+from utilities.core.db import SessionLocal
 
 # from sqlalchemy.
-from models import User
+from models.User import User
 
 load_dotenv()
 
@@ -118,10 +118,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 def create_tokens(db: Session, username: str, exception: HTTPException, check=None):
     try:
         db_user = db.query(User).filter(User.username == username).first()
-
         if not db_user or (check and check(db_user)):
             raise exception
-
         # Generate tokens
         new_access_token = create_access_token(data={"sub": db_user.username})
         new_refresh_token = create_refresh_token(data={"sub": db_user.username})

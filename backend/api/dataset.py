@@ -15,7 +15,7 @@ from schemas.dataset import (
     DatasetUpdate,
 )
 
-from crud.datasets_crud import (
+from db.datasets_crud import (
     create_dataset,
     delete_dataset,
     rename_dataset,
@@ -25,9 +25,9 @@ from crud.datasets_crud import (
     edit_dataset_details,
 )
 
-from utility.db import get_db
-from helpers.local_storage_services import LocalStorageManager, folder_name_from_api_filename
-from helpers.data_processing_services import DataProcessingManager
+from utilities.core.db import get_db
+from services.local_storage import LocalStorageManager, folder_name_from_api_filename
+from services.data_processing import DataProcessingManager
 from dotenv import load_dotenv
 
 load_dotenv()

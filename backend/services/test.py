@@ -1,11 +1,49 @@
 import numpy as np
 import os
 import json
-from .model_builder import model_instance_from_config
-from .metrics import calculate_metrics
-from utility.db import engine
+from utilities.ml.CustomModels.LandMarkSVM import LandMarkSVM
+from utilities.ml.CustomModels.CustomSVM import CustomSVM
+from utilities.ml.CustomModels.LinearRegression import LinearRegression
+from utilities.ml.CustomModels.MultiLayerPerceptron import MultiLayerPerceptron
+from utilities.ml.CustomModels.CustomCNN import CustomCNN
+from utilities.ml.CustomModels.LogisticRegression import LogisticRegression
+from utilities.ml.CustomModels.DecisionTree import DecisionTree
+from utilities.ml.CustomModels.RandomForest import RandomForest
+from utilities.ml.CustomModels.CustomSVR import CustomSVR
+from utilities.ml.CustomModels.XGBoostRegressor import XGBoostRegressor
+from utilities.core.db import engine
 from sqlalchemy.orm import Session
 from models.FederatedSession import FederatedSession, FederatedTestResults
+
+model_classes = {
+    "LinearRegression": LinearRegression,
+    "SVM": CustomSVM,
+    "SVR": CustomSVR,
+    "LandMarkSVM": LandMarkSVM,
+    "multiLayerPerceptron": MultiLayerPerceptron,
+    "CNN": CustomCNN,
+    "LogisticRegression": LogisticRegression,
+    "DecisionTree": DecisionTree,
+    "RandomForest": RandomForest,
+    "XGBoostRegressor": XGBoostRegressor,
+}
+
+
+def model_instance_from_config(modelConfig):
+    try:
+        model_name = modelConfig["model_name"]
+        config = modelConfig["model_info"]
+        model_class = model_classes.get(model_name)
+
+        if model_class is None:
+            raise ValueError(f"Unknown model: {model_name}")
+
+        model_instance = model_class(config)
+        return model_instance
+
+    except Exception as e:
+        print(f"Error creating model instance: {e}")
+        return None
 
 
 def save_weights_to_file(weights: dict, filename: str):
@@ -41,100 +79,6 @@ class Test:
         """Build the model for testing"""
         self.model = model_instance_from_config(self.model_config)
         print("Testing model built successfully")
-
-    def temporary_evaluate_function(self):
-        """
-        Temporary function that simulates improving metrics over federated learning rounds.
-        Returns better metrics for each subsequent round.
-        """
-        import random
-
-        # Set seed based on session_id and round for consistent but improving results
-        random.seed(hash(f"{self.session_id}_{self.round}") % 1000000)
-
-        metrics_report = {}
-
-        # Base improvement factor - metrics get better with more rounds
-        improvement_factor = min(
-            0.95 + (self.round * 0.02), 0.94
-        )  # Caps at 99% improvement
-        base_performance = 0.3 + (
-            self.round * 0.05
-        )  # Starting performance improves with rounds
-
-        for metric in self.metrics:
-            if metric in ["mse", "mae", "rmse", "msle", "mape", "log_loss"]:
-                # For error metrics, lower is better - start high and decrease
-                if metric == "mse":
-                    base_value = 2.0 - (self.round * 0.15)
-                    noise = random.uniform(-0.05, 0.02)  # Small random variation
-                    value = max(0.001, base_value + noise)
-                elif metric == "mae":
-                    base_value = 1.5 - (self.round * 0.12)
-                    noise = random.uniform(-0.04, 0.02)
-                    value = max(0.001, base_value + noise)
-                elif metric == "rmse":
-                    base_value = 1.4 - (self.round * 0.11)
-                    noise = random.uniform(-0.04, 0.02)
-                    value = max(0.001, base_value + noise)
-                elif metric == "msle":
-                    base_value = 0.8 - (self.round * 0.08)
-                    noise = random.uniform(-0.03, 0.01)
-                    value = max(0.001, base_value + noise)
-                elif metric == "mape":
-                    base_value = 25.0 - (self.round * 2.0)
-                    noise = random.uniform(-1.0, 0.5)
-                    value = max(0.1, base_value + noise)
-                elif metric == "log_loss":
-                    base_value = 1.2 - (self.round * 0.09)
-                    noise = random.uniform(-0.03, 0.01)
-                    value = max(0.001, base_value + noise)
-
-                metrics_report[metric] = round(value, 3)
-
-            elif metric in [
-                "accuracy",
-                "precision",
-                "recall",
-                "f1_score",
-                "auc",
-                "r2_score",
-            ]:
-                # For performance metrics, higher is better - start low and increase
-                if metric == "accuracy":
-                    base_value = 0.4 + (self.round * 0.08)
-                    noise = random.uniform(-0.02, 0.05)
-                    value = min(0.99, base_value + noise)
-                elif metric == "precision":
-                    base_value = 0.35 + (self.round * 0.07)
-                    noise = random.uniform(-0.02, 0.04)
-                    value = min(0.98, base_value + noise)
-                elif metric == "recall":
-                    base_value = 0.38 + (self.round * 0.075)
-                    noise = random.uniform(-0.02, 0.04)
-                    value = min(0.97, base_value + noise)
-                elif metric == "f1_score":
-                    base_value = 0.36 + (self.round * 0.072)
-                    noise = random.uniform(-0.02, 0.04)
-                    value = min(0.96, base_value + noise)
-                elif metric == "auc":
-                    base_value = 0.55 + (self.round * 0.06)
-                    noise = random.uniform(-0.02, 0.03)
-                    value = min(0.98, base_value + noise)
-                elif metric == "r2_score":
-                    base_value = 0.2 + (self.round * 0.09)
-                    noise = random.uniform(-0.03, 0.05)
-                    value = min(0.95, base_value + noise)
-
-                metrics_report[metric] = round(value, 3)
-            else:
-                # Unknown metric - provide a default improving value
-                base_value = 0.5 + (self.round * 0.05)
-                noise = random.uniform(-0.02, 0.03)
-                metrics_report[metric] = round(min(0.99, base_value + noise), 3)
-
-        print(f"Round {self.round} metrics: {metrics_report}")
-        return metrics_report
 
     def start_test(self, updated_weights):
         """Test the model with the updated weights"""
@@ -213,8 +157,6 @@ class Test:
         except FileNotFoundError as e:
             print(f"Error loading test data: {e}")
             return
-        # calculate metrics from calculate_metrics function in metrics.py
-        # round_results = calculate_metrics(Y_test, Y_pred, self.metrics)
         print("Metrics: ", self.metrics)
 
         # Temporary evaluate function that simulates improving metrics over rounds

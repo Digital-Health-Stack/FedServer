@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, declared_attr, relationship, mapped_column
 from .Base import Base
 import os
-from constant.enums import ClientStatus, TrainingStatus, FederatedSessionLogTag
+from utilities.constant.enums import ClientStatus, TrainingStatus, FederatedSessionLogTag
 import pytz
 
 load_dotenv()

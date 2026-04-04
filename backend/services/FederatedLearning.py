@@ -12,7 +12,7 @@ from models.FederatedSession import (
 import numpy as np
 from models import User as UserModel
 from sqlalchemy.orm import Session, joinedload
-from utility.db import engine
+from utilities.core.db import engine
 import json
 from fastapi import HTTPException
 import multiprocessing
@@ -20,7 +20,7 @@ from typing import Dict
 import time
 from pathlib import Path
 import shutil
-from constant.enums import FederatedSessionLogTag
+from utilities.constant.enums import FederatedSessionLogTag
 
 
 class FederatedLearning:

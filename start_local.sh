@@ -1,5 +1,5 @@
 #!/bin/bash
-redis-server backend/redis.conf &
+redis-server backend/utilities/redis.conf &
 
 concurrently -n BACKEND,FRONTEND -c yellow,cyan \
 "cd backend && . venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload" \

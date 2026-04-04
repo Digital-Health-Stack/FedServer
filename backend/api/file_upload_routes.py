@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 import os
 import tempfile
 import shutil
-from helpers.local_storage_services import LocalStorageManager
+from services.local_storage import LocalStorageManager
 from dotenv import load_dotenv
 
 load_dotenv()

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
-from constant.enums import FederatedSessionLogTag
+from utilities.constant.enums import FederatedSessionLogTag
 
 
 class FederatedSessionLogResponse(BaseModel):

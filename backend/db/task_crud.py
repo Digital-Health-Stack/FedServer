@@ -4,7 +4,7 @@ from models.User import User
 from models.Dataset import Task, Dataset
 from schemas.dataset import TaskCreate
 from typing import List, Dict
-from crud.datasets_crud import get_dataset_by_filename
+from db.datasets_crud import get_dataset_by_filename
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy import func, and_, desc, asc

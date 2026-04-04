@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import pandas as pd
 
-from helpers.local_storage_services import LocalStorageManager
+from services.local_storage import LocalStorageManager
 
 
 def reshape_image(img_array):

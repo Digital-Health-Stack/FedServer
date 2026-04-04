@@ -1,3 +1,8 @@
+############################################################################
+############# This file is used for data processing on upload ##############
+############################################################################
+
+
 import os
 import tempfile
 import time
@@ -8,13 +13,13 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
-from helpers.aws_services import S3Services
-from helpers.local_storage_services import (
+from services.aws import S3Services
+from services.local_storage import (
     DATASET_PARQUET,
     LocalStorageManager,
     folder_name_from_api_filename,
 )
-from helpers.processing_helper_functions import All_Column_Operations, Column_Operations
+from services.preprocessing_helper_functions import All_Column_Operations, Column_Operations
 
 load_dotenv()
 

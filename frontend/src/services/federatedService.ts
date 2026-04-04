@@ -2,12 +2,12 @@ import { AxiosInstance } from "axios";
 
 export const getAllSessions = async (api, page = 1, perPage = 6) => {
   return api.get(
-    `/get-all-federated-sessions?page=${page}&per_page=${perPage}`,
+    `get-all-federated-sessions?page=${page}&per_page=${perPage}`,
   );
 };
 
 export const getSessionStats = async (api) => {
-  return api.get(`/federated-sessions-stats`);
+  return api.get(`federated-sessions-stats`);
 };
 
 export const getFederatedSession = (api: AxiosInstance, session_id) => {

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from models.FederatedSession import FederatedSessionLog
 from sqlalchemy.orm import Session
 from schemas.logs import FederatedSessionLogResponse
-from utility.db import get_db
+from utilities.core.db import get_db
 
 log_router = APIRouter()
 

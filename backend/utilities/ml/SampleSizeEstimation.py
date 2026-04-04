@@ -54,7 +54,6 @@ def calculate_required_data_points(
     """
     # Get the number of predictors from the model configuration
 
-    print("Checkpoint 1: ", baseline_mean, baseline_std, new_mean, new_std)
     num_predictors = get_num_predictors_from_config(model_config)
 
     # Calculate effect size (Cohen's d)

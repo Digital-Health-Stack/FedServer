@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from utility.db import get_db
+from utilities.core.db import get_db
 from datetime import datetime
 from schemas.user import RefreshToken, UserCreate, UserLogin
 from models.User import User
-from utility.auth import (
+from utilities.core.auth import (
     get_password_hash,
     verify_password,
     decode_refresh_token,
@@ -45,7 +45,6 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 # Login route
 @user_router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    # print("Login request received: ", user.username, user.password)
     def is_invalid(db_user: User):
         return not verify_password(user.password, db_user.hashed_password)
 

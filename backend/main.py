@@ -4,10 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from api.dataset import dataset_router
 from api.federated import federated_router
-from api.federatedv2 import federated_router_v2
-from api.notification import notifications_router
 from api.user import user_router
-from api.temporary import temporary_router
 from api.confidential import confidential_router
 from api.task import task_router
 from api.training_data_transfers import qpd_router
@@ -31,10 +28,7 @@ app.include_router(dataset_router, tags=["Dataset"])
 app.include_router(task_router, tags=["Task"])
 app.include_router(user_router, tags=["User"])
 app.include_router(federated_router, tags=["Federated"])
-app.include_router(federated_router_v2, tags=["FederatedV2"], prefix="/v2")
-app.include_router(notifications_router, tags=["Notification"])
 app.include_router(qpd_router, tags=["QPD"])
 app.include_router(confidential_router, tags=["Confidential"])
-app.include_router(temporary_router, tags=["Temporary"])
 app.include_router(log_router, tags=["Logs"], prefix="/logs")
 app.include_router(file_upload_router)

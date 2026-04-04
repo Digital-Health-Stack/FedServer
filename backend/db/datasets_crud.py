@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, NoResultFound
 from schemas.dataset import DatasetCreate, DatasetUpdate
 from models.Dataset import Dataset
-from helpers.local_storage_services import LocalStorageManager
+from services.local_storage import LocalStorageManager
 
 
 def _dataset_payload(dataset: DatasetCreate) -> dict:

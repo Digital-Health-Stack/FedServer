@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
-from helpers.data_processing_services import DataProcessingManager
-from helpers.aws_services import S3Services
+from services.data_processing import DataProcessingManager
+from services.aws import S3Services
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
@@ -11,7 +11,7 @@ import os
 
 load_dotenv()
 
-from crud.training_data_transfer_crud import (
+from db.training_data_transfer_crud import (
     create_transfer,
     get_all_transfers,
     get_pending_transfers,
@@ -21,7 +21,7 @@ from crud.training_data_transfer_crud import (
     get_transfer_mini_details,
 )
 
-from crud.datasets_crud import update_dataset_metadata_from_overview
+from db.datasets_crud import update_dataset_metadata_from_overview
 from schemas.dataset import DatasetCreate
 from schemas.training_data_transfer import (
     TransferCreate,
@@ -29,7 +29,7 @@ from schemas.training_data_transfer import (
     TransferDetails,
 )
 
-from utility.db import get_db
+from utilities.core.db import get_db
 
 data_client = DataProcessingManager()
 s3_client = S3Services()

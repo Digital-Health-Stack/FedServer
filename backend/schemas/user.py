@@ -22,5 +22,5 @@ class ClientSessionStatusSchema(BaseModel):
     curr_round: int
     max_round: int
     session_price: Optional[float]
-    training_status: int
+    training_status: str
     client_status: Optional[int]
