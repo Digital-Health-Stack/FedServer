@@ -1,7 +1,7 @@
 from datetime import datetime
 from operator import or_
 from typing import Dict, List, Optional, Literal
-from schema import CreateFederatedLearning, FederatedLearningInfo, User
+from schemas.federated import CreateFederatedLearning, FederatedLearningInfo, User
 from sqlalchemy import and_, desc, select, func, case
 from models.FederatedSession import (
     FederatedSession,

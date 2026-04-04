@@ -1,10 +1,13 @@
-__pycache__
+**/__pycache__/* 
 *.db
 /frontend/node_modules
-/backend/app/tmp
+/backend/tmp
 
 frontend/node_modules
-frontend/app/.env
+frontend/.env
+
+backend/storage/*
+backend/Global_test_results/*
 
 work.md
 global_test_data
@@ -18,9 +21,9 @@ execute.py
 wslenv
 create_data.py
 
-backend/app/data 
-backend/app/logs/
-backend/app/aggregated_sums.txt
+backend/data 
+backend/logs/
+backend/aggregated_sums.txt
 create_data.py
 ./create_data.py
 /logs

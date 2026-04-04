@@ -35,7 +35,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from schemas.user import ClientSessionStatusSchema
-from schema import (
+from schemas.federated import (
     CreateFederatedLearning,
     ClientFederatedResponse,
     ClientModelIdResponse,

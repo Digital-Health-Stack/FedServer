@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 
 from schemas.user import ClientSessionStatusSchema
-from schema import (
+from schemas.federated import (
     CreateFederatedLearning,
     ClientFederatedResponse,
     ClientModelIdResponse,
