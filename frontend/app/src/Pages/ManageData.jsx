@@ -3,11 +3,8 @@ import {
   FolderIcon,
   ClockIcon,
   SparklesIcon,
+  CircleStackIcon,
 } from "@heroicons/react/24/outline";
-
-// path is navigation path, not URL
-const VIEW_RECENT_UPLOADS_PATH = "/view-recent-uploads";
-const VIEW_ALL_DATASETS_PATH = "/view-all-datasets";
 
 const ManageData = () => {
   return (
@@ -19,48 +16,68 @@ const ManageData = () => {
             Dataset Management Portal
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Access uploads, preprocess and manage stored datasets
+            Upload, manage and preprocess your datasets
           </p>
         </div>
 
         {/* Action Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Recent Uploads Card */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Add New Dataset Card */}
           <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-100">
             <div className="flex flex-col items-center text-center space-y-4">
-              <FolderIcon className="h-16 w-16 text-blue-600" />
+              <SparklesIcon className="h-16 w-16 text-blue-600" />
               <h3 className="text-2xl font-semibold text-gray-800">
-                Raw Datasets Archive
+                Add Dataset
               </h3>
               <p className="text-gray-600 mb-6">
-                Access recently uploaded datasets in temporary storage
+                Upload new CSV or Parquet files for processing
               </p>
               <a
-                href={VIEW_RECENT_UPLOADS_PATH}
+                href="/view-all-datasets#add"
                 className="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
-                <ClockIcon className="h-5 w-5" />
-                View Recent Uploads
+                <SparklesIcon className="h-5 w-5" />
+                Upload Dataset
               </a>
             </div>
           </div>
 
-          {/* Processed Datasets Card */}
+          {/* View Datasets Card */}
           <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-100">
             <div className="flex flex-col items-center text-center space-y-4">
-              <SparklesIcon className="h-16 w-16 text-green-600" />
+              <CircleStackIcon className="h-16 w-16 text-green-600" />
               <h3 className="text-2xl font-semibold text-gray-800">
-                Manage Data
+                Datasets
               </h3>
               <p className="text-gray-600 mb-6">
-                Access uploads and preprocessed datasets ready for analysis
+                View and manage all your uploaded and processed datasets
               </p>
               <a
-                href={VIEW_ALL_DATASETS_PATH}
+                href="/view-all-datasets#datasets"
                 className="w-full bg-green-100 hover:bg-green-200 text-green-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
-                <SparklesIcon className="h-5 w-5" />
+                <FolderIcon className="h-5 w-5" />
                 View Datasets
+              </a>
+            </div>
+          </div>
+
+          {/* Recent Uploads Card */}
+          <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-100">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <ClockIcon className="h-16 w-16 text-amber-600" />
+              <h3 className="text-2xl font-semibold text-gray-800">
+                Recent Uploads
+              </h3>
+              <p className="text-gray-600 mb-6">
+                View recently uploaded files pending processing
+              </p>
+              <a
+                href="/view-recent-uploads"
+                className="w-full bg-amber-100 hover:bg-amber-200 text-amber-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <ClockIcon className="h-5 w-5" />
+                View Recent Uploads
               </a>
             </div>
           </div>

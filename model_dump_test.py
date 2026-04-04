@@ -52,7 +52,7 @@ import pickle
 def test_model_dump():
     model = CustomCNN(
             config=get_model_config(1),
-            # spark_context=spark.sparkContext,  # Pass actual Spark context
+            # spark_context omitted (local / non-Spark execution)
             mode='asynchronous',
             num_workers=2
         )

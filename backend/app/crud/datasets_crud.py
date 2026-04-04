@@ -1,14 +1,10 @@
-from sqlalchemy.orm import Session, load_only
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, NoResultFound
 from schemas.dataset import DatasetCreate, DatasetUpdate
 from models.Dataset import RawDataset, Dataset
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
-
-HDFS_RAW_DATASETS_DIR = os.getenv("HDFS_RAW_DATASETS_DIR")
-HDFS_PROCESSED_DATASETS_DIR = os.getenv("HDFS_PROCESSED_DATASETS_DIR")
 
 
 def create_raw_dataset(db: Session, dataset: DatasetCreate):
@@ -59,13 +55,14 @@ def rename_raw_dataset(db: Session, old_file_name: str, new_file_name: str):
 
 def list_raw_datasets(db: Session, skip: int, limit: int):
     try:
-        return (
+        total = db.query(RawDataset).count()
+        datasets = (
             db.query(RawDataset)
-            .options(load_only(RawDataset.filename))
             .offset(skip)
             .limit(limit)
             .all()
         )
+        return {"datasets": datasets, "total": total}
     except SQLAlchemyError as e:
         return {"error": f"Database error: {e}"}
 
@@ -158,13 +155,14 @@ def rename_dataset(db: Session, old_file_name: str, new_file_name: str):
 
 def list_datasets(db: Session, skip: int, limit: int):
     try:
-        return (
+        total = db.query(Dataset).count()
+        datasets = (
             db.query(Dataset)
-            .options(load_only(Dataset.filename))
             .offset(skip)
             .limit(limit)
             .all()
         )
+        return {"datasets": datasets, "total": total}
     except SQLAlchemyError as e:
         return {"error": f"Database error: {e}"}
 
@@ -228,18 +226,17 @@ def update_dataset_stats(db: Session, filename: str, datastats: dict):
 
 
 def handle_file_renaming_during_processing(
-    db: Session, old_file_name: str, new_file_name: str, directory: str
+    db: Session, old_file_name: str, new_file_name: str, dataset_type: str
 ):
-
-    if directory == HDFS_RAW_DATASETS_DIR:
+    if dataset_type == "raw":
         result = rename_raw_dataset(db, old_file_name, new_file_name)
         if isinstance(result, dict) and "error" in result:
             return {"error": result["error"]}
 
-    elif directory == HDFS_PROCESSED_DATASETS_DIR:
+    elif dataset_type == "processed":
         result = rename_dataset(db, old_file_name, new_file_name)
         if isinstance(result, dict) and "error" in result:
             return {"error": result["error"]}
     else:
-        print(f"Invalid directory: {directory}")
-        return {"error": "Invalid directory"}
+        print(f"Invalid dataset_type: {dataset_type}")
+        return {"error": "Invalid dataset type"}

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
-from helpers.spark_services import SparkSessionManager
+from helpers.data_processing_services import DataProcessingManager
 from helpers.aws_services import S3Services
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -31,7 +31,7 @@ from schemas.training_data_transfer import (
 
 from utility.db import get_db
 
-spark_client = SparkSessionManager()
+data_client = DataProcessingManager()
 s3_client = S3Services()
 
 executor = ThreadPoolExecutor(max_workers=os.cpu_count())
@@ -51,16 +51,18 @@ def handle_error(result):
     return result
 
 
-async def merge_s3_file_to_hdfs(transfer_id: int):
+async def run_transfer_merge_job(transfer_id: int):
     try:
         db = next(get_db())
-        result = get_transfer_mini_details(db, transfer_id)
-        handle_error(result)
+        transfer_row = get_transfer_mini_details(db, transfer_id)
+        handle_error(transfer_row)
+        data_path_for_cleanup = transfer_row.data_path
         print("starting the merging process...")
 
-        # Merge S3 file with parent file on HDFS and delete the file on S3
-        overview = await spark_client.merge_s3_file_to_hdfs(
-            result.data_path, result.parent_filename, result.federated_session_id
+        overview = await data_client.merge_s3_into_local_dataset(
+            transfer_row.data_path,
+            transfer_row.parent_filename,
+            transfer_row.federated_session_id,
         )
 
         # new_dataset = DatasetCreate(
@@ -82,8 +84,7 @@ async def merge_s3_file_to_hdfs(transfer_id: int):
         handle_error(result)
         print("Transfer approved successfully")
 
-        # e.g. s3a://qpd-data/temp/4934bd27-c155-4303-b386-64b7cd030fe5_health_client.parquet
-        s3_filename = result.data_path.split("/")[-1]
+        s3_filename = data_path_for_cleanup.split("/")[-1]
         s3_client.delete_folder(f"{QPD_DATASET_DIR_ON_S3}/{s3_filename}")
         print(f"file {s3_filename} deleted successfully from S3")
 
@@ -143,6 +144,6 @@ def delete_transfer_record(transfer_id: int, db: Session = Depends(get_db)):
 @qpd_router.post("/approve-transferred-data/{transfer_id}")
 def approve_transfer_record(transfer_id: int):
     # don't do try/except here as this will run in a separate thread
-    executor.submit(asyncio.run, merge_s3_file_to_hdfs(transfer_id))
+    executor.submit(asyncio.run, run_transfer_merge_job(transfer_id))
     print("Approval process started for transfer ID:", transfer_id)
     return {"message": "Approval process started"}

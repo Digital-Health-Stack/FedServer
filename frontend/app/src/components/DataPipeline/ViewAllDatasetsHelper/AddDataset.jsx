@@ -44,7 +44,7 @@ const AddDataset = () => {
     },
   };
 
-  // Fetch uploaded files from HDFS
+  // Fetch uploaded files from server storage
   const fetchUploadedFiles = async () => {
     try {
       const response = await axios.get(endpoints.upload.list);
@@ -95,7 +95,7 @@ const AddDataset = () => {
       if (uploadedFiles.length > 0) {
         fetchUploadedFiles();
       } else if (success && success.includes("uploaded") && !uploading) {
-        navigate("/view-all-datasets#raw");
+        navigate("/view-all-datasets#datasets");
       }
     }, 5000); // every 5 seconds
 
@@ -303,9 +303,11 @@ const AddDataset = () => {
                   type="file"
                   className="hidden"
                   multiple
+                  accept=".csv,.parquet"
                   onChange={handleFileSelect}
                 />
                 <span className="text-xs text-gray-400">or drag and drop</span>
+                <span className="text-xs text-gray-500 mt-1">Accepted Formats: .csv, .parquet</span>
               </label>
               <button
                 type="button"
@@ -321,7 +323,7 @@ const AddDataset = () => {
                 ) : (
                   <>
                     <FilePlus className="h-5 w-5" />
-                    Upload to HDFS
+                    Upload
                   </>
                 )}
               </button>

@@ -1,7 +1,7 @@
 import React from "react";
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 
-const SummaryStats = ({ filename, numRows, numCols }) => {
+const SummaryStats = ({ filename, description, numRows, numCols }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm p-2 mt-4">
       <div className="p-4 border-b flex items-center justify-between bg-blue-50 rounded-t-xl">
@@ -28,6 +28,13 @@ const SummaryStats = ({ filename, numRows, numCols }) => {
           <p className="text-3xl font-bold text-blue-600">{numCols}</p>
         </div>
       </div>
+
+      {description && (
+        <div className="mt-4 bg-gray-50 p-4 rounded-lg">
+          <p className="text-sm text-gray-600 mb-1">Data Description</p>
+          <p className="text-gray-800 whitespace-pre-wrap">{description}</p>
+        </div>
+      )}
     </div>
   );
 };

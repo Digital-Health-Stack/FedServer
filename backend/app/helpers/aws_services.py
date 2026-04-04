@@ -86,3 +86,23 @@ class S3Services:
             print(f"No objects found under '{prefix}'.")
         else:
             self.delete_files(keys_to_delete)
+
+    @staticmethod
+    def parse_s3_uri(uri: str) -> tuple:
+        u = (uri or "").strip()
+        for p in ("s3a://", "s3n://"):
+            if u.startswith(p):
+                u = "s3://" + u[len(p) :]
+                break
+        if not u.startswith("s3://"):
+            raise ValueError(f"Unsupported S3 URI: {uri}")
+        rest = u[5:]
+        if "/" not in rest:
+            raise ValueError(f"Invalid S3 URI: {uri}")
+        bucket, _, key = rest.partition("/")
+        return bucket, key
+
+    def download_uri_to_path(self, s3_uri: str, dest_path: str) -> None:
+        bucket, key = self.parse_s3_uri(s3_uri)
+        os.makedirs(os.path.dirname(os.path.abspath(dest_path)) or ".", exist_ok=True)
+        self.client.download_file(bucket, key, dest_path)

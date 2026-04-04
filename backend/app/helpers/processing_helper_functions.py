@@ -1,240 +1,196 @@
-from pyspark.ml.feature import (
-    Imputer,
-    MinMaxScaler,
-    Normalizer,
-    StandardScaler,
-    VectorAssembler,
-    OneHotEncoder,
-    StringIndexer,
-)
-from pyspark.ml.linalg import Vectors
-from pyspark.ml.functions import vector_to_array
-from pyspark.sql.types import (
-    DoubleType,
-    IntegerType,
-    LongType,
-    FloatType,
-    DecimalType,
-    StringType,
-    BooleanType,
-)
-from pyspark.sql.functions import col, udf, lit
-from pyspark.sql import functions as F
-from functools import reduce
 import math
-import time
+from functools import reduce
 from uuid import uuid4
 
-
-"""
-    I have tried to keep the functions optimal for large datasets, such that they can be run on a cluster with
-    multiple executors effectively. if there is a need to change please ensure the same thing for the new code.
-"""
+import numpy as np
+import pandas as pd
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import (
+    LabelEncoder,
+    MinMaxScaler,
+    Normalizer,
+    OneHotEncoder,
+    StandardScaler,
+)
 
 
 def get_temp_col(base: str) -> str:
-    """Generates unique temp column names using UUID"""
     return f"{base}_{uuid4().hex[:8]}"
 
 
 def remove_outlier_by_IQR(dataframe, columns, factor=1.5):
-    """
-    Detects and treats outliers using IQR for multiple variables in a PySpark DataFrame,
-    Removes the whole row if any column has an outlier.
-
-    :param dataframe: The input PySpark DataFrame
-    :param columns: A list of columns to apply IQR outlier treatment
-    :param factor: The IQR factor to use for detecting outliers (default is 1.5)
-    :return: The processed DataFrame with outliers treated
-    """
-    conditions = []
+    if isinstance(columns, str):
+        columns = [columns]
+    mask = pd.Series(True, index=dataframe.index)
     for column in columns:
-        # Calculate Q1, Q3, and IQR
-        quantiles = dataframe.approxQuantile(column, [0.25, 0.75], 0.01)
-        q1, q3 = quantiles[0], quantiles[1]
+        if column not in dataframe.columns:
+            continue
+        s = dataframe[column]
+        if not pd.api.types.is_numeric_dtype(s):
+            continue
+        q1, q3 = s.quantile(0.25), s.quantile(0.75)
         iqr = q3 - q1
-
-        # Define the upper and lower bounds for outliers
+        if iqr == 0:
+            continue
         lower_bound = q1 - factor * iqr
         upper_bound = q3 + factor * iqr
-
-        conditions.append(F.col(column).between(lower_bound, upper_bound))
-
-    return dataframe.where(reduce(lambda a, b: a & b, conditions))
+        mask &= s.between(lower_bound, upper_bound, inclusive="both")
+    return dataframe.loc[mask].copy()
 
 
 def normalize_column(df, column_name, method):
-    """
-    i) Normalizes a column in a PySpark DataFrame using specified normalization method
-    Supported methods: 'min-max', 'z-score', 'l1', 'l2', 'linf'
-    ii) It removes entire rows if any of the specified columns contains an outlier.
-    iii) I'm calculating stats multiple times as required(it seems this will cause multiple scans),
-        but a user will normalize a column only once (by any given method), so this is better,
-        same reason for not computing stats for every column at once
-    """
+    df = df.copy()
+    s = df[column_name]
+    if not pd.api.types.is_numeric_dtype(s):
+        print(
+            f"Unsupported or non-numeric column for normalization: {column_name} ({method})"
+        )
+        return df
 
     if method == "Min-Max":
-        stats = df.agg(
-            F.min(F.col(column_name)).alias("min"),
-            F.max(F.col(column_name)).alias("max"),
-        ).first()
-        min_val = stats["min"]
-        max_val = stats["max"]
-
-        # Handle constant column
-        if (max_val - min_val) == 0:
-            return df.withColumn(column_name, F.lit(0.0))
-        return df.withColumn(
-            column_name, (F.col(column_name) - min_val) / (max_val - min_val)
-        )
+        min_val, max_val = s.min(), s.max()
+        if max_val == min_val:
+            df[column_name] = 0.0
+        else:
+            df[column_name] = (s - min_val) / (max_val - min_val)
 
     elif method == "Z-score":
-        stats = df.agg(
-            F.mean(F.col(column_name)).alias("mean"),
-            F.stddev(F.col(column_name)).alias("stddev"),
-        ).first()
-        mean_val = stats["mean"]
-        stddev_val = stats["stddev"] or 0  # Handle null for constant column
-
-        if stddev_val == 0:
-            return df.withColumn(column_name, F.lit(0.0))
-        return df.withColumn(column_name, (F.col(column_name) - mean_val) / stddev_val)
+        mean_val, std_val = s.mean(), s.std()
+        if std_val == 0 or pd.isna(std_val):
+            df[column_name] = 0.0
+        else:
+            df[column_name] = (s - mean_val) / std_val
 
     elif method == "L1 Norm":
-        abs_sum = df.agg(F.sum(F.abs(F.col(column_name)))).first()[0]
+        abs_sum = s.abs().sum()
         if abs_sum == 0:
-            return df.withColumn(column_name, F.lit(0.0))
-        return df.withColumn(column_name, F.col(column_name) / abs_sum)
+            df[column_name] = 0.0
+        else:
+            df[column_name] = s / abs_sum
 
     elif method == "L2 Norm":
-        squared_sum = df.agg(F.sum(F.pow(F.col(column_name), 2))).first()[0]
+        squared_sum = (s.astype(float) ** 2).sum()
         if squared_sum == 0:
-            return df.withColumn(column_name, F.lit(0.0))
-        l2_norm = math.sqrt(squared_sum)
-        return df.withColumn(column_name, F.col(column_name) / l2_norm)
+            df[column_name] = 0.0
+        else:
+            df[column_name] = s / math.sqrt(squared_sum)
 
     elif method == "L inf Norm":
-        abs_max = df.agg(F.max(F.abs(F.col(column_name)))).first()[0]
+        abs_max = s.abs().max()
         if abs_max == 0:
-            return df.withColumn(column_name, F.lit(0.0))
-        return df.withColumn(column_name, F.col(column_name) / abs_max)
+            df[column_name] = 0.0
+        else:
+            df[column_name] = s / abs_max
 
     else:
         print(
             f"Unsupported normalization method: {method} for the column {column_name}"
         )
+    return df
 
 
 def All_Column_Operations(df, step, numericCols, allCols):
+    df = df.copy()
+    allCols = [c for c in allCols if c in df.columns]
+    numericCols = [c for c in numericCols if c in df.columns]
+
     if step["operation"] == "Drop Null":
         return df.dropna(subset=allCols)
 
-    elif step["operation"] == "Fill 0 Unknown False":
-        return (
-            df.fillna(0, subset=allCols)
-            .fillna("unknown", subset=allCols)
-            .fillna(False, subset=allCols)
-        )
+    if step["operation"] == "Fill 0 Unknown False":
+        for c in allCols:
+            if pd.api.types.is_numeric_dtype(df[c]):
+                df[c] = df[c].fillna(0)
+            elif pd.api.types.is_bool_dtype(df[c]):
+                df[c] = df[c].fillna(False)
+            else:
+                df[c] = df[c].fillna("unknown")
+        return df
 
-    elif step["operation"] == "Fill Mean":
-        imputer = Imputer(
-            inputCols=numericCols, outputCols=numericCols, strategy="mean"
-        )
-        return imputer.fit(df).transform(df)
+    if step["operation"] == "Fill Mean":
+        if not numericCols:
+            return df
+        imp = SimpleImputer(strategy="mean")
+        df[numericCols] = imp.fit_transform(df[numericCols])
+        return df
 
-    elif step["operation"] == "Fill Median":
-        imputer = Imputer(
-            inputCols=numericCols, outputCols=numericCols, strategy="median"
-        )
-        return imputer.fit(df).transform(df)
+    if step["operation"] == "Fill Median":
+        if not numericCols:
+            return df
+        imp = SimpleImputer(strategy="median")
+        df[numericCols] = imp.fit_transform(df[numericCols])
+        return df
 
-    elif step["operation"] == "Drop Duplicates":
-        return df.dropDuplicates()
+    if step["operation"] == "Drop Duplicates":
+        return df.drop_duplicates()
 
-    elif step["operation"] in [
+    if step["operation"] in [
         "L1 Norm",
         "L2 Norm",
         "L inf Norm",
         "Min-Max",
         "Z-score",
     ]:
-        tempcol_1 = get_temp_col("features")
-        assembler = VectorAssembler(inputCols=numericCols, outputCol=tempcol_1)
-        df = assembler.transform(df)
-
-        tempcol_2 = get_temp_col("scaledfeatures")
+        if not numericCols:
+            return df
+        M = df[numericCols].astype(float).values
         if step["operation"] == "L1 Norm":
-            normalizer = Normalizer(inputCol=tempcol_1, outputCol=tempcol_2, p=1.0)
+            out = Normalizer(norm="l1").fit_transform(M)
         elif step["operation"] == "L2 Norm":
-            normalizer = Normalizer(inputCol=tempcol_1, outputCol=tempcol_2, p=2.0)
+            out = Normalizer(norm="l2").fit_transform(M)
         elif step["operation"] == "L inf Norm":
-            normalizer = Normalizer(
-                inputCol=tempcol_1, outputCol=tempcol_2, p=float("inf")
-            )
+            out = Normalizer(norm="max").fit_transform(M)
         elif step["operation"] == "Min-Max":
-            scaler = MinMaxScaler(inputCol=tempcol_1, outputCol=tempcol_2)
-        elif step["operation"] == "Z-score":
-            scaler = StandardScaler(
-                inputCol=tempcol_1, outputCol=tempcol_2, withStd=True, withMean=False
-            )
-
-        if step["operation"] in ["L1 Norm", "L2 Norm", "L inf Norm"]:
-            df = normalizer.transform(df)
+            out = MinMaxScaler().fit_transform(M)
         else:
-            df = scaler.fit(df).transform(df)
-
-        col_to_idx = {col: idx for idx, col in enumerate(numericCols)}
-        # this is optimized query for large datasets and needs a one time scan only
-        ordered_cols = [
-            (
-                vector_to_array(F.col(tempcol_2))[col_to_idx[col]].alias(col)
-                if col in numericCols
-                else F.col(col)
-            )
-            for col in df.columns
-            if col not in {tempcol_1, tempcol_2}
-        ]
-        return df.select(ordered_cols)
-
-    elif step["operation"] == "Remove Outliers":
-        return remove_outlier_by_IQR(df, numericCols)
-    else:
-        print(
-            f"error: Operation not defined in All_Column_Operations function for {step['column']} column: {step['operation']} \n"
-        )
+            out = StandardScaler(with_mean=False, with_std=True).fit_transform(M)
+        df[numericCols] = out
         return df
+
+    if step["operation"] == "Remove Outliers":
+        return remove_outlier_by_IQR(df, numericCols)
+
+    print(
+        f"error: Operation not defined in All_Column_Operations function for {step['column']} column: {step['operation']} \n"
+    )
+    return df
 
 
 def Column_Operations(df, step):
+    df = df.copy()
     column = step["column"]
+
     if step["operation"] == "Drop Null":
-        return df.dropna(subset=column)
+        return df.dropna(subset=[column])
 
-    elif step["operation"] == "Drop Duplicates":
-        return df.dropDuplicates(subset=column)
+    if step["operation"] == "Drop Duplicates":
+        return df.drop_duplicates(subset=[column])
 
-    elif step["operation"] == "Drop Column":
-        return df.drop(column)
+    if step["operation"] == "Drop Column":
+        return df.drop(columns=[column], errors="ignore")
 
-    elif step["operation"] == "Fill 0":
-        return df.fillna(0, subset=column)
+    if step["operation"] == "Fill 0":
+        return df.fillna({column: 0})
 
-    elif step["operation"] in ["Fill mean", "Fill Mode", "Fill Median"]:
+    if step["operation"] in ["Fill mean", "Fill Mode", "Fill Median"]:
         strategy = (
             "mean"
             if step["operation"] == "Fill mean"
-            else "mode" if step["operation"] == "Fill Mode" else "median"
+            else "most_frequent"
+            if step["operation"] == "Fill Mode"
+            else "median"
         )
-        imputer = Imputer(inputCol=column, outputCol=column, strategy=strategy)
-        return imputer.fit(df).transform(df)
+        imp = SimpleImputer(strategy=strategy)
+        df[column] = imp.fit_transform(df[[column]]).ravel()
+        return df
 
-    elif step["operation"] == "Fill Unknown":
-        return df.fillna("Unknown", subset=column)
+    if step["operation"] == "Fill Unknown":
+        return df.fillna({column: "Unknown"})
 
-    elif step["operation"] == "Fill False":
-        df = df.fillna(False, subset=column)
+    if step["operation"] == "Fill False":
+        return df.fillna({column: False})
 
-    elif step["operation"] in [
+    if step["operation"] in [
         "L1 Norm",
         "L2 Norm",
         "L inf Norm",
@@ -243,49 +199,52 @@ def Column_Operations(df, step):
     ]:
         return normalize_column(df, column, step["operation"])
 
-    elif step["operation"] == "Remove Outliers":
-        return remove_outlier_by_IQR(df, column)
+    if step["operation"] == "Remove Outliers":
+        return remove_outlier_by_IQR(df, [column])
 
-    elif step["operation"] == "Log":
-        return df.withColumn(column, F.log(F.col(column)))
+    if step["operation"] == "Log":
+        return df.assign(**{column: np.log(pd.to_numeric(df[column], errors="coerce"))})
 
-    elif step["operation"] == "Square":
-        return df.withColumn(column, (F.col(column)) * 2)
+    if step["operation"] == "Square":
+        return df.assign(**{column: np.square(pd.to_numeric(df[column], errors="coerce"))})
 
-    elif step["operation"] == "Square Root":
-        return df.withColumn(column, F.sqrt(F.col(column)))
+    if step["operation"] == "Square Root":
+        return df.assign(
+            **{column: np.sqrt(pd.to_numeric(df[column], errors="coerce"))}
+        )
 
-    elif step["operation"] == "Label Encoding":
-
-        if df.filter(col(column).isNull()).count() > 0:
+    if step["operation"] == "Label Encoding":
+        if df[column].isna().any():
             print(f"error: Null values found in {column} column for Label Encoding")
             return df
+        le = LabelEncoder()
+        df[column] = le.fit_transform(df[column].astype(str))
+        return df
 
-        temp_col1 = get_temp_col("features")
-        indexer = StringIndexer(inputCol=column, outputCol=temp_col1)
-        df = indexer.fit(df).transform(df)
-        return df.withColumn(column, col(temp_col1)).drop(temp_col1)
-
-    elif step["operation"] == "One Hot Encoding":
-        # this gives sparse vector, which if not compatible with ML model then have to encode in dense vectors
-
-        if df.filter(col(column).isNull()).count() > 0:
+    if step["operation"] == "One Hot Encoding":
+        if df[column].isna().any():
             print(f"error: Null values found in {column} column for One Hot Encoding")
             return df
-
-        temp_col1 = get_temp_col("features")
-        # check if column is string type
-        if isinstance(df.schema[column].dataType, StringType):
-            indexer = StringIndexer(inputCol=column, outputCol=temp_col1)
-            df = indexer.fit(df).transform(df)
-            df = df.withColumn(column, col(temp_col1)).drop(temp_col1)
-
-        encoder = OneHotEncoder(inputCol=column, outputCol=temp_col1)
-        df = encoder.fit(df).transform(df)
-        return df.withColumn(column, col(temp_col1)).drop(temp_col1)
-
-    else:
-        print(
-            f"error: Operation not defined in Column_Operations function for {step['column']} column: {step['operation']} \n"
-        )
+        if df[column].dtype == object or str(df[column].dtype) == "string":
+            le = LabelEncoder()
+            enc_col = get_temp_col("le")
+            df[enc_col] = le.fit_transform(df[column].astype(str))
+            ohe = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+            oh = ohe.fit_transform(df[[enc_col]])
+            prefix = f"{column}_oh"
+            for j in range(oh.shape[1]):
+                df[f"{prefix}_{j}"] = oh[:, j]
+            df = df.drop(columns=[column, enc_col])
+        else:
+            ohe = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+            oh = ohe.fit_transform(df[[column]])
+            prefix = f"{column}_oh"
+            for j in range(oh.shape[1]):
+                df[f"{prefix}_{j}"] = oh[:, j]
+            df = df.drop(columns=[column])
         return df
+
+    print(
+        f"error: Operation not defined in Column_Operations function for {step['column']} column: {step['operation']} \n"
+    )
+    return df

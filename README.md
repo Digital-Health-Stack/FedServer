@@ -24,8 +24,6 @@ some useful cmds-
 `uvicorn main:app --lazy-imports`
 `uvicorn main:app --reload --reload-dir=app/`
 
-<!-- read spark logs -->
-
 ```
  tail -n 10 -f logs.out
 ```

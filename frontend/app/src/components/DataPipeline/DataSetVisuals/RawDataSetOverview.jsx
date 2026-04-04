@@ -15,7 +15,7 @@ const DataSetOverview = () => {
   useEffect(() => {
     const loadData = async () => {
       const overview = await getRawDatasetDetail(filename);
-      setData(overview.data.datastats);
+      setData(overview.data);
       console.log("file overview data received:", overview.data);
     };
 
@@ -26,22 +26,25 @@ const DataSetOverview = () => {
   if (data.error) return <p>{data.error}</p>;
 
   const columnDetails = {};
-  data.columnStats.forEach((column) => {
-    columnDetails[column.name] = column.type;
-  });
+  if (data.datastats && data.datastats.columnStats) {
+    data.datastats.columnStats.forEach((column) => {
+      columnDetails[column.name] = column.type;
+    });
+  }
 
   return (
     <div>
       <SummaryStats
         filename={filename}
-        numRows={data.numRows}
-        numCols={data.numColumns}
+        description={data.description}
+        numRows={data.datastats?.numRows}
+        numCols={data.datastats?.numColumns}
       />
-      <ColumnDetails columnStats={data.columnStats} />
+      <ColumnDetails columnStats={data.datastats?.columnStats || []} />
       <PreprocessingDetails
         columns={columnDetails}
         filename={filename}
-        directory="server/uploads"
+        directory="raw"
       />
     </div>
   );

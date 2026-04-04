@@ -13,7 +13,6 @@ import FileCard from "./ViewAllFiles/FileCard";
 import AddDataset from "./ViewAllDatasetsHelper/AddDataset";
 
 const ViewAllDatasets = () => {
-  // Environment variables and navigation setup
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedFolder, setSelectedFolder] = useState("add");
@@ -25,8 +24,11 @@ const ViewAllDatasets = () => {
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
-    if (["add", "raw", "processed"].includes(hash)) {
-      setSelectedFolder(hash);
+    // Support legacy hashes: raw/processed → datasets
+    const normalizedHash =
+      hash === "raw" || hash === "processed" ? "datasets" : hash;
+    if (["add", "datasets"].includes(normalizedHash)) {
+      setSelectedFolder(normalizedHash);
     } else {
       setSelectedFolder("add");
       navigate(`${location.pathname}#add`);
@@ -38,29 +40,29 @@ const ViewAllDatasets = () => {
     setSelectedFolder(folder);
   };
 
-  const PAGE_SIZE = 20; // Number of datasets per page
-  const endpoints = {
-    raw: {
-      fetch: `${process.env.REACT_APP_SERVER_BASE_URL}/list-raw-datasets`,
-      delete: `${process.env.REACT_APP_SERVER_BASE_URL}/delete-raw-dataset-file`,
-      overview: "/raw-dataset-overview",
-    },
-    processed: {
-      fetch: `${process.env.REACT_APP_SERVER_BASE_URL}/list-datasets`,
-      delete: `${process.env.REACT_APP_SERVER_BASE_URL}/delete-dataset-file`,
-      overview: "/processed-dataset-overview",
-    },
-  };
+  const PAGE_SIZE = 20;
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      console.log("Checkpoint 1: ");
-      const response = await axios.get(endpoints[selectedFolder].fetch, {
-        params: { skip: (currentPage - 1) * PAGE_SIZE, limit: PAGE_SIZE },
-      });
-      setDatasets(response.data);
-      setTotalCount(response.headers["x-total-count"] || response.data.length);
+      const response = await axios.get(
+        `${process.env.REACT_APP_SERVER_BASE_URL}/list-all-datasets`,
+        {
+          params: { skip: (currentPage - 1) * PAGE_SIZE, limit: PAGE_SIZE },
+        }
+      );
+      const data = response.data;
+      if (data.datasets) {
+        setDatasets(data.datasets);
+        setTotalCount(data.total || data.datasets.length);
+      } else if (Array.isArray(data)) {
+        setDatasets(data);
+        setTotalCount(data.length);
+      } else {
+        setDatasets([]);
+        setTotalCount(0);
+      }
     } catch (err) {
       setError("Failed to load datasets");
     } finally {
@@ -69,21 +71,31 @@ const ViewAllDatasets = () => {
   };
 
   useEffect(() => {
-    if (selectedFolder !== "add") {
+    if (selectedFolder === "datasets") {
       fetchData();
     }
   }, [selectedFolder, currentPage]);
 
-  const handleDelete = async (datasetId) => {
+  const handleDelete = async (datasetId, isRaw) => {
     if (!window.confirm("Permanently delete this dataset?")) return;
     try {
-      await axios.delete(endpoints[selectedFolder].delete, {
+      const deleteUrl = isRaw
+        ? `${process.env.REACT_APP_SERVER_BASE_URL}/delete-raw-dataset-file`
+        : `${process.env.REACT_APP_SERVER_BASE_URL}/delete-dataset-file`;
+      await axios.delete(deleteUrl, {
         params: { dataset_id: datasetId },
       });
       fetchData();
     } catch (err) {
       setError("Deletion failed");
     }
+  };
+
+  const getOverviewPath = (dataset) => {
+    if (dataset.source === "processed") {
+      return `/processed-dataset-overview/${dataset.filename}`;
+    }
+    return `/raw-dataset-overview/${dataset.filename}`;
   };
 
   return (
@@ -103,88 +115,95 @@ const ViewAllDatasets = () => {
             <FilePlus className="h-5 w-5" />
             Add New Dataset
           </button>
-          {["raw", "processed"].map((folder) => (
-            <button
-              key={folder}
-              onClick={() => handleTabClick(folder)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl text-left
-                ${
-                  selectedFolder === folder
-                    ? "bg-blue-50 text-blue-700"
-                    : "hover:bg-gray-100"
-                }`}
-            >
-              <FolderIcon className="h-5 w-5" />
-              {folder.charAt(0).toUpperCase() + folder.slice(1)} Datasets
-            </button>
-          ))}
+          <button
+            onClick={() => handleTabClick("datasets")}
+            className={`w-full flex items-center gap-3 p-3 rounded-xl text-left
+              ${
+                selectedFolder === "datasets"
+                  ? "bg-blue-50 text-blue-700"
+                  : "hover:bg-gray-100"
+              }`}
+          >
+            <FolderIcon className="h-5 w-5" />
+            Datasets
+          </button>
         </div>
 
         {selectedFolder === "add" && <AddDataset />}
         {/* Main Content */}
-        {selectedFolder !== "add" && (
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold flex items-center gap-3">
-                <DocumentTextIcon className="h-8 w-8 text-blue-500" />
-                {selectedFolder === "raw"
-                  ? "Raw Datasets"
-                  : "Processed Datasets"}
-              </h1>
-              <a
-                href="/preprocessing-docs"
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
-              >
-                <ArrowUpTrayIcon className="h-5 w-5" />
-                Processing Guidelines
-              </a>
+        {selectedFolder === "datasets" && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold flex items-center gap-3">
+                  <DocumentTextIcon className="h-8 w-8 text-blue-500" />
+                  Datasets
+                </h1>
+                <a
+                  href="/preprocessing-docs"
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
+                >
+                  <ArrowUpTrayIcon className="h-5 w-5" />
+                  Processing Guidelines
+                </a>
+              </div>
             </div>
-          </div>
 
-          {/* Content */}
-          {error && (
-            <div className="bg-red-50 p-4 rounded-lg flex items-center gap-3">
-              <XCircleIcon className="h-5 w-5 text-red-500" />
-              <span className="text-red-600">{error}</span>
-            </div>
-          )}
+            {/* Content */}
+            {error && (
+              <div className="bg-red-50 p-4 rounded-lg flex items-center gap-3">
+                <XCircleIcon className="h-5 w-5 text-red-500" />
+                <span className="text-red-600">{error}</span>
+              </div>
+            )}
 
-          {loading ? (
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-20 bg-gray-200 rounded-xl" />
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {datasets.map((dataset) => (
-                  <FileCard
-                    key={dataset.dataset_id}
-                    dataset={dataset}
-                    isRaw={selectedFolder === "raw"}
-                    onDelete={handleDelete}
-                    onClick={() =>
-                      navigate(
-                        `${endpoints[selectedFolder].overview}/${dataset.filename}`,
-                      )
-                    }
-                    onEditSuccess={fetchData}
-                  />
+            {loading ? (
+              <div className="animate-pulse space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded-xl" />
                 ))}
               </div>
+            ) : (
+              <>
+                {datasets.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <DocumentTextIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No datasets found</p>
+                    <p className="text-sm mt-2">
+                      Upload files using the "Add New Dataset" tab
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {datasets.map((dataset) => (
+                        <FileCard
+                          key={`${dataset.source}-${dataset.dataset_id || dataset.filename}`}
+                          dataset={dataset}
+                          isRaw={dataset.source === "raw"}
+                          onDelete={(id) =>
+                            handleDelete(id, dataset.source === "raw")
+                          }
+                          onClick={() => navigate(getOverviewPath(dataset))}
+                          onEditSuccess={fetchData}
+                        />
+                      ))}
+                    </div>
 
-              <Pagination
-                currentPage={currentPage}
-                totalCount={totalCount}
-                pageSize={PAGE_SIZE}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
-        </div>
+                    {totalCount > PAGE_SIZE && (
+                      <Pagination
+                        currentPage={currentPage}
+                        totalCount={totalCount}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={setCurrentPage}
+                      />
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>

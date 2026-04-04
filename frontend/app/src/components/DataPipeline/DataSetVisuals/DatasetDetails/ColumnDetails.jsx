@@ -42,17 +42,18 @@ const ColumnDetails = ({ columnStats }) => {
   if (columnStats.length === 0) return null;
   const currentColumn = columnStats[currentIndex];
   let col_type = "Unknown";
+  const typeStr = (currentColumn.type || "").toLowerCase();
 
-  if (currentColumn.type.includes("ArrayType")) {
+  if (typeStr.includes("array") || typeStr.includes("list")) {
     col_type = "Array";
-  } else if (currentColumn.type.includes("StringType")) {
+  } else if (typeStr.includes("string") || typeStr.includes("object")) {
     col_type = "String";
   } else if (
-    currentColumn.type.includes("IntegerType") ||
-    currentColumn.type.includes("DoubleType") ||
-    currentColumn.type.includes("FloatType") ||
-    currentColumn.type.includes("LongType") ||
-    currentColumn.type.includes("ShortType")
+    typeStr.includes("int") ||
+    typeStr.includes("double") ||
+    typeStr.includes("float") ||
+    typeStr.includes("long") ||
+    typeStr.includes("short")
   ) {
     col_type = "Numeric";
   }

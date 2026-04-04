@@ -18,8 +18,10 @@ services:
       - "8000:8000"
     volumes:
       - ${DB_VOLUME}:/db_volume
+      - ${DATA_STORAGE_VOLUME:-./storage}:/app/storage
     env_file:
       - .env
     environment:
       - DB_URL=sqlite:////db_volume/database.db
-  
+      - LOCAL_STORAGE_DIR=/app/storage
+

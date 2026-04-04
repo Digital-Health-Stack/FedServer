@@ -23,12 +23,24 @@ export const getProcessedDatasets = (skip = 0, limit = 5) => {
   return HTTPService.get(`/list-datasets?skip=${skip}&limit=${limit}`);
 };
 
+/** Unified list of all datasets (raw + processed). */
+export const getAllDatasets = (skip = 0, limit = 100) => {
+  return HTTPService.get(`/list-all-datasets?skip=${skip}&limit=${limit}`);
+};
+
 export const viewRecentUploads = () => {
   return HTTPService.get(`/list-recent-uploads`);
 };
 
-export const getDatasetDetails = (datasetId: number) => {
-  return HTTPService.get(`/dataset-details/${datasetId}`);
+export const getDatasetDetails = (filename: string) => {
+  return HTTPService.get(`/dataset-details/${encodeURIComponent(filename)}`);
+};
+
+/** Preview first N rows of a dataset. */
+export const getDatasetPreview = (filename: string, n = 5) => {
+  return HTTPService.get(`/dataset-preview/${encodeURIComponent(filename)}`, {
+    params: { n },
+  });
 };
 
 export const getRawDatasetDetail = (filename: string) => {
@@ -77,4 +89,19 @@ export const deleteRecentUpload = (data: {
   return HTTPService.delete("/delete-recent-uploaded-file", {
     params: data,
   });
+};
+
+/** Process an already-uploaded file in storage by filename. */
+export const processStoredFile = (fileName: string) => {
+  return HTTPService.post("/process-stored-file", { fileName });
+};
+
+/** List files in server storage (uploads + datasets). */
+export const listStorageFiles = () => {
+  return HTTPService.get("/file-upload/list-files");
+};
+
+/** Delete a file from server storage. */
+export const deleteStorageFile = (filename: string) => {
+  return HTTPService.delete(`/file-upload/delete/${encodeURIComponent(filename)}`);
 };

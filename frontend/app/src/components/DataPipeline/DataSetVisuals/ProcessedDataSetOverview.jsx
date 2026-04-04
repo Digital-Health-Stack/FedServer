@@ -64,15 +64,18 @@ const ProcessedDataSetOverview = () => {
   if (!dataset) return <div className="p-4">Dataset not found</div>;
 
   const columnDetails = {};
-  dataset.datastats.columnStats.forEach((column) => {
-    columnDetails[column.name] = column.type;
-  });
+  if (dataset.datastats && dataset.datastats.columnStats) {
+    dataset.datastats.columnStats.forEach((column) => {
+      columnDetails[column.name] = column.type;
+    });
+  }
 
   return (
     <DatasetLayout sections={sections}>
       <section id="summary" className="scroll-mt-20">
         <SummaryStats
           filename={filename}
+          description={dataset.description}
           numRows={dataset.datastats?.numRows}
           numCols={dataset.datastats?.numColumns}
         />
@@ -95,7 +98,7 @@ const ProcessedDataSetOverview = () => {
         <PreprocessingDetails
           columns={columnDetails}
           filename={filename}
-          directory="server/processed"
+          directory="processed"
         />
       </section>
     </DatasetLayout>

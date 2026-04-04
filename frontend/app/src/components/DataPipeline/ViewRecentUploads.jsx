@@ -49,7 +49,7 @@ const ViewRecentUploads = () => {
 
     try {
       await axios.post(
-        `${process.env.REACT_APP_SERVER_BASE_URL}/create-new-dataset`,
+        `${process.env.REACT_APP_SERVER_BASE_URL}/process-stored-file`,
         {
           fileName: file,
         }
@@ -62,7 +62,10 @@ const ViewRecentUploads = () => {
         setSuccess(null);
       }, 2000);
     } catch (err) {
-      setError("Error processing the file. Please try again later.");
+      setError(
+        err.response?.data?.detail ||
+          "Error processing the file. Please try again later."
+      );
       setSuccess(null);
       console.error("Error in processing the file: ", err);
     }

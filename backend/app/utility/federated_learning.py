@@ -266,7 +266,7 @@ async def start_federated_learning(
         session_data.id, f"Initialized test unit.", FederatedSessionLogTag.INFO
     )
 
-    # Download data from Hadoop
+    # Download or load client data from configured storage
     federated_info = session_data.federated_info
     dataset_info = federated_info.get("dataset_info")
     server_filename = dataset_info.get("server_filename")
