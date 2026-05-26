@@ -8,6 +8,9 @@ from .CustomModels.DecisionTree import DecisionTree
 from .CustomModels.RandomForest import RandomForest
 from .CustomModels.CustomSVR import CustomSVR
 from .CustomModels.XGBoostRegressor import XGBoostRegressor
+from .CustomModels.LassoRegression import LassoRegression
+from .CustomModels.RidgeRegression import RidgeRegression
+from .CustomModels.KNNClassifier import KNNClassifier
 
 
 import json
@@ -23,6 +26,9 @@ model_classes = {
     "DecisionTree": DecisionTree,
     "RandomForest": RandomForest,
     "XGBoostRegressor": XGBoostRegressor,
+    "LassoRegression": LassoRegression,
+    "RidgeRegression": RidgeRegression,
+    "KNNClassifier": KNNClassifier,
 }
 
 

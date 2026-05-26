@@ -401,7 +401,9 @@ class FederatedLearning:
             elif isinstance(param, list):
                 return [initialize_aggregated_sums(p) for p in param]
             else:
-                # For non-aggregatable parameters, store the value as-is
+                # Strings and named non-aggregatable params are stored as-is
+                if isinstance(param, str):
+                    return param
                 if param_name and param_name in non_aggregatable_params:
                     return param
                 return np.zeros_like(param)
@@ -419,7 +421,9 @@ class FederatedLearning:
                     aggregated[i] = sum_parameters(aggregated[i], param[i])
                 return aggregated
             else:
-                # For non-aggregatable parameters, keep the existing value
+                # Strings and named non-aggregatable params keep existing value
+                if isinstance(param, str):
+                    return aggregated
                 if param_name and param_name in non_aggregatable_params:
                     return aggregated
                 return aggregated + np.array(param)
@@ -436,10 +440,13 @@ class FederatedLearning:
                     for sub_aggregated in aggregated
                 ]
             else:
-                # For non-aggregatable parameters, return as-is
+                # Strings and named non-aggregatable params are returned as-is
+                if isinstance(aggregated, str):
+                    return aggregated
                 if param_name and param_name in non_aggregatable_params:
                     return aggregated
                 return (aggregated / count).tolist()
+
 
         # for submission in submissions:
         #     weights = submission.model_weights.weights

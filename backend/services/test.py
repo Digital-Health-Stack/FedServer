@@ -11,6 +11,9 @@ from utilities.ml.CustomModels.DecisionTree import DecisionTree
 from utilities.ml.CustomModels.RandomForest import RandomForest
 from utilities.ml.CustomModels.CustomSVR import CustomSVR
 from utilities.ml.CustomModels.XGBoostRegressor import XGBoostRegressor
+from utilities.ml.CustomModels.LassoRegression import LassoRegression
+from utilities.ml.CustomModels.RidgeRegression import RidgeRegression
+from utilities.ml.CustomModels.KNNClassifier import KNNClassifier
 from utilities.core.db import engine
 from sqlalchemy.orm import Session
 from models.FederatedSession import FederatedSession, FederatedTestResults
@@ -26,6 +29,9 @@ model_classes = {
     "DecisionTree": DecisionTree,
     "RandomForest": RandomForest,
     "XGBoostRegressor": XGBoostRegressor,
+    "LassoRegression": LassoRegression,
+    "RidgeRegression": RidgeRegression,
+    "KNNClassifier": KNNClassifier,
 }
 
 
