@@ -14,6 +14,13 @@ from utilities.ml.CustomModels.XGBoostRegressor import XGBoostRegressor
 from utilities.ml.CustomModels.LassoRegression import LassoRegression
 from utilities.ml.CustomModels.RidgeRegression import RidgeRegression
 from utilities.ml.CustomModels.KNNClassifier import KNNClassifier
+from utilities.ml.CustomModels.knn_regressor import KNNRegressor
+from utilities.ml.CustomModels.adaboost import AdaBoost
+from utilities.ml.CustomModels.lightgbm_regressor import LightGBMRegressor
+from utilities.ml.CustomModels.lightgbm_classifier import LightGBMClassifier
+from utilities.ml.CustomModels.naive_bayes import NaiveBayes
+from utilities.ml.CustomModels.random_forest_regressor import RandomForestRegressor
+from utilities.ml.CustomModels.xgboost_classifier import XGBoostClassifier
 from utilities.core.db import engine
 from sqlalchemy.orm import Session
 from models.FederatedSession import FederatedSession, FederatedTestResults
@@ -32,6 +39,13 @@ model_classes = {
     "LassoRegression": LassoRegression,
     "RidgeRegression": RidgeRegression,
     "KNNClassifier": KNNClassifier,
+    "KNNRegressor": KNNRegressor,
+    "AdaBoost": AdaBoost,
+    "LightGBMRegressor": LightGBMRegressor,
+    "LightGBMClassifier": LightGBMClassifier,
+    "NaiveBayes": NaiveBayes,
+    "RandomForestRegressor": RandomForestRegressor,
+    "XGBoostClassifier": XGBoostClassifier,
 }
 
 
