@@ -143,8 +143,16 @@ class LinearRegression:
                 self.m = None
             else:
                 m_arr = np.array(m).ravel()
-                self.m = m_arr if m_arr.size > 1 else float(m_arr[0])
-            self.c = float(np.array(c).flatten()[0]) if c is not None else 0.0
+                if m_arr.size == 0:
+                    self.m = np.array([])
+                else:
+                    self.m = m_arr if m_arr.size > 1 else float(m_arr[0])
+            
+            if c is None:
+                self.c = 0.0
+            else:
+                c_arr = np.array(c).flatten()
+                self.c = float(c_arr[0]) if c_arr.size > 0 else 0.0
 
             # prefer manual path when loading raw params
             self.use_sklearn = False

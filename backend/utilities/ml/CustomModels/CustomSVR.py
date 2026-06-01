@@ -236,7 +236,12 @@ class CustomSVR:
         if self.kernel == "linear":
             if "weights" in global_parameters and "biases" in global_parameters:
                 self.weights = np.array(global_parameters["weights"]).ravel()
-                self.biases = float(np.array(global_parameters["biases"]).flatten()[0])
+                biases_val = global_parameters["biases"]
+                if biases_val is None:
+                    self.biases = 0.0
+                else:
+                    biases_arr = np.array(biases_val).flatten()
+                    self.biases = float(biases_arr[0]) if biases_arr.size > 0 else 0.0
                 # Switch to manual path when loading raw params
                 self.use_sklearn = False
         else:
@@ -247,9 +252,12 @@ class CustomSVR:
             ):
                 self.support_vectors = np.array(global_parameters["support_vectors"])
                 self.dual_coef = np.array(global_parameters["dual_coef"]).ravel()
-                self.biases = float(
-                    np.array(global_parameters["intercept"]).flatten()[0]
-                )
+                intercept_val = global_parameters["intercept"]
+                if intercept_val is None:
+                    self.biases = 0.0
+                else:
+                    intercept_arr = np.array(intercept_val).flatten()
+                    self.biases = float(intercept_arr[0]) if intercept_arr.size > 0 else 0.0
                 if "gamma_resolved" in global_parameters:
                     try:
                         self.gamma_resolved = float(global_parameters["gamma_resolved"])

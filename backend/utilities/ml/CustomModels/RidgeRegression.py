@@ -108,7 +108,11 @@ class RidgeRegression:
                 w = global_parameters["weights"]
                 b = global_parameters["bias"]
                 self.weights = np.array(w).ravel() if w is not None else None
-                self.bias = float(np.array(b).flatten()[0]) if b is not None else 0.0
+                if b is None:
+                    self.bias = 0.0
+                else:
+                    b_arr = np.array(b).flatten()
+                    self.bias = float(b_arr[0]) if b_arr.size > 0 else 0.0
                 self.use_sklearn = False
 
     # --------------------------

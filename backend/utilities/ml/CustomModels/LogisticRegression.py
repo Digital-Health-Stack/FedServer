@@ -163,7 +163,11 @@ class LogisticRegression:
             else:
                 weights_arr = np.array(weights).ravel()
                 self.weights = weights_arr
-            self.bias = float(np.array(bias).flatten()[0]) if bias is not None else 0.0
+            if bias is None:
+                self.bias = 0.0
+            else:
+                bias_arr = np.array(bias).flatten()
+                self.bias = float(bias_arr[0]) if bias_arr.size > 0 else 0.0
 
             # prefer manual path when loading raw params
             self.use_sklearn = False

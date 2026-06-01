@@ -4,9 +4,9 @@ import os
 import json
 
 # Redis configuration
-REDIS_HOST = "localhost"
-REDIS_PORT = 6380
-REDIS_PASSWORD = "123456"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "123456")
 
 
 @asynccontextmanager
