@@ -32,3 +32,4 @@ app.include_router(qpd_router, tags=["QPD"])
 app.include_router(confidential_router, tags=["Confidential"])
 app.include_router(log_router, tags=["Logs"], prefix="/logs")
 app.include_router(file_upload_router)
+# trigger reload to pick up new redis env configurations
