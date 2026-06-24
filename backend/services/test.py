@@ -122,6 +122,54 @@ class Test:
                 os.path.join("data", f"Y_{self.session_id}.npy"), allow_pickle=True
             )
 
+            # Convert non-numeric (string/object) columns in X to category codes and handle missing values
+            try:
+                import pandas as pd
+                if isinstance(X, np.ndarray) and X.ndim == 2:
+                    df_X = pd.DataFrame(X)
+                    modified = False
+                    for col in df_X.columns:
+                        try:
+                            df_X[col] = pd.to_numeric(df_X[col], errors='raise')
+                        except Exception:
+                            df_X[col] = df_X[col].astype(str).astype('category').cat.codes
+                            modified = True
+                    if modified:
+                        print("Automatically encoded categorical/string columns in X")
+                    
+                    # Fill missing/NaN values
+                    if df_X.isnull().any().any():
+                        print("Handling missing/NaN values in X")
+                        df_X = df_X.ffill().bfill().fillna(0)
+                    
+                    X = df_X.values.astype(np.float32)
+            except Exception as preprocess_err:
+                print(f"Error preprocessing categorical/missing columns in X: {preprocess_err}")
+
+            # Convert non-numeric (string/object) target Y_test to category codes/integers and handle missing values
+            try:
+                import pandas as pd
+                if isinstance(Y_test, np.ndarray):
+                    df_Y = pd.DataFrame(Y_test)
+                    modified_y = False
+                    for col in df_Y.columns:
+                        try:
+                            df_Y[col] = pd.to_numeric(df_Y[col], errors='raise')
+                        except Exception:
+                            df_Y[col] = df_Y[col].astype(str).astype('category').cat.codes
+                            modified_y = True
+                    if modified_y:
+                        print("Automatically encoded categorical/string target in Y_test")
+                    
+                    # Fill missing/NaN values
+                    if df_Y.isnull().any().any():
+                        print("Handling missing/NaN values in Y_test")
+                        df_Y = df_Y.ffill().bfill().fillna(0)
+                    
+                    Y_test = df_Y.values.astype(np.float32)
+            except Exception as preprocess_y_err:
+                print(f"Error preprocessing categorical/missing target in Y_test: {preprocess_y_err}")
+
             (
                 print("X : ", X.shape, X.dtype)
                 if isinstance(X, np.ndarray)

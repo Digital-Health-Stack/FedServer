@@ -286,9 +286,14 @@ async def _start_training_internal(session_id: int, db: Session):
     # Start training
 
 
-def start_training_sync(session_id: int, db: Session):
+def start_training_sync(session_id: int):
     """Synchronous wrapper for start_training to be used with APScheduler"""
-    asyncio.run(_start_training_internal(session_id, db))
+    from utilities.core.db import SessionLocal
+    db = SessionLocal()
+    try:
+        asyncio.run(_start_training_internal(session_id, db))
+    finally:
+        db.close()
 
 
 @federated_router.get("/force-start-training")
@@ -637,7 +642,7 @@ async def submit_wait_time(
         trigger = DateTrigger(
             run_date=datetime.now() + timedelta(minutes=wait_time)
         )
-        scheduler.add_job(start_training_sync, trigger, args=[session_id, db])
+        scheduler.add_job(start_training_sync, trigger, args=[session_id])
 
         federated_manager.log_event(
             session_id,
@@ -854,52 +859,49 @@ def send_weights(
     weights = request.client_parameter
     metrics_report = request.metrics_report
 
-    session_data = (
-        db.query(FederatedSession).filter(FederatedSession.id == session_id).first()
-    )
-    if session_data:
-        session_data.no_of_recieved_weights = (
-            session_data.no_of_recieved_weights or 0
-        ) + 1
-        db.commit()
-        db.refresh(session_data)
-
-    if not session_data:
-        raise HTTPException(
-            status_code=404, detail=f"Federated Session with ID {session_id} not found!"
-        )
-
-    round_number = session_data.curr_round
-
-    # Check if a submission already exists for this user, session, and round
-    submission = (
-        db.query(FederatedRoundClientSubmission)
-        .filter_by(
-            session_id=session_id, user_id=current_user.id, round_number=round_number
-        )
-        .first()
-    )
-
-    if submission:
-        federated_manager.log_event(
-            session_id,
-            f"Client parameters for this round {round_number} already submitted.",
-            FederatedSessionLogTag.ERROR,
-        )
-        raise HTTPException(
-            status_code=400,
-            detail="Client parameters for this round already submitted.",
-        )
-
-    # Create directory structure
-    base_dir = Path(f"tmp/parameters/{session_id}")
-    local_dir = base_dir / "local"
-    local_dir.mkdir(parents=True, exist_ok=True)
-
-    weights_file = local_dir / f"{current_user.id}.json"
-    metadata_file = local_dir / f"{current_user.id}_metadata.json"
-
     try:
+        # Acquire FOR UPDATE lock on the session row to serialize concurrent client submissions
+        session_data = (
+            db.query(FederatedSession)
+            .filter(FederatedSession.id == session_id)
+            .with_for_update()
+            .first()
+        )
+        if not session_data:
+            raise HTTPException(
+                status_code=404, detail=f"Federated Session with ID {session_id} not found!"
+            )
+
+        round_number = session_data.curr_round
+
+        # Check if a submission already exists for this user, session, and round
+        submission = (
+            db.query(FederatedRoundClientSubmission)
+            .filter_by(
+                session_id=session_id, user_id=current_user.id, round_number=round_number
+            )
+            .first()
+        )
+
+        if submission:
+            federated_manager.log_event(
+                session_id,
+                f"Client parameters for this round {round_number} already submitted.",
+                FederatedSessionLogTag.ERROR,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Client parameters for this round already submitted.",
+            )
+
+        # Create directory structure
+        base_dir = Path(f"tmp/parameters/{session_id}")
+        local_dir = base_dir / "local"
+        local_dir.mkdir(parents=True, exist_ok=True)
+
+        weights_file = local_dir / f"{current_user.id}.json"
+        metadata_file = local_dir / f"{current_user.id}_metadata.json"
+
         with open(weights_file, "w") as f:
             json.dump(weights, f)
 
@@ -919,26 +921,33 @@ def send_weights(
             metrics_report=metrics_report,
         )
         db.add(submission)
-        db.flush()  # Ensures submission.id is available before committing
+        db.flush()  # Flushes the new submission into the current transaction context
+
+        # Since it is flushed, the count query will include this new submission
+        received_weights = (
+            db.query(FederatedRoundClientSubmission)
+            .filter_by(session_id=session_id, round_number=round_number)
+            .count()
+        )
+
+        session_data.no_of_recieved_weights = received_weights
+        
+        # Commit the transaction (this releases the lock and commits all changes)
         db.commit()
+
+        # Log that client parameters were received
         federated_manager.log_event(
             session_id,
             f"Received client parameters from user {current_user.id} for round {round_number}",
             FederatedSessionLogTag.WEIGHTS_RECEIVED,
         )
 
-        # Refresh session_data to get the updated no_of_recieved_weights
+        # Refresh session_data to log details and check for aggregation
         db.refresh(session_data)
 
-        # Should not be here, but should be a background task
-        ## WORKING HERE   <----------------------------------------------------------
-        # TODO: All this should be in a background task including further logic
-
         # Debug logging for aggregation condition
-        # total_clients = len(session_data.clients)
-        total_clients = 1
+        total_clients = len(session_data.clients)
         print("total_clients", total_clients)
-        received_weights = session_data.no_of_recieved_weights
         left_clients = session_data.no_of_left_clients
 
         # Log detailed client information
@@ -980,9 +989,11 @@ def send_weights(
                 f"Not all clients submitted yet. Waiting for more submissions.",
                 FederatedSessionLogTag.INFO,
             )
-        ## WORKING HERE   <----------------------------------------------------------
 
         return {"message": "Client Parameters Received"}
+
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         federated_manager.log_event(
